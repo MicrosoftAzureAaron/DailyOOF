@@ -1,0 +1,179 @@
+#get current username from local user foldername
+function CurrentUserNamefromWindows {
+	$Global:CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
+    Write-Host "CurrentUser is " -NoNewline
+	Write-Host "$Global:CurrentUser" -ForegroundColor Blue
+}
+
+function get-Alias {
+	CurrentUserNamefromWindows
+	#Write-Host "$Global:CurrentUser " -ForegroundColor Blue -NoNewline
+
+	####back in the day when microsoftsupport.com was a thing
+	<#
+	Write-Host "please enter the Alias Suffix of the Account to change. Ex. " -NoNewline
+	Write-Host "$Global:UserAliasSuffix : " -ForegroundColor Blue -NoNewline
+
+	$Global:UserAliasSuffix = Read-Host
+    if($Global:UserAliasSuffix -eq ""){ #if user doesn't input anything use default
+		$Global:UserAliasSuffix="@Microsoft.com"
+	}
+    if($Global:UserAliasSuffix.StartsWith("@")) {#ensure @ at begining
+		
+	}
+	else {
+		$Global:UserAliasSuffix = "@" + $Global:UserAliasSuffix
+	}
+	#>
+	
+    $Global:UserAlias = "$Global:CurrentUser$Global:UserAliasSuffix"
+    Write-Host "UserAlias is " -NoNewline
+	Write-Host "$Global:UserAlias" -ForegroundColor Blue
+    #Write-Host "UserAliasSuffix is " -NoNewline
+	#Write-Host "$Global:UserAliasSuffix" -ForegroundColor Blue
+}
+
+function ConnectAlias2EXO {
+	InstallEXOM #is EXO module installed
+	Write-Host "Connecting to your Outlook Account $UserAlias`n" 
+	Connect-ExchangeOnline -UserPrincipalName $Global:UserAlias
+	Write-Host "Done Connecting"
+}
+
+function get-ARC {
+	#add choice load from file or load from online exchange
+	#prefers local store over remote
+    $TempPath = $Global:MessageFilePath + "AutoReplyConfig.json"
+	if(FileDNE($TempPath)) {
+        Write-Host "AutoConfig has pre-existing file $TempPath"
+        get-ARCFile
+		Write-Host "ARC File Loaded from Local File"
+		#Write-HOst $Global:MailboxARC
+	}
+    else {
+		$Global:MailboxARC = Get-MailboxAutoReplyConfiguration -identity $UserAlias
+		$SaveIt = YesNo("Do you want to save a local copy on " + $TempPath + "?")
+		if($SaveIt -eq "Yes") {
+			Write-Host "AutoConfig is being written to JSON file $TempPath"
+			$Global:MailboxARC = Get-MailboxAutoReplyConfiguration -identity $UserAlias
+			$Global:MailboxARC | ConvertTo-Json -depth 100 | Set-Content $TempPath
+		}
+    }
+	Write-Host "Current Auto Reply State is : "$Global:MailboxARC.AutoReplyState
+}
+
+function get-ARCFile {
+    $TempPath = $Global:MessageFilePath + "AutoReplyConfig.json"
+    $Global:MailboxARC = Get-Content $TempPath | ConvertFrom-Json 
+}
+function FileDNE($FilePath) {
+    return (Get-Item -Path $FilePath -ErrorAction Ignore)
+}
+
+#set autoreply to scheduled
+#this requires start and end times
+#will ask for start and end times if they dne
+function Set-ARCSTATEScheduled {
+	if(!$Global:MailboxARC){
+		$Global:MailboxARC = get-arc
+	}
+	if(!$Global:UserAlias){
+		$Global:UserAlias = get-Alias
+	}
+	IsOfficeHours
+	#is Reply state disabled or enabled by the user manually instead of scheduled
+	if($Global:MailboxARC.AutoReplyState -eq "Disabled" -or $Global:MailboxARC.AutoReplyState -eq "Enabled"){
+		Write-Host "Auto Reply state was set to " $Global:MailboxARC.AutoReplyState
+	}
+    
+	$Global:StartOfShift = [datetime] $Global:StartOfShift
+	$Global:StartOfShift = $Global:StartOfShift.adddays(1)
+	$Global:EndOfShift = [datetime] $Global:EndOfShift
+
+	#Write-Host ([datetime] $Global:StartOfShift) ([datetime] $Global:EndOfShift)
+	#Set-MailboxAutoReplyConfiguration -identity $UserAlias -ExternalMessage $Global:MailboxARC.ExternalMessage -InternalMessage $Global:MailboxARC.InternalMessage -StartTime $Global:EndOfShift -EndTime $Global:StartOfShift -AutoReplyState "Scheduled"
+	Set-MailboxAutoReplyConfiguration -identity $UserAlias -AutoReplyState "Scheduled"
+	Write-Host "Set Auto Reply state to Scheduled"
+}
+
+function IsOfficeHours {
+	#check if it is during shift return bool based on start and end time
+	#get start and end times
+	#Write-Host ([datetime] $Global:StartOfShift) 
+	#Write-Host ([datetime] $Global:EndOfShift)
+	$CurrentTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
+	$CurrentTime =  [datetime] $CurrentTime
+	if(!$Global:StartOfShift){
+		GetShiftTime("start",$Global:StartOfShift )
+	}
+	if(!$Global:EndOfShift){
+		 GetShiftTime("end",$Global:EndOfShift )
+	}
+	#Write-Host ($Global:StartOfShift) 
+	#Write-Host ($Global:EndOfShift)
+	#Write-Host ($CurrentTime)
+	#Write-Host ($CurrentTime -le $Global:EndOfShift)
+	#Write-Host ($CurrentTime -ge $Global:StartOfShift)
+
+	if($CurrentTime -lt $StartOfShift){ 
+		Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
+		return 0
+	}
+	elseif($CurrentTime -gt $EndOfShift){
+		Write-Host "Currently After Shift"### use tomorrows start time and todays end time
+		return 0
+	}
+	elseif($CurrentTime -le $Global:EndOfShift -And $CurrentTime -ge $Global:StartOfShift){
+		Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
+		return 1
+	}
+	else {
+		Write-Host "Twilight Zone"
+		return -1
+	}
+}
+
+
+function GetShiftTime($StartEnd,$SEVar) { 
+	$PT = "Enter when you " + $StartEnd + " your work day. Format 9:00am"
+	$ShiftTime = Read-Host -Prompt $PT
+	$SEVar = [datetime] $ShiftTime
+}
+
+function DisconnectEXO {
+	Disconnect-ExchangeOnline -Confirm:$false
+}
+
+function YesNo($Prompt) {
+	$PT = $Prompt + " [Yes] No"
+	$YN = Read-Host -Prompt $PT
+    if($YN -eq "" -or $YN -eq "Yes"  -or  $YN -eq "YES"  -or  $YN -eq "Y"  -or  $YN -eq "y"){ #if user doesn't input anything use default
+		return "Yes"
+	}	
+	return 
+}
+
+function InstallEXOM {
+	if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+		#Write-Host "ExchangeOnlineManagement exists, not installing`n"
+        #no output if it is installed, less chatty
+		Update-Module -Name ExchangeOnlineManagement
+        return
+	} 
+	else {
+		Write-Host "ExchangeOnlineManagement does not exist, installing`n"
+		Import-Module -Name ExchangeOnlineManagement -force
+	}
+	return
+}
+
+$Global:UserAlias= #combined with suffix
+$Global:CurrentUser= #obatined from user folder name
+$Global:UserAliasSuffix="@Microsoft.com"
+$Global:MailboxARC= #auto reply configuration object
+
+$Global:EndOfShift=[datetime]"6:00pm"
+$Global:StartOfShift=[datetime]"9:00am"
+$Global:AliasPath = $Global:UserAlias.replace("@","_")
+$Global:MessageFilePath= Get-Location
+$Global:MessageFilePath= $Global:MessageFilePath.tostring() + "\"
