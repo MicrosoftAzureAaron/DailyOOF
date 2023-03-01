@@ -48,7 +48,7 @@ function get-ARC {
         Write-Host "AutoConfig has pre-existing file $TempPath"
         get-ARCFile
 		Write-Host "ARC File Loaded from Local File"
-		#Write-HOst $Global:MailboxARC
+		#Write-Host $Global:MailboxARC
 	}
     else {
 		$Global:MailboxARC = Get-MailboxAutoReplyConfiguration -identity $UserAlias
@@ -80,34 +80,35 @@ function Set-ARCSTATEScheduled {
 	if(!$Global:UserAlias){
 		$Global:UserAlias = get-Alias
 	}
-	##gets office hours, if not hardcoded at end of this file, ask user for input
-	### need to add days of the week check for the 4x10 works
-	$ioh = IsOfficeHours
+
 	#is Reply state disabled or enabled by the user manually instead of scheduled
 	if($Global:MailboxARC.AutoReplyState -eq "Disabled" -or $Global:MailboxARC.AutoReplyState -eq "Enabled"){
 		Write-Host "Auto Reply state is currently set to " $Global:MailboxARC.AutoReplyState
 	}
-    
-	$Global:StartOfShift = [datetime] $Global:StartOfShift
+
+	##gets office hours, if not hardcoded at end of this file, ask user for input
+	### need to add days of the week check for the 4x10 works
+	$ioh = IsOfficeHours($ioh)
 	switch($ioh)
 	{
 		0 {
 			#use todays start and end if ran before shift starts, still need to be reran during or after shift to set for next off period
 		}
 		1 {
-			$Global:StartOfShift = $Global:StartOfShift.adddays(1)
+			$Global:StartOfShift = [datetime] $Global:StartOfShift.adddays(1)
 		}
 		-1 {
 			#should be never here
 		}
 	}
-	
-	$Global:EndOfShift = [datetime] $Global:EndOfShift
+
+	#$Global:StartOfShift = [datetime] $Global:StartOfShift
+	#$Global:EndOfShift = [datetime] $Global:EndOfShift
 
 	#Write-Host ([datetime] $Global:StartOfShift) ([datetime] $Global:EndOfShift)
 	#Set-MailboxAutoReplyConfiguration -identity $UserAlias -ExternalMessage $Global:MailboxARC.ExternalMessage -InternalMessage $Global:MailboxARC.InternalMessage -StartTime $Global:EndOfShift -EndTime $Global:StartOfShift -AutoReplyState "Scheduled"
 	Set-MailboxAutoReplyConfiguration -identity $UserAlias -AutoReplyState "Scheduled"
-	Write-Host "Set Auto Reply state to Scheduled"
+	Write-Host "Set Auto Reply state to Scheduled. `nStart time for OOF Message " $Global:EndOfShift "`nOOF Message will End at " $Global:StartOfShift
 }
 
 function IsOfficeHours($duringshift) {
@@ -120,12 +121,12 @@ function IsOfficeHours($duringshift) {
 	$CurrentTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
 	$CurrentTime =  [datetime] $CurrentTime
 
-	if(!$Global:StartOfShift){
-		GetShiftTime("start",$Global:StartOfShift )
-	}
-	if(!$Global:EndOfShift){
-		 GetShiftTime("end",$Global:EndOfShift )
-	}
+	#if(!$Global:StartOfShift){
+		$Global:StartOfShift = GetShiftTime "start" 
+	#}
+	#if(!$Global:EndOfShift){
+		$Global:EndOfShift = GetShiftTime "end" 
+	#}
 	#Write-Host ($Global:StartOfShift) 
 	#Write-Host ($Global:EndOfShift)
 	#Write-Host ($CurrentTime)
@@ -191,11 +192,12 @@ function Workdays_of_week($WD) ### this is a function to declar a variable, it w
 	#return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
 }
 
-function GetShiftTime($StartEnd,$SEVar) { 
+function GetShiftTime($StartEnd) { 
 	$PT = "Enter when you " + $StartEnd + " your work day. Format 9:00am"
 	$ShiftTime = Read-Host -Prompt $PT
-	$SEVar = [datetime] $ShiftTime
-}
+	Write-Host $ShiftTime
+	return [datetime] $ShiftTime
+} 
 
 function DisconnectEXO {
 	Disconnect-ExchangeOnline -Confirm:$false
@@ -229,8 +231,8 @@ $Global:CurrentUser= #obatined from user folder name
 $Global:UserAliasSuffix="@Microsoft.com"
 $Global:MailboxARC= #auto reply configuration object
 
-$Global:EndOfShift=[datetime]"6:00pm"
-$Global:StartOfShift=[datetime]"9:00am"
+$Global:EndOfShift=#[datetime]"6:00pm"
+$Global:StartOfShift=#[datetime]"9:00am"
 $Global:AliasPath = $Global:UserAlias.replace("@","_")
 $Global:MessageFilePath= Get-Location
 $Global:MessageFilePath= $Global:MessageFilePath.tostring() + "\"
