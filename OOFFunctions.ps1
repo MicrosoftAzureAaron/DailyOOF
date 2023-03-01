@@ -164,7 +164,7 @@ function InstallEXOM {
 	} 
 	else {
 		Write-Host "ExchangeOnlineManagement does not exist, installing`n"
-		Import-Module -Name ExchangeOnlineManagement -force
+		Install-Module -Name ExchangeOnlineManagement -force
 	}
 	return
 }
