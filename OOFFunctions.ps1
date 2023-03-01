@@ -80,14 +80,28 @@ function Set-ARCSTATEScheduled {
 	if(!$Global:UserAlias){
 		$Global:UserAlias = get-Alias
 	}
-	IsOfficeHours
+	##gets office hours, if not hardcoded at end of this file, ask user for input
+	### need to add days of the week check for the 4x10 works
+	$ioh = IsOfficeHours
 	#is Reply state disabled or enabled by the user manually instead of scheduled
 	if($Global:MailboxARC.AutoReplyState -eq "Disabled" -or $Global:MailboxARC.AutoReplyState -eq "Enabled"){
-		Write-Host "Auto Reply state was set to " $Global:MailboxARC.AutoReplyState
+		Write-Host "Auto Reply state is currently set to " $Global:MailboxARC.AutoReplyState
 	}
     
 	$Global:StartOfShift = [datetime] $Global:StartOfShift
-	$Global:StartOfShift = $Global:StartOfShift.adddays(1)
+	switch($ioh)
+	{
+		0 {
+			#use todays start and end if ran before shift starts, still need to be reran during or after shift to set for next off period
+		}
+		1 {
+			$Global:StartOfShift = $Global:StartOfShift.adddays(1)
+		}
+		-1 {
+			#should be never here
+		}
+	}
+	
 	$Global:EndOfShift = [datetime] $Global:EndOfShift
 
 	#Write-Host ([datetime] $Global:StartOfShift) ([datetime] $Global:EndOfShift)
@@ -121,8 +135,8 @@ function IsOfficeHours($duringshift) {
 		$duringshift = 0
 	}
 	elseif($CurrentTime -gt $EndOfShift){
-		Write-Host "Currently After Shift"### use tomorrows start time and todays end time
-		$duringshift = 0
+		Write-Host "Currently After Shift" ### use tomorrows start time and todays end time
+		$duringshift = 1 
 	}
 	elseif($CurrentTime -le $Global:EndOfShift -And $CurrentTime -ge $Global:StartOfShift){
 		Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
