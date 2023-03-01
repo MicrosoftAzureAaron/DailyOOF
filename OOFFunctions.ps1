@@ -1,11 +1,13 @@
 #get current username from local user foldername
-function CurrentUserNamefromWindows {
+function CurrentUserNamefromWindows 
+{
 	$Global:CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
     Write-Host "CurrentUser is " -NoNewline
 	Write-Host "$Global:CurrentUser" -ForegroundColor Blue
 }
 
-function get-Alias {
+function get-Alias 
+{
 	CurrentUserNamefromWindows
 	#Write-Host "$Global:CurrentUser " -ForegroundColor Blue -NoNewline
 
@@ -33,27 +35,34 @@ function get-Alias {
 	#Write-Host "$Global:UserAliasSuffix" -ForegroundColor Blue
 }
 
-function ConnectAlias2EXO {
+function ConnectAlias2EXO 
+{
 	InstallEXOM #is EXO module installed
 	Write-Host "Connecting to your Outlook Account $UserAlias`n" 
 	Connect-ExchangeOnline -UserPrincipalName $Global:UserAlias
 	Write-Host "Done Connecting"
 }
 
-function get-ARC {
+function get-ARC 
+{
 	#add choice load from file or load from online exchange
 	#prefers local store over remote
     $TempPath = $Global:MessageFilePath + "AutoReplyConfig.json"
-	if(FileDNE($TempPath)) {
-        Write-Host "AutoConfig has pre-existing file $TempPath"
+
+	if(FileDNE $TempPath) 
+	{
+        Write-Host "AutoConfig has pre-existing file " $TempPath
         get-ARCFile
 		Write-Host "ARC File Loaded from Local File"
 		#Write-Host $Global:MailboxARC
 	}
-    else {
+    else 
+	{
 		$Global:MailboxARC = Get-MailboxAutoReplyConfiguration -identity $UserAlias
-		$SaveIt = YesNo("Do you want to save a local copy on " + $TempPath + "?")
-		if($SaveIt -eq "Yes") {
+
+		$SaveIt = YesNo "Do you want to save a local copy on $TempPath ?"
+		if($SaveIt -eq "Yes") 
+		{
 			Write-Host "AutoConfig is being written to JSON file $TempPath"
 			$Global:MailboxARC = Get-MailboxAutoReplyConfiguration -identity $UserAlias
 			$Global:MailboxARC | ConvertTo-Json -depth 100 | Set-Content $TempPath
@@ -62,22 +71,25 @@ function get-ARC {
 	Write-Host "Current Auto Reply State is : "$Global:MailboxARC.AutoReplyState
 }
 
-function get-ARCFile {
+function get-ARCFile 
+{
     $TempPath = $Global:MessageFilePath + "AutoReplyConfig.json"
     $Global:MailboxARC = Get-Content $TempPath | ConvertFrom-Json 
 }
-function FileDNE($FilePath) {
+function FileDNE($FilePath) 
+{
     return (Get-Item -Path $FilePath -ErrorAction Ignore)
 }
 
 #set autoreply to scheduled
 #this requires start and end times
 #will ask for start and end times if they dne
-function Set-ARCSTATEScheduled {
-	if(!$Global:MailboxARC){
+function Set-ARCSTATEScheduled 
+{
+	if($null -eq $Global:MailboxARC){
 		$Global:MailboxARC = get-arc
 	}
-	if(!$Global:UserAlias){
+	if($null -eq $Global:UserAlias){
 		$Global:UserAlias = get-Alias
 	}
 
@@ -111,7 +123,8 @@ function Set-ARCSTATEScheduled {
 	Write-Host "Set Auto Reply state to Scheduled. `nStart time for OOF Message " $Global:EndOfShift "`nOOF Message will End at " $Global:StartOfShift
 }
 
-function IsOfficeHours($duringshift) {
+function IsOfficeHours($duringshift) 
+{
 	$duringshift = -1
 	#check if it is during shift return bool based on start and end time
 	#get start and end times
@@ -121,12 +134,19 @@ function IsOfficeHours($duringshift) {
 	$CurrentTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
 	$CurrentTime =  [datetime] $CurrentTime
 
-	#if(!$Global:StartOfShift){
+	$Global:StartOfShift = GetShiftTime "start" 
+	$Global:EndOfShift = GetShiftTime "end" 
+
+	<#
+	if(-not $Global:EndOfShift)
+	{
 		$Global:StartOfShift = GetShiftTime "start" 
-	#}
-	#if(!$Global:EndOfShift){
+	}
+	if(-not $Global:EndOfShift)
+	{
 		$Global:EndOfShift = GetShiftTime "end" 
-	#}
+	}#>
+
 	#Write-Host ($Global:StartOfShift) 
 	#Write-Host ($Global:EndOfShift)
 	#Write-Host ($CurrentTime)
@@ -150,22 +170,18 @@ function IsOfficeHours($duringshift) {
 			Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
-		else {
-			Write-Host "Twilight Zone"
-			
-		}
+		else {Write-Host "Twilight Zone"}
 	}
 	else
 	{
 		Write-Host "You are not working today," $CurrentTime.DayOfWeek
 		### What should be the end time for the OOF Message
 		### Next Workday? day++ 
-		<#
-		while($CurrentTime.DayOfWeek -not $WorkDays)
+		while(!($CurrentTime.DayOfWeek -in $WorkDays))
 		{
-			$CurrentTime = $CurrentTime.adddays(1)
-			Write-Host "currently not during your work week" $CurrentTime.day
-		}#>
+			Write-Host $CurrentTime.DayOfWeek " is not currently a work day" $WorkDays
+			$CurrentTime = $CurrentTime.adddays(1)			
+		}
 	}
 	return $duringshift
 }
@@ -186,24 +202,43 @@ function Workdays_of_week($WD) ### this is a function to declar a variable, it w
     #return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
 
 	### no wednesdays testing
-    return $WD = 'Monday', 'Tuesday', , 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    return $WD = @('Monday', 'Tuesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 
 	### Standard Monday - Friday
 	#return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
 }
 
-function GetShiftTime($StartEnd) { 
-	$PT = "Enter when you " + $StartEnd + " your work day. Format 9:00am"
+function GetShiftTime($StartEnd) 
+{
+	#### add check for start and end times in file
+	if($StartEnd -eq "start" -and $Global:MailboxARC.StartTime)
+	{
+		if((YesNo "Do you want to used the saved $Startend time? ") -eq "Yes")
+		{
+			return [datetime] $Global:MailboxARC.StartTime
+		}
+	}
+	if($StartEnd -eq "end" -and $Global:MailboxARC.EndTime)
+	{
+		if((YesNo "Do you want to used the saved $Startend time? ") -eq "Yes")
+		{
+			return [datetime] $Global:MailboxARC.EndTime
+		}
+	}
+
+	$PT = "Enter when you $StartEnd your work day. Format 9:00am"
 	$ShiftTime = Read-Host -Prompt $PT
-	Write-Host $ShiftTime
+	#Write-Host $ShiftTime
 	return [datetime] $ShiftTime
 } 
 
-function DisconnectEXO {
+function DisconnectEXO 
+{
 	Disconnect-ExchangeOnline -Confirm:$false
 }
 
-function YesNo($Prompt) {
+function YesNo($Prompt) 
+{
 	$PT = $Prompt + " [Yes] No"
 	$YN = Read-Host -Prompt $PT
     if($YN -eq "" -or $YN -eq "Yes"  -or  $YN -eq "YES"  -or  $YN -eq "Y"  -or  $YN -eq "y"){ #if user doesn't input anything use default
@@ -212,7 +247,8 @@ function YesNo($Prompt) {
 	return 
 }
 
-function InstallEXOM {
+function InstallEXOM 
+{
 	if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
 		#Write-Host "ExchangeOnlineManagement exists, not installing`n"
         #no output if it is installed, less chatty
@@ -226,13 +262,14 @@ function InstallEXOM {
 	return
 }
 
-$Global:UserAlias= #combined with suffix
-$Global:CurrentUser= #obatined from user folder name
-$Global:UserAliasSuffix="@Microsoft.com"
-$Global:MailboxARC= #auto reply configuration object
+$Global:CurrentUser=$null #obatined from user folder name
+$Global:UserAlias=get-Alias #$null #combined with suffix
 
-$Global:EndOfShift=#[datetime]"6:00pm"
-$Global:StartOfShift=#[datetime]"9:00am"
+$Global:UserAliasSuffix="@Microsoft.com"
+$Global:MailboxARC=$null #auto reply configuration object
+
+$Global:EndOfShift=$null#[datetime]"6:00pm"
+$Global:StartOfShift=$null#[datetime]"9:00am"
 $Global:AliasPath = $Global:UserAlias.replace("@","_")
 $Global:MessageFilePath= Get-Location
 $Global:MessageFilePath= $Global:MessageFilePath.tostring() + "\"
