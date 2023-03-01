@@ -96,7 +96,8 @@ function Set-ARCSTATEScheduled {
 	Write-Host "Set Auto Reply state to Scheduled"
 }
 
-function IsOfficeHours {
+function IsOfficeHours($duringshift) {
+	$duringshift = -1
 	#check if it is during shift return bool based on start and end time
 	#get start and end times
 	#Write-Host ([datetime] $Global:StartOfShift) 
@@ -117,20 +118,21 @@ function IsOfficeHours {
 
 	if($CurrentTime -lt $StartOfShift){ 
 		Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
-		return 0
+		$duringshift = 0
 	}
 	elseif($CurrentTime -gt $EndOfShift){
 		Write-Host "Currently After Shift"### use tomorrows start time and todays end time
-		return 0
+		$duringshift = 0
 	}
 	elseif($CurrentTime -le $Global:EndOfShift -And $CurrentTime -ge $Global:StartOfShift){
 		Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
-		return 1
+		$duringshift = 1
 	}
 	else {
 		Write-Host "Twilight Zone"
-		return -1
+		
 	}
+	return $duringshift
 }
 
 
