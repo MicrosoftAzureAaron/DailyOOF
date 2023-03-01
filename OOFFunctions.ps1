@@ -116,6 +116,7 @@ function IsOfficeHours($duringshift) {
 	#get start and end times
 	#Write-Host ([datetime] $Global:StartOfShift) 
 	#Write-Host ([datetime] $Global:EndOfShift)
+
 	$CurrentTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
 	$CurrentTime =  [datetime] $CurrentTime
 
@@ -131,34 +132,37 @@ function IsOfficeHours($duringshift) {
 	#Write-Host ($CurrentTime -le $Global:EndOfShift)
 	#Write-Host ($CurrentTime -ge $Global:StartOfShift)
 
-	$WorkDays = Workdays_of_week($WorkDays)
+	$WorkDays = Workdays_of_week()
 	
 	if($CurrentTime.DayOfWeek -in $WorkDays)
 	{
-		Write-Host "You should be working " $CurrentTime.DayOfWeek
-		Write-Host $WorkDays
+		Write-Host "You should be working today," $CurrentTime.DayOfWeek
+		if($CurrentTime -lt $StartOfShift){ 
+			Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
+			$duringshift = 0
+		}
+		elseif($CurrentTime -gt $EndOfShift){
+			Write-Host "Currently After Shift" ### use tomorrows start time and todays end time
+			$duringshift = 1 
+		}
+		elseif($CurrentTime -le $Global:EndOfShift -And $CurrentTime -ge $Global:StartOfShift){
+			Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
+			$duringshift = 1
+		}
+		else {
+			Write-Host "Twilight Zone"
+			
+		}
 	}
 	else
 	{
-		Write-Host "You are not working " $CurrentTime.DayOfWeek
-		Write-Host $WorkDays
-	}
+		Write-Host "You are not working today," $CurrentTime.DayOfWeek
+		### What should be the end time for the OOF Message
+		### Next Workday? day++ 
+		while($CurrentTime.DayOfWeek -not $WorkDays)
+		{
 
-	if($CurrentTime -lt $StartOfShift){ 
-		Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
-		$duringshift = 0
-	}
-	elseif($CurrentTime -gt $EndOfShift){
-		Write-Host "Currently After Shift" ### use tomorrows start time and todays end time
-		$duringshift = 1 
-	}
-	elseif($CurrentTime -le $Global:EndOfShift -And $CurrentTime -ge $Global:StartOfShift){
-		Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
-		$duringshift = 1
-	}
-	else {
-		Write-Host "Twilight Zone"
-		
+		}
 	}
 	return $duringshift
 }
@@ -170,16 +174,19 @@ function Workdays_of_week($WD)
 	### Or edit the default
 
 	### 4 Days Sunday - Wednesday 
-	#return $WorkDays = 'Monday', 'Tuesday', 'Wednesday', 'Sunday'
+	#return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Sunday'
 
 	### 4 Days Wednesday - Saturday
-	#return $WorkDays = 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+	#return $WD = 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 	### Twitter Employee Working 7 days wont need this script
-    #return $WorkDays = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    #return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+
+	### no wednesdays testing
+    return $WD = 'Monday', 'Tuesday', , 'Thursday', 'Friday', 'Saturday', 'Sunday'
 
 	### Standard Monday - Friday
-	return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+	#return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
 }
 
 function GetShiftTime($StartEnd,$SEVar) { 
