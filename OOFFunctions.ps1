@@ -132,7 +132,7 @@ function IsOfficeHours($duringshift) {
 	#Write-Host ($CurrentTime -le $Global:EndOfShift)
 	#Write-Host ($CurrentTime -ge $Global:StartOfShift)
 
-	$WorkDays = Workdays_of_week()
+	$WorkDays = Workdays_of_week($WorkDays)
 	
 	if($CurrentTime.DayOfWeek -in $WorkDays)
 	{
@@ -159,15 +159,17 @@ function IsOfficeHours($duringshift) {
 		Write-Host "You are not working today," $CurrentTime.DayOfWeek
 		### What should be the end time for the OOF Message
 		### Next Workday? day++ 
+		<#
 		while($CurrentTime.DayOfWeek -not $WorkDays)
 		{
-
-		}
+			$CurrentTime = $CurrentTime.adddays(1)
+			Write-Host "currently not during your work week" $CurrentTime.day
+		}#>
 	}
 	return $duringshift
 }
 
-function Workdays_of_week($WD)
+function Workdays_of_week($WD) ### this is a function to declar a variable, it will become a switch later to prompt the user if they do not define a set of work days statically like the start and times
 {   
 	### These are the days of the week that you work
 	### Common examples can be uncommented
