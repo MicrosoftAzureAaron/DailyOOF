@@ -118,6 +118,7 @@ function IsOfficeHours($duringshift) {
 	#Write-Host ([datetime] $Global:EndOfShift)
 	$CurrentTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
 	$CurrentTime =  [datetime] $CurrentTime
+
 	if(!$Global:StartOfShift){
 		GetShiftTime("start",$Global:StartOfShift )
 	}
@@ -129,6 +130,19 @@ function IsOfficeHours($duringshift) {
 	#Write-Host ($CurrentTime)
 	#Write-Host ($CurrentTime -le $Global:EndOfShift)
 	#Write-Host ($CurrentTime -ge $Global:StartOfShift)
+
+	$WorkDays = Workdays_of_week($WorkDays)
+	
+	if($CurrentTime.DayOfWeek -in $WorkDays)
+	{
+		Write-Host "You should be working " $CurrentTime.DayOfWeek
+		Write-Host $WorkDays
+	}
+	else
+	{
+		Write-Host "You are not working " $CurrentTime.DayOfWeek
+		Write-Host $WorkDays
+	}
 
 	if($CurrentTime -lt $StartOfShift){ 
 		Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
@@ -149,6 +163,24 @@ function IsOfficeHours($duringshift) {
 	return $duringshift
 }
 
+function Workdays_of_week($WD)
+{   
+	### These are the days of the week that you work
+	### Common examples can be uncommented
+	### Or edit the default
+
+	### 4 Days Sunday - Wednesday 
+	#return $WorkDays = 'Monday', 'Tuesday', 'Wednesday', 'Sunday'
+
+	### 4 Days Wednesday - Saturday
+	#return $WorkDays = 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+
+	### Twitter Employee Working 7 days wont need this script
+    #return $WorkDays = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+
+	### Standard Monday - Friday
+	return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+}
 
 function GetShiftTime($StartEnd,$SEVar) { 
 	$PT = "Enter when you " + $StartEnd + " your work day. Format 9:00am"
