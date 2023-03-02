@@ -6,7 +6,9 @@
 Set-ARCState #Set to state to scheduled
 Set-ARCTimes    #Set start and end times
 Set-ARCmessagefile
-
+$msg = Get-Location #store local copy in same folder as script
+$msg = (-join($msg.tostring(),'\','message.html'))
+$msg = Get-Content -Path $msg -Raw
 #Set-ARCMessage Both 'message here'
 Set-ARCFile #save auto reply config to json file
 DisconnectEXO
