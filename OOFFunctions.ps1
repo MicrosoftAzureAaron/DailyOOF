@@ -1,6 +1,3 @@
-
-
-
 #get current username from local user foldername
 function CurrentUserNamefromWindows 
 {
@@ -10,6 +7,7 @@ function CurrentUserNamefromWindows
 	return $CurrentUser
 }
 
+#get alias from userfolder, if this fails, it will prompt for creds
 function get-Alias 
 {
 	$CurrentUser = CurrentUserNamefromWindows
@@ -21,6 +19,7 @@ function get-Alias
 	return $UA
 }
 
+#connect to exchange online
 function ConnectAlias2EXO 
 {
 	InstallEXOM #is EXO module installed
@@ -29,6 +28,7 @@ function ConnectAlias2EXO
 	Write-Host "Done Connecting"
 }
 
+#write current config to file, warn about overwrite
 function set-ARCFile
 {
 	if(FileDNE $Global:MessageFilePath) 
@@ -47,12 +47,14 @@ function set-ARCFile
 	}
 }
 
+#write the file file from 'memory'
 function SaveIt($PT)
 {	
 	Write-Host "$PT"
 	$Global:MailboxARC | ConvertTo-Json -depth 100 | Set-Content $Global:MessageFilePath
 }
 
+#get current config, local file first, otherwise whats online
 function get-ARC 
 {
 	#add choice load from file or load from online exchange
@@ -79,12 +81,14 @@ function get-ARC
 	Write-Host "Current Auto Reply State is : "$Global:MailboxARC.AutoReplyState
 }
 
+#read the locally stored file
 function get-ARCFile 
 {
 	#Write-Host $Global:MessageFilePath
     $Global:MailboxARC = Get-Content $Global:MessageFilePath -raw | ConvertFrom-Json 
 }
 
+#check to see if file is there
 function FileDNE($FilePath) 
 {
     return (Get-Item -Path $FilePath -ErrorAction Ignore)
@@ -120,7 +124,7 @@ function Set-ARCSTATEScheduled
 
 	Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -AutoReplyState "Scheduled"
 	Write-Host "Set Auto Reply state to Scheduled. `nFrom File start:" $Global:MailboxARC.StartTime "`nFrom File will End: " $Global:MailboxARC.EndTime
-	Write-Host "Set Auto Reply state to Scheduled. `nLive Config start:" $Global:EndOfShift "`nLive Confg will End: " $Global:StartOfShift
+	Write-Host "Set Auto Reply state to Scheduled. `nLive Config start:" $Global:EndOfShift "`nLive Config will End: " $Global:StartOfShift
 
 	###update json
 	set-ARCFile
@@ -129,63 +133,32 @@ function Set-ARCSTATEScheduled
 
 function IsOfficeHours 
 {
-	$duringshift = -1
-	#check if it is during shift return bool based on start and end time
-	#get start and end times
-	#Write-Host ([datetime] $Global:StartOfShift) 
-	#Write-Host ([datetime] $Global:EndOfShift)
-
+	$duringshift = 0
 	$CuTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
 	$CuTime =  [datetime] $CuTime
 
-	#Write-Host ($Global:StartOfShift) 
-	#Write-Host ($Global:EndOfShift)
-	#Write-Host ($CuTime)
-	#Write-Host ($CuTime -le $Global:EndOfShift)
-	#Write-Host ($CuTime -ge $Global:StartOfShift)
-
+	#what days of the week do you work hard code it if you dont wanna be asked
 	$WorkDays = Workdays_of_week
-	#check if you work today, then calculate the next work day
-	<#
-	if($CuTime.DayOfWeek -in $WorkDays)
+
+	if(!($CuTime.DayOfWeek -in $WorkDays))
 	{
-		Write-Host "You should be working today," $CuTime.DayOfWeek
-		if($CuTime -lt $Global:StartOfShift){ 
-			Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
-			$duringshift = 0
-		}
-		elseif($CuTime -gt $Global:EndOfShift){
-			Write-Host "Currently After Shift" ### use tomorrows start time and todays end time
-			$duringshift = 1 
-		}
-		elseif($CuTime -le $Global:EndOfShift -And $CuTime -ge $Global:StartOfShift){
-			Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
-			$duringshift = 1
-		}
-		else {Write-Host "Twilight Zone"}
-	}
-	else
-	{#>
-		Write-Host "You are not working today" $CuTime.DayOfWeek
-		### What should be the end time for the OOF Message
-		### Next Workday? day++ 
 		$i = 0
+		Write-Host "You are not working today" $CuTime.DayOfWeek
 		while(!($CuTime.DayOfWeek -in $WorkDays))
 		{
 			$i += 1
-			Write-Host $CuTime.DayOfWeek -ForegroundColor Red -NoNewline 
-			Write-Host " is not currently a work day [" -NoNewline
-			Write-Host  $WorkDays -NoNewline -ForegroundColor Blue
-			Write-Host "]"
+			#Write-Host $CuTime.DayOfWeek -ForegroundColor Red -NoNewline 
+			#Write-Host " is not currently a work day [" -NoNewline
+			#Write-Host  $WorkDays -NoNewline -ForegroundColor Blue
+			#Write-Host "]"
 			$CuTime = $CuTime.adddays(1)		
-			
 		}
 		$duringshift = $i
 		#Write-Host $CuTime.DayOfWeek
 		#Write-Host $Global:StartOfShift.TimeOfDay
 		Write-Host (-join("The start of the next workday is ",$CuTime.DayOfWeek," ",$Global:StartOfShift.TimeOfDay))
-		
-	#}
+	}
+
 	return $duringshift
 }
 
@@ -197,33 +170,34 @@ function Workdays_of_week
 	### Or edit the default
 
 	### 4 Days Sunday - Wednesday 
-	#$WD = 'Monday', 'Tuesday', 'Wednesday', 'Sunday'
+	#$WD = @('Monday', 'Tuesday', 'Wednesday', 'Sunday')
 
 	### 4 Days Wednesday - Saturday
-	#$WD = 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+	#$WD = @('Wednesday', 'Thursday', 'Friday', 'Saturday')
 
 	### Twitter Employee Working 7 days wont need this script
-    #$WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    #$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 
 	### no wednesdays or thursdays testing
     #$WD = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
 
 	### Standard Monday - Friday
-	$WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+	$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
 	if(!$WD)
 	{
-		$Swit = Read-Host -Prompt "Which of the following matches your weekly work schedule`n1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'`n2. 'Monday', 'Tuesday', 'Wednesday', 'Sunday'`n3. 'Wednesday', 'Thursday', 'Friday', 'Saturday'"
+		$Swit = Read-Host -Prompt "Which of the following matches your weekly work schedule`n1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'`n2. 'Monday', 'Tuesday', 'Wednesday', 'Sunday'`n3. 'Wednesday', 'Thursday', 'Friday', 'Saturday'`n Choice "
 		switch($Swit)
 		{
-			1{$WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'}
-			2{$WD = 'Monday', 'Tuesday', 'Wednesday', 'Sunday'}
-			3{$WD = 'Wednesday', 'Thursday', 'Friday', 'Saturday'}
+			1{$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')}
+			2{$WD = @('Monday', 'Tuesday', 'Wednesday', 'Sunday')}
+			3{$WD = @('Wednesday', 'Thursday', 'Friday', 'Saturday')}
 		}
 	}
 	return $WD
 }
 
+#what time do you start or end your shift
 function GetShiftTime($StartEnd) 
 {
 	if(FileDNE $Global:MessageFilePath) 
@@ -265,11 +239,13 @@ function GetShiftTime($StartEnd)
 	return [datetime] $ShiftTime
 } 
 
+#force disconnect
 function DisconnectEXO 
 {
 	Disconnect-ExchangeOnline -Confirm:$false
 }
 
+#reusable yesno prompt
 function YesNo($Prompt) 
 {
 	$PT = $Prompt + "[Yes] No"
@@ -280,6 +256,7 @@ function YesNo($Prompt)
 	return 
 }
 
+#install the module
 function InstallEXOM 
 {
 	if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
@@ -296,9 +273,9 @@ function InstallEXOM
 }
 
 $Global:UserAliasSuffix = "@Microsoft.com"
-$Global:UserAlias = get-Alias #based on user folder name combined with suffix
-$Global:MessageFilePath = Get-Location
+$Global:UserAlias = get-Alias #based on user folder name combined with suffix, or hard code it
+$Global:MessageFilePath = Get-Location #store local copy in same folder as script
 $Global:MessageFilePath = (-join($Global:MessageFilePath.tostring(),'\','AutoReplyConfig.json'))
 ConnectAlias2EXO
-$Global:StartOfShift = GetShiftTime "start" 
-$Global:EndOfShift = GetShiftTime "end"
+$Global:StartOfShift = GetShiftTime "start" #hard code a time here if you dont want to be asked
+$Global:EndOfShift = GetShiftTime "end" #hard code a time here if you dont want to be asked
