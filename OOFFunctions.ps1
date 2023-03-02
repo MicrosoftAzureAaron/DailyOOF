@@ -102,14 +102,15 @@ function Set-ARCSTATEScheduled
 	Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -AutoReplyState "Scheduled"
 	#Write-Host "Auto Reply state is currently set to"$Global:MailboxARC.AutoReplyState
 	###update json
-	set-ARCFile
+	#set-ARCFile  add option to save from menu to local file
 }
 
 #set auto reply start and end times
 function set-ARCTimes
 {
 	##gets office hours, if not hardcoded at end of this file, ask user for input
-	$daystoadd = IsOfficeHours
+	$daystoadd = 0
+	$daystoadd = IsOfficeHours $daystoadd
 
 	#convert daily time to todays time
 	$hours = Get-Date "$Global:StartOfShift"
@@ -123,9 +124,9 @@ function set-ARCTimes
 	$Global:EndOfShift = [datetime] (Get-Date).Date.AddHours($hours.Hour)
 
 	#Write-Host "From File start:" $Global:MailboxARC.StartTime "`nFrom File will End: " $Global:MailboxARC.EndTime
-	Write-Host "`nLive Config start:" $Global:EndOfShift "`nLive Config will End: " $Global:StartOfShift
+	#Write-Host "`nLive Config start:" $Global:EndOfShift "`nLive Config will End: " $Global:StartOfShift
 	Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -StartTime $Global:EndOfShift -EndTime $Global:StartOfShift
-	set-ARCFile
+	#set-ARCFile  add option to save from menu to local file
 }
 
 #set auto reply message
@@ -150,15 +151,16 @@ function set-ARCMessage($IOE,$message)
 }
 
 #save online message to html file
-function savemessage 
+function set-ARCmessagefile
 {
 	$MessageFilePath = Get-Location #store local copy in same folder as script
 	$MessageFilePath = (-join($MessageFilePath.tostring(),'\','message.html'))
-	Write-Host $MessageFilePath
-	ConvertTo-Html -InputObject $Global:MailboxARC.ExternalMessage | Out-File -FilePath $MessageFilePath
+	#Write-Host $MessageFilePath
+	$text = $Global:MailboxARC.ExternalMessage.tostring()
+	ConvertTo-Html -InputObject $text | Out-File -FilePath $MessageFilePath
 }
 
-function IsOfficeHours 
+function IsOfficeHours($duringshift) 
 {
 	if(!$Global:StartOfShift){$Global:StartOfShift = GetShiftTime "start"}
 	if(!$Global:EndOfShift){$Global:EndOfShift = GetShiftTime "end"}
@@ -192,17 +194,17 @@ function IsOfficeHours
 	{
 		if($CuTime -lt (Get-Date "$Global:StartOfShift"))
 		{ 
-			Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
+			#Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
 			$duringshift = 0
 		}
 		elseif($CuTime -gt (Get-Date "$Global:EndOfShift"))
 		{
-			Write-Host "Currently After Shift"### use tomorrows start time and todays end time
+			#Write-Host "Currently After Shift"### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
 		elseif($CuTime -le (Get-Date "$Global:EndOfShift") -And $CuTime -ge (Get-Date "$Global:StartOfShift"))
 		{
-			Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
+			#Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
 		else {
@@ -322,7 +324,7 @@ function InstallEXOM
 	return
 }
 
-$Global:UserAliasSuffix = "@Microsoft.com"
+$Global:UserAliasSuffix = "@microsoft.com"
 $Global:UserAlias = get-Alias #based on user folder name combined with suffix, or hard code it
 $Global:MessageFilePath = Get-Location #store local copy in same folder as script
 $Global:MessageFilePath = (-join($Global:MessageFilePath.tostring(),'\','AutoReplyConfig.json'))

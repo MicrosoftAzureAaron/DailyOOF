@@ -3,10 +3,10 @@
 #ConnectAlias2EXO # connect to Exchange online
 #get-ARC	#check for local config, if none get auto reply config, use current message
 
-Set-ARCSTATEScheduled #set to state to scheduled
-set-ARCTimes    #set start and end times
-savemessage
+#Set-ARCSTATEScheduled #set to state to scheduled
+#set-ARCTimes    #set start and end times
+set-ARCmessagefile
 
 #set-ARCMessage Both 'message here'
-
+set-ARCFile #save auto reply config to json file
 DisconnectEXO
