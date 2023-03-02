@@ -34,12 +34,12 @@ function set-ARCFile
 	if(FileDNE $Global:MessageFilePath) 
 	{
         ###file exists do you want to overwrite
-		$Q = YesNo "File already exists, over write $Global:MessageFilePath ? -ForegroundColor Red"
+		$Q = YesNo "File already exists, over write $Global:MessageFilePath?"
 	}
 	else
 	{
 		###write file
-		$Q = YesNo "No local copy found, do you want to save a local copy on $Global:MessageFilePath ?"
+		$Q = YesNo "No local copy found, do you want to save a local copy on $Global:MessageFilePath?"
 	}
 	if($Q -eq "Yes") 
 	{
@@ -104,15 +104,23 @@ function Set-ARCSTATEScheduled
 	##gets office hours, if not hardcoded at end of this file, ask user for input
 	$daystoadd = IsOfficeHours
 
-	$Global:StartOfShift = [datetime] (Get-Date).Date.AddHours($Global:StartOfShift)
-	$Global:EndOfShift = [datetime] (Get-Date).Date.AddHours$Global:EndOfShift
+	#convert daily time to todays time
+	$hours = Get-Date "$Global:StartOfShift"
+	$Global:StartOfShift = [datetime] (Get-Date).Date.AddHours($hours.Hour)
+
+	#add the number of days till next shift to the time for when the OOF message should end, aka the START of your next shift
+	$Global:StartOfShift = $Global:StartOfShift.adddays($daystoadd)
+
+	#convert daily time to todays time
+	$hours = Get-Date "$Global:EndOfShift"
+	$Global:EndOfShift = [datetime] (Get-Date).Date.AddHours($hours.Hour)
 
 	#Write-Host ([datetime] $Global:StartOfShift) ([datetime] $Global:EndOfShift)
 	#Set-MailboxAutoReplyConfiguration -Identity $UserAlias -ExternalMessage $Global:MailboxARC.ExternalMessage -InternalMessage $Global:MailboxARC.InternalMessage -StartTime $Global:EndOfShift -EndTime $Global:StartOfShift -AutoReplyState "Scheduled"
 
 	Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -AutoReplyState "Scheduled"
-	Write-Host "Set Auto Reply state to Scheduled. `nOOF Message will start:" $Global:MailboxARC.StartTime "`nOOF Message will End: " $Global:MailboxARC.EndTime
-	Write-Host "Set Auto Reply state to Scheduled. `nOOF Message will start:" $Global:EndOfShift "`nOOF Message will End: " $Global:StartOfShift
+	Write-Host "Set Auto Reply state to Scheduled. `nFrom File start:" $Global:MailboxARC.StartTime "`nFrom File will End: " $Global:MailboxARC.EndTime
+	Write-Host "Set Auto Reply state to Scheduled. `nLive Config start:" $Global:EndOfShift "`nLive Confg will End: " $Global:StartOfShift
 
 	###update json
 	set-ARCFile
@@ -136,8 +144,9 @@ function IsOfficeHours
 	#Write-Host ($CuTime -le $Global:EndOfShift)
 	#Write-Host ($CuTime -ge $Global:StartOfShift)
 
-	$WorkDays = Workdays_of_week($WorkDays)
+	$WorkDays = Workdays_of_week
 	#check if you work today, then calculate the next work day
+	<#
 	if($CuTime.DayOfWeek -in $WorkDays)
 	{
 		Write-Host "You should be working today," $CuTime.DayOfWeek
@@ -156,7 +165,7 @@ function IsOfficeHours
 		else {Write-Host "Twilight Zone"}
 	}
 	else
-	{
+	{#>
 		Write-Host "You are not working today" $CuTime.DayOfWeek
 		### What should be the end time for the OOF Message
 		### Next Workday? day++ 
@@ -176,30 +185,43 @@ function IsOfficeHours
 		#Write-Host $Global:StartOfShift.TimeOfDay
 		Write-Host (-join("The start of the next workday is ",$CuTime.DayOfWeek," ",$Global:StartOfShift.TimeOfDay))
 		
-	}
+	#}
 	return $duringshift
 }
 
-function Workdays_of_week($WD) ### this is a function to declar a variable, it will become a switch later to prompt the user if they do not define a set of work days statically like the start and times
+function Workdays_of_week
+### this is a function to either set an array of days of the week that you work by uncommenting or configuring your own line below
 {   
 	### These are the days of the week that you work
 	### Common examples can be uncommented
 	### Or edit the default
 
 	### 4 Days Sunday - Wednesday 
-	#return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Sunday'
+	#$WD = 'Monday', 'Tuesday', 'Wednesday', 'Sunday'
 
 	### 4 Days Wednesday - Saturday
-	#return $WD = 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+	#$WD = 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 	### Twitter Employee Working 7 days wont need this script
-    #return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    #$WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
 
 	### no wednesdays or thursdays testing
-    return $WD = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
+    #$WD = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
 
 	### Standard Monday - Friday
-	#return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+	$WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+
+	if(!$WD)
+	{
+		$Swit = Read-Host -Prompt "Which of the following matches your weekly work schedule`n1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'`n2. 'Monday', 'Tuesday', 'Wednesday', 'Sunday'`n3. 'Wednesday', 'Thursday', 'Friday', 'Saturday'"
+		switch($Swit)
+		{
+			1{$WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'}
+			2{$WD = 'Monday', 'Tuesday', 'Wednesday', 'Sunday'}
+			3{$WD = 'Wednesday', 'Thursday', 'Friday', 'Saturday'}
+		}
+	}
+	return $WD
 }
 
 function GetShiftTime($StartEnd) 
