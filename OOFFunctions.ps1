@@ -348,7 +348,7 @@ function InstallEXOM
 	return
 }
 
-# james was here
+# james was here A A ron you done messed up
 $UserAliasSuffix = "@microsoft.com"
 $UserAlias = Get-Alias #based on user folder name combined with suffix, or hard code it
 Connect-Alias2EXO
