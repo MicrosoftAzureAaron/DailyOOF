@@ -77,6 +77,7 @@ function Get-ARC
 			SaveIt "Auto Reply config is being written to JSON file from current Exchange Online connection to $MessageFilePath"
 		}
     }
+	Return $MailboxARC
 }
 
 #read the locally stored file
@@ -163,8 +164,8 @@ function Set-ARCmessagefile
 
 function IsOfficeHours($duringshift) 
 {
-	if(!$StartOfShift){$StartOfShift = GetShiftTime "start"}
-	if(!$EndOfShift){$EndOfShift = GetShiftTime "end"}
+	if($null -eq $StartOfShift){$StartOfShift = GetShiftTime "start"}
+	if($null -eq $EndOfShift){$EndOfShift = GetShiftTime "end"}
 
 	$duringshift = 0
 	$CuTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
@@ -255,6 +256,7 @@ function GetShiftTime($StartEnd)
 {
 	if(FileDNE $MessageFilePath) 
 	{
+		### ask to use file or online
 		$MailboxARC = Get-ARCFile
 		#### check for start and end times in file
 		if($StartEnd -eq "start")
@@ -331,6 +333,6 @@ $UserAlias = Get-Alias #based on user folder name combined with suffix, or hard 
 $MessageFilePath = Get-Location #store local copy in same folder as script
 $MessageFilePath = (-join($MessageFilePath.tostring(),'\','AutoReplyConfig.json'))
 ConnectAlias2EXO
-$MailboxARC = Get-ARCFile
+$MailboxARC = Get-ARC
 $StartOfShift = $null # GetShiftTime "start" #hard code a time here if you dont want to be asked
 $EndOfShift = $null #GetShiftTime "end" #hard code a time here if you dont want to be asked
