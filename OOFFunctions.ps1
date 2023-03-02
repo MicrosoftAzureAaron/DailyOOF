@@ -235,7 +235,7 @@ function Workdays_of_week
     #$WD = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
 
 	### Standard Monday - Friday
-	#$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+	$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
 	if(!$WD)
 	{
@@ -325,10 +325,12 @@ function InstallEXOM
 	return
 }
 
+
 $UserAliasSuffix = "@microsoft.com"
 $UserAlias = Get-Alias #based on user folder name combined with suffix, or hard code it
 $MessageFilePath = Get-Location #store local copy in same folder as script
 $MessageFilePath = (-join($MessageFilePath.tostring(),'\','AutoReplyConfig.json'))
 ConnectAlias2EXO
+$MailboxARC = Get-ARCFile
 $StartOfShift = $null # GetShiftTime "start" #hard code a time here if you dont want to be asked
 $EndOfShift = $null #GetShiftTime "end" #hard code a time here if you dont want to be asked
