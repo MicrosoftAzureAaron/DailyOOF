@@ -100,7 +100,7 @@ function Set-ARCSTATEScheduled
 		Write-Host "Auto Reply state is currently set to"$Global:MailboxARC.AutoReplyState
 	}
 	Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -AutoReplyState "Scheduled"
-	Write-Host "Auto Reply state is currently set to"$Global:MailboxARC.AutoReplyState
+	#Write-Host "Auto Reply state is currently set to"$Global:MailboxARC.AutoReplyState
 	###update json
 	set-ARCFile
 }
@@ -131,6 +131,7 @@ function set-ARCTimes
 #set auto reply message
 function set-ARCMessage($IOE,$message)
 {
+
 	switch -Regex ($IOE)
 	{
 		"Internal"
@@ -148,6 +149,13 @@ function set-ARCMessage($IOE,$message)
 	}
 }
 
+#save online message to html file
+function save-message 
+{
+	MessageFilePath = Get-Location #store local copy in same folder as script
+	MessageFilePath = (-join($Global:MessageFilePath.tostring(),'\','message.html'))
+	ConvertTo-Html -InputObject $Global:MailboxARC | Out_File $Global:MessageFilePath
+}
 
 function IsOfficeHours 
 {
