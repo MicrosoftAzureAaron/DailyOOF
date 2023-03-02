@@ -152,9 +152,9 @@ function set-ARCMessage($IOE,$message)
 #save online message to html file
 function save-message 
 {
-	MessageFilePath = Get-Location #store local copy in same folder as script
-	MessageFilePath = (-join($Global:MessageFilePath.tostring(),'\','message.html'))
-	ConvertTo-Html -InputObject $Global:MailboxARC | Out_File $Global:MessageFilePath
+	$MessageFilePath = Get-Location #store local copy in same folder as script
+	$MessageFilePath = (-join($MessageFilePath.tostring(),'\','message.html'))
+	ConvertTo-Html -InputObject $Global:MailboxARC | Out-File MessageFilePath
 }
 
 function IsOfficeHours 
