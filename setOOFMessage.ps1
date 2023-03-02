@@ -5,7 +5,8 @@
 
 Set-ARCSTATEScheduled #set to state to scheduled
 set-ARCTimes    #set start and end times
+savemessage
 
-set-ARCMessage Both arcmessage.txt
+#set-ARCMessage Both 'message here'
 
 DisconnectEXO
