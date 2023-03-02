@@ -1,3 +1,9 @@
+$Global:UserAliasSuffix = "@Microsoft.com"
+$Global:UserAlias = get-Alias #based on user folder name combined with suffix
+$Global:MessageFilePath = Get-Location
+$Global:MessageFilePath = (-join $Global:MessageFilePath.tostring(), "\")
+
+
 #get current username from local user foldername
 function CurrentUserNamefromWindows 
 {
@@ -126,7 +132,7 @@ function Set-ARCSTATEScheduled
 	#Write-Host ([datetime] $Global:StartOfShift) ([datetime] $Global:EndOfShift)
 	#Set-MailboxAutoReplyConfiguration -identity $UserAlias -ExternalMessage $Global:MailboxARC.ExternalMessage -InternalMessage $Global:MailboxARC.InternalMessage -StartTime $Global:EndOfShift -EndTime $Global:StartOfShift -AutoReplyState "Scheduled"
 	Set-MailboxAutoReplyConfiguration -identity $Global:UserAlias -AutoReplyState "Scheduled"
-	Write-Host "Set Auto Reply state to Scheduled. `nStart time for OOF Message " $Global:EndOfShift "`nOOF Message will End at " $Global:StartOfShift
+	Write-Host "Set Auto Reply state to Scheduled. `nOOF Message will start:" $Global:StartofShift "`nOOF Message will End: " $Global:EndOfShift
 }
 
 function IsOfficeHours 
@@ -137,32 +143,32 @@ function IsOfficeHours
 	#Write-Host ([datetime] $Global:StartOfShift) 
 	#Write-Host ([datetime] $Global:EndOfShift)
 
-	$CurrentTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
-	$CurrentTime =  [datetime] $CurrentTime
+	$CuTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
+	$CuTime =  [datetime] $CuTime
 
 	$Global:StartOfShift = GetShiftTime "start" 
 	$Global:EndOfShift = GetShiftTime "end" 
 
 	#Write-Host ($Global:StartOfShift) 
 	#Write-Host ($Global:EndOfShift)
-	#Write-Host ($CurrentTime)
-	#Write-Host ($CurrentTime -le $Global:EndOfShift)
-	#Write-Host ($CurrentTime -ge $Global:StartOfShift)
+	#Write-Host ($CuTime)
+	#Write-Host ($CuTime -le $Global:EndOfShift)
+	#Write-Host ($CuTime -ge $Global:StartOfShift)
 
 	$WorkDays = Workdays_of_week($WorkDays)
 	
-	if($CurrentTime.DayOfWeek -in $WorkDays)
+	if($CuTime.DayOfWeek -in $WorkDays)
 	{
-		Write-Host "You should be working today," $CurrentTime.DayOfWeek
-		if($CurrentTime -lt $Global:StartOfShift){ 
+		Write-Host "You should be working today," $CuTime.DayOfWeek
+		if($CuTime -lt $Global:StartOfShift){ 
 			Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
 			$duringshift = 0
 		}
-		elseif($CurrentTime -gt $Global:EndOfShift){
+		elseif($CuTime -gt $Global:EndOfShift){
 			Write-Host "Currently After Shift" ### use tomorrows start time and todays end time
 			$duringshift = 1 
 		}
-		elseif($CurrentTime -le $Global:EndOfShift -And $CurrentTime -ge $Global:StartOfShift){
+		elseif($CuTime -le $Global:EndOfShift -And $CuTime -ge $Global:StartOfShift){
 			Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
@@ -170,19 +176,20 @@ function IsOfficeHours
 	}
 	else
 	{
-		Write-Host "You are not working today" $CurrentTime.DayOfWeek
+		Write-Host "You are not working today" $CuTime.DayOfWeek
 		### What should be the end time for the OOF Message
 		### Next Workday? day++ 
-		while(!($CurrentTime.DayOfWeek -in $WorkDays))
+		while(!($CuTime.DayOfWeek -in $WorkDays))
 		{
-			Write-Host $CurrentTime.DayOfWeek -ForegroundColor Red -NoNewline 
+			Write-Host $CuTime.DayOfWeek -ForegroundColor Red -NoNewline 
 			Write-Host " is not currently a work day [" -NoNewline
 			Write-Host  $WorkDays -NoNewline -ForegroundColor Blue
 			Write-Host "]"
-			$CurrentTime = $CurrentTime.adddays(1)			
+			$CuTime = $CuTime.adddays(1)		
 		}
-		
-		Write-Host "The start of the next workday is " $CurrenTime.DayOfWeek $Global:StartOfShift.TimeofDay
+		#Write-Host $CuTime.DayOfWeek
+		#Write-Host $Global:StartOfShift.TimeofDay
+		Write-Host (-join "The start of the next workday is",$CuTime.DayOfWeek,$Global:EndOfShift.TimeofDay)
 	}
 	return $duringshift
 }
@@ -202,8 +209,8 @@ function Workdays_of_week($WD) ### this is a function to declar a variable, it w
 	### Twitter Employee Working 7 days wont need this script
     #return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
 
-	### no wednesdays testing
-    return $WD = @('Monday', 'Tuesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+	### no wednesdays or thursdays testing
+    return $WD = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
 
 	### Standard Monday - Friday
 	#return $WD = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
@@ -218,7 +225,7 @@ function GetShiftTime($StartEnd)
 		#### check for start and end times in file
 		if($StartEnd -eq "start")
 		{
-			$PT = (-join"Do you want to used the saved $Startend time? ",$Global:MailboxARC.StartTime)
+			$PT = (-join"Do you want to used the saved $StartEnd of shift time? This is when the OOF message will end",[datetime]$Global:MailboxARC.EndTime)
 			if((YesNo $PT -eq "Yes"))
 			{
 				#Write-Host $Global:MailboxARC.StartTime
@@ -228,7 +235,7 @@ function GetShiftTime($StartEnd)
 
 		if($StartEnd -eq "end")
 		{
-			$PT = (-join"Do you want to used the saved $Startend time? ",$Global:MailboxARC.EndTime)
+			$PT = (-join"Do you want to used the saved $StartEnd of shift time? This is when the OOF message will start.",[datetime]$Global:MailboxARC.StartTime)
 			if((YesNo $PT -eq "Yes"))
 			{
 				#Write-Host $Global:MailboxARC.EndTime
@@ -273,14 +280,3 @@ function InstallEXOM
 	return
 }
 
-#$Global:CurrentUser=$null #obatined from user folder name
-$Global:UserAlias=get-Alias #$null #combined with suffix
-
-$Global:UserAliasSuffix="@Microsoft.com"
-#$Global:MailboxARC= get-arc #auto reply configuration object
-
-#$Global:EndOfShift=$null#[datetime]"6:00pm"
-#$Global:StartOfShift=$null#[datetime]"9:00am"
-#$Global:AliasPath = $Global:UserAlias.replace("@","_")
-$Global:MessageFilePath= Get-Location
-$Global:MessageFilePath= $Global:MessageFilePath.tostring() + "\"
