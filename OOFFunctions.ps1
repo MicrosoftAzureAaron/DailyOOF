@@ -158,6 +158,7 @@ function Set-ARCmessagefile
 	#Write-Host $MessageFilePath
 	$text = $Global:MailboxARC.ExternalMessage.tostring()
 	$text | Out-File -FilePath $MessageFilePath
+	Write-Host "Message file saved as $MessageFilePath"
 }
 
 function IsOfficeHours($duringshift) 
