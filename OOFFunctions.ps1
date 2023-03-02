@@ -12,8 +12,8 @@ function Get-Alias
 {
 	$CurrentUser = CurrentUserNamefromWindows
     $UA = (-join($CurrentUser,$UserAliasSuffix))
-    Write-Host "UserAlias is " -NoNewline
-	Write-Host "$UA" -ForegroundColor Blue
+    #Write-Host "UserAlias is " -NoNewline
+	#Write-Host "$UA" -ForegroundColor Blue
     #Write-Host "UserAliasSuffix is " -NoNewline
 	#Write-Host "$UserAliasSuffix" -ForegroundColor Blue
 	return $UA
@@ -68,12 +68,12 @@ function Get-ARC
 	}
     else 
 	{
-		$MailboxARC = Get-MailboxAutoReplyConfiguration -UserPrincipalName $UserAlias
+		$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias
 
 		$Q = YesNo "Do you want to save current online configuration to a local copy at $MessageFilePath ?"
 		if($Q -eq "Yes") 
 		{
-			$MailboxARC = Get-MailboxAutoReplyConfiguration -UserPrincipalName $UserAlias
+			$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias
 			SaveIt "Auto Reply config is being written to JSON file from current Exchange Online connection to $MessageFilePath"
 		}
     }
