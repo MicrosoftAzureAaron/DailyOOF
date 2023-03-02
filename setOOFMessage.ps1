@@ -3,7 +3,10 @@
 #ConnectAlias2EXO # connect to Exchange online
 #get-ARC	#check for local config, if none get auto reply config, use current message
 
-Set-ARCSTATEScheduled #set to start and end times
+Set-ARCSTATEScheduled #set to state to scheduled
+set-ARCTimes    #set start and end times
+
+set-ARCMessage 'Boy Howdy' Both
 
 
 
