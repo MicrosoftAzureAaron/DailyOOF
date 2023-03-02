@@ -1,12 +1,12 @@
 . "./OOFFunctions.ps1" #include all the fancy functions
-#get-Alias executed when variables are inited #get username and suffix default is username from local machine plus @microsoft.com
+#Get-Alias executed when variables are inited #Get username and suffix default is username from local machine plus @microsoft.com
 #ConnectAlias2EXO # connect to Exchange online
-#get-ARC	#check for local config, if none get auto reply config, use current message
+#Get-ARC	#check for local config, if none Get auto reply config, use current message
 
-#Set-ARCSTATEScheduled #set to state to scheduled
-#set-ARCTimes    #set start and end times
-set-ARCmessagefile
+Set-ARCSTATEScheduled #Set to state to scheduled
+Set-ARCTimes    #Set start and end times
+Set-ARCmessagefile
 
-#set-ARCMessage Both 'message here'
-set-ARCFile #save auto reply config to json file
+#Set-ARCMessage Both 'message here'
+Set-ARCFile #save auto reply config to json file
 DisconnectEXO
