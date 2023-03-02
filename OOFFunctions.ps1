@@ -23,7 +23,7 @@ function Get-Alias
 function ConnectAlias2EXO 
 {
 	InstallEXOM #is EXO module installed
-	Write-Host "Connecting to your Outlook Account with alias $UserAlias`n" 
+	Write-Host "Connecting to your Outlook Account with alias $UserAlias" 
 	Connect-ExchangeOnline -UserPrincipalName $UserAlias
 	Write-Host "Done Connecting"
 }
