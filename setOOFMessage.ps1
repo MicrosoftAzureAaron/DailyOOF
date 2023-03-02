@@ -3,7 +3,7 @@
 #ConnectAlias2EXO # connect to Exchange online
 #Get-ARC	#check for local config, if none Get auto reply config, use current message
 
-Set-ARCSTATEScheduled #Set to state to scheduled
+Set-ARCState #Set to state to scheduled
 Set-ARCTimes    #Set start and end times
 Set-ARCmessagefile
 

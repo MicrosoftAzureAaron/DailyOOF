@@ -93,7 +93,7 @@ function FileDNE($FilePath)
 }
 
 #Set auto reply to scheduled
-function Set-ARCSTATEScheduled 
+function Set-ARCState 
 {
 	#is Reply state disabled or enabled by the user manually instead of scheduled
 	if($Global:MailboxARC.AutoReplyState -eq "Disabled" -or $Global:MailboxARC.AutoReplyState -eq "Enabled"){
