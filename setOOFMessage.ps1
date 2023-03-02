@@ -6,10 +6,6 @@
 Set-ARCSTATEScheduled #set to state to scheduled
 set-ARCTimes    #set start and end times
 
-set-ARCMessage 'Boy Howdy' Both
-
-
-
-
+set-ARCMessage Both arcmessage.txt
 
 DisconnectEXO

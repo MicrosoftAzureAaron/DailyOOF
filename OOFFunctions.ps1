@@ -105,6 +105,7 @@ function Set-ARCSTATEScheduled
 	set-ARCFile
 }
 
+#set auto reply start and end times
 function set-ARCTimes
 {
 	##gets office hours, if not hardcoded at end of this file, ask user for input
@@ -122,24 +123,25 @@ function set-ARCTimes
 	$Global:EndOfShift = [datetime] (Get-Date).Date.AddHours($hours.Hour)
 
 	#Write-Host "From File start:" $Global:MailboxARC.StartTime "`nFrom File will End: " $Global:MailboxARC.EndTime
-	#Write-Host "$daystoadd`nLive Config start:" $Global:EndOfShift "`nLive Config will End: " $Global:StartOfShift
+	Write-Host "`nLive Config start:" $Global:EndOfShift "`nLive Config will End: " $Global:StartOfShift
 	Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -StartTime $Global:EndOfShift -EndTime $Global:StartOfShift
 	set-ARCFile
 }
 
+#set auto reply message
 function set-ARCMessage($IOE,$message)
 {
-	switch($IOE)
+	switch -Regex ($IOE)
 	{
-		'Internal'
+		"Internal"
 		{
 			Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -InternalMessage $message 
 		}
-		'External'
+		"External"
 		{
 			Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -ExternalMessage $message  
 		}
-		'Both'
+		"Both"
 		{
 			Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -ExternalMessage $message -InternalMessage $message 
 		}
@@ -316,5 +318,5 @@ $Global:UserAlias = get-Alias #based on user folder name combined with suffix, o
 $Global:MessageFilePath = Get-Location #store local copy in same folder as script
 $Global:MessageFilePath = (-join($Global:MessageFilePath.tostring(),'\','AutoReplyConfig.json'))
 ConnectAlias2EXO
-#$Global:StartOfShift = GetShiftTime "start" #hard code a time here if you dont want to be asked
-#$Global:EndOfShift = GetShiftTime "end" #hard code a time here if you dont want to be asked
+$Global:StartOfShift = $null # GetShiftTime "start" #hard code a time here if you dont want to be asked
+$Global:EndOfShift = $null #GetShiftTime "end" #hard code a time here if you dont want to be asked
