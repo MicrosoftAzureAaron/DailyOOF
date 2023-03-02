@@ -12,8 +12,8 @@ function Get-Alias
 {
 	$CurrentUser = Get-UsernameFromWindows
     $UA = (-join($CurrentUser,$UserAliasSuffix))
-    Write-Host "UserAlias is " -NoNewline
-	Write-Host "$UA" -ForegroundColor Blue
+    #Write-Host "UserAlias is " -NoNewline
+	#Write-Host "$UA" -ForegroundColor Blue
     #Write-Host "UserAliasSuffix is " -NoNewline
 	#Write-Host "$UserAliasSuffix" -ForegroundColor Blue
 	return $UA
@@ -23,7 +23,7 @@ function Get-Alias
 function Connect-Alias2EXO 
 {
 	InstallEXOM #is EXO module installed
-	Write-Host "Connecting to your Outlook Account with alias $UserAlias`n" 
+	Write-Host "Connecting to your Outlook Account with alias $UserAlias" 
 	Connect-ExchangeOnline -UserPrincipalName $UserAlias
 	Write-Host "Done Connecting"
 }
