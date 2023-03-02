@@ -155,7 +155,7 @@ function savemessage
 	$MessageFilePath = Get-Location #store local copy in same folder as script
 	$MessageFilePath = (-join($MessageFilePath.tostring(),'\','message.html'))
 	Write-Host $MessageFilePath
-	ConvertTo-Html -InputObject $Global:MailboxARC | Out-File -FilePath $MessageFilePath
+	ConvertTo-Html -InputObject $Global:MailboxARC.ExternalMessage | Out-File -FilePath $MessageFilePath
 }
 
 function IsOfficeHours 
@@ -212,9 +212,9 @@ function IsOfficeHours
 	return $duringshift
 }
 
-function Workdays_of_week
-### this is a function to either set an array of days of the week that you work by uncommenting or configuring your own line below
+function Workdays_of_week 
 {   
+	### this is a function to either set an array of days of the week that you work by uncommenting or configuring your own line below
 	### These are the days of the week that you work
 	### Common examples can be uncommented
 	### Or edit the default
