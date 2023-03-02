@@ -31,19 +31,19 @@ function ConnectAlias2EXO
 #write current config to file, warn about overwrite
 function Set-ARCFile
 {
-	if(FileDNE $MessageFilePath) 
+	if($MessageFilePath) 
 	{
         ###file exists do you want to overwrite
-		$Q = YesNo "Auto Reply config file already exists, over write $MessageFilePath?"
+		$Q = YesNo "Auto Reply config file already exists, over write ${MessageFilePath}?"
 	}
 	else
 	{
 		###write file
-		$Q = YesNo "No local copy found, do you want to save a local copy on $MessageFilePath?"
+		$Q = YesNo "No local copy found, do you want to save a local copy on ${MessageFilePath}?"
 	}
 	if($Q -eq "Yes") 
 	{
-		SaveIt "Auto Reply config is being written to JSON file from current configuration to $MessageFilePath"	
+		SaveIt "Auto Reply config is being written to JSON file from current configuration to {$MessageFilePath}"
 	}
 }
 
@@ -59,7 +59,7 @@ function Get-ARC
 {
 	#add choice load from file or load from online exchange
 	#prefers local store over remote
-	if(FileDNE $MessageFilePath) 
+	if(Test-Path $MessageFilePath) 
 	{
         Write-Host "ARC File stored locally" $MessageFilePath
         $MailboxARC = Get-ARCFile
@@ -87,11 +87,11 @@ function Get-ARCFile
     return Get-Content $MessageFilePath -raw | ConvertFrom-Json 
 }
 
-#check to see if file is there
-function FileDNE($FilePath) 
-{
-    return (Get-Item -Path $FilePath -ErrorAction Ignore)
-}
+# check to see if file is there
+# function FileDNE($FilePath) 
+# {
+#     return (Get-Item -Path $FilePath -ErrorAction Ignore)
+# }
 
 #Set auto reply to scheduled
 function Set-ARCState 
@@ -109,6 +109,8 @@ function Set-ARCState
 #Set auto reply start and end times
 function Set-ARCTimes
 {
+	if($null -eq $StartOfShift){$StartOfShift = (GetShiftTime "start")}
+	if($null -eq $EndOfShift){$EndOfShift = (GetShiftTime "end")}
 	##Gets office hours, if not hardcoded at end of this file, ask user for input
 	$daystoadd = 0
 	$daystoadd = IsOfficeHours $daystoadd
@@ -164,8 +166,8 @@ function Set-ARCmessagefile
 
 function IsOfficeHours($duringshift) 
 {
-	if($null -eq $StartOfShift){$StartOfShift = GetShiftTime "start"}
-	if($null -eq $EndOfShift){$EndOfShift = GetShiftTime "end"}
+	if($null -eq $StartOfShift){$StartOfShift = (GetShiftTime "start")}
+	if($null -eq $EndOfShift){$EndOfShift = (GetShiftTime "end")}
 
 	$duringshift = 0
 	$CuTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
@@ -194,17 +196,17 @@ function IsOfficeHours($duringshift)
 	}
 	else
 	{
-		if($CuTime -lt (Get-Date "$StartOfShift"))
+		if($CuTime -lt $StartOfShift)
 		{ 
 			#Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to Set for overnight oof
 			$duringshift = 0
 		}
-		elseif($CuTime -gt (Get-Date "$EndOfShift"))
+		elseif($CuTime -gt $StartOfShift)
 		{
 			#Write-Host "Currently After Shift"### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
-		elseif($CuTime -le (Get-Date "$EndOfShift") -And $CuTime -ge (Get-Date "$StartOfShift"))
+		elseif($CuTime -le $EndOfShift -And $CuTime -ge $StartOfShift)
 		{
 			#Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
 			$duringshift = 1
@@ -254,18 +256,20 @@ function Workdays_of_week
 #what time do you start or end your shift
 function GetShiftTime($StartEnd) 
 {
-	if(FileDNE $MessageFilePath) 
+	if(Test-Path $MessageFilePath) 
 	{
 		### ask to use file or online
-		$MailboxARC = Get-ARCFile
+		$MailboxARC = Get-ARC
 		#### check for start and end times in file
 		if($StartEnd -eq "start")
 		{
+			#Write-Host $MailboxARC.EndTime
 			$ST = [datetime] $MailboxARC.EndTime
-			$ST = $ST.TimeOfDay
+			$TODST = $ST.TimeOfDay
 			#Write-Host $ST
-			$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will end ",$ST," "))
-			if((YesNo $PT -eq "Yes"))
+			$PT = "Do you want to used the saved ${StartEnd} of shift time? This is when the OOF message will end ${TODST}"
+			#$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will end ",$ST.TimeOfDay," "))
+			if(((YesNo $PT) -eq "Yes"))
 			{
 				#Write-Host $MailboxARC.StartTime
 				#$StartOfShift = $ST
@@ -276,9 +280,10 @@ function GetShiftTime($StartEnd)
 		if($StartEnd -eq "end")
 		{
 			$ET = [datetime] $MailboxARC.StartTime
-			$ET = $ET.TimeOfDay
-			#Write-Host $ET.TimeOfDay
-			$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will start ",$ET," "))
+			$TODET = $ET.TimeOfDay
+			#$ET = $ET.TimeOfDay
+			#Write-Host $ET.TimeOfDay			
+			$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will start ",$TODET))
 			if((YesNo $PT -eq "Yes"))
 			{
 				#Write-Host $MailboxARC.EndTime
@@ -303,7 +308,7 @@ function DisconnectEXO
 #reusable yesno prompt
 function YesNo($Prompt) 
 {
-	$PT = $Prompt + "[Yes] No"
+	$PT = $Prompt + " [Yes] No"
 	$YN = Read-Host -Prompt $PT
     if($YN -eq "" -or $YN -eq "Yes"  -or  $YN -eq "YES"  -or  $YN -eq "Y"  -or  $YN -eq "y"){ #if user doesn't input anything use default
 		return "Yes"
@@ -334,5 +339,5 @@ $MessageFilePath = Get-Location #store local copy in same folder as script
 $MessageFilePath = (-join($MessageFilePath.tostring(),'\','AutoReplyConfig.json'))
 ConnectAlias2EXO
 $MailboxARC = Get-ARC
-$StartOfShift = $null # GetShiftTime "start" #hard code a time here if you dont want to be asked
-$EndOfShift = $null #GetShiftTime "end" #hard code a time here if you dont want to be asked
+$StartOfShift = $null #9:00am #GetShiftTime "start" #hard code a time here if you dont want to be asked
+$EndOfShift = $null #"6:00pm" #GetShiftTime "end" #hard code a time here if you dont want to be asked
