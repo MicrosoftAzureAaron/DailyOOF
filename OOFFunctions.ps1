@@ -1,9 +1,9 @@
 #get current username from local user foldername
 function CurrentUserNamefromWindows 
 {
-	$Global:CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
+	$CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
     Write-Host "CurrentUser is " -NoNewline
-	Write-Host "$Global:CurrentUser" -ForegroundColor Blue
+	Write-Host "$CurrentUser" -ForegroundColor Blue
 }
 
 function get-Alias 
@@ -51,7 +51,7 @@ function get-ARC
 
 	if(FileDNE $TempPath) 
 	{
-        Write-Host "AutoConfig has pre-existing file " $TempPath
+        Write-Host "ARC File stored locally" $TempPath
         get-ARCFile
 		Write-Host "ARC File Loaded from Local File"
 		#Write-Host $Global:MailboxARC
@@ -74,7 +74,7 @@ function get-ARC
 function get-ARCFile 
 {
     $TempPath = $Global:MessageFilePath + "AutoReplyConfig.json"
-    $Global:MailboxARC = Get-Content $TempPath | ConvertFrom-Json 
+    $Global:MailboxARC = Get-Content $TempPath -raw | ConvertFrom-Json 
 }
 function FileDNE($FilePath) 
 {
@@ -86,12 +86,16 @@ function FileDNE($FilePath)
 #will ask for start and end times if they dne
 function Set-ARCSTATEScheduled 
 {
-	if($null -eq $Global:MailboxARC){
+	<#
+	if($Global:MailboxARC -eq $null)
+	{
 		$Global:MailboxARC = get-arc
 	}
-	if($null -eq $Global:UserAlias){
+	if($null -eq $Global:UserAlias)
+	{
 		$Global:UserAlias = get-Alias
 	}
+	#>
 
 	#is Reply state disabled or enabled by the user manually instead of scheduled
 	if($Global:MailboxARC.AutoReplyState -eq "Disabled" -or $Global:MailboxARC.AutoReplyState -eq "Enabled"){
@@ -100,16 +104,18 @@ function Set-ARCSTATEScheduled
 
 	##gets office hours, if not hardcoded at end of this file, ask user for input
 	### need to add days of the week check for the 4x10 works
-	$ioh = IsOfficeHours($ioh)
-	switch($ioh)
+	switch(IsOfficeHours)
 	{
-		0 {
+		0
+		{
 			#use todays start and end if ran before shift starts, still need to be reran during or after shift to set for next off period
 		}
-		1 {
+		1
+		{
 			$Global:StartOfShift = [datetime] $Global:StartOfShift.adddays(1)
 		}
-		-1 {
+		-1
+		{
 			#should be never here
 		}
 	}
@@ -119,11 +125,11 @@ function Set-ARCSTATEScheduled
 
 	#Write-Host ([datetime] $Global:StartOfShift) ([datetime] $Global:EndOfShift)
 	#Set-MailboxAutoReplyConfiguration -identity $UserAlias -ExternalMessage $Global:MailboxARC.ExternalMessage -InternalMessage $Global:MailboxARC.InternalMessage -StartTime $Global:EndOfShift -EndTime $Global:StartOfShift -AutoReplyState "Scheduled"
-	Set-MailboxAutoReplyConfiguration -identity $UserAlias -AutoReplyState "Scheduled"
+	Set-MailboxAutoReplyConfiguration -identity $Global:UserAlias -AutoReplyState "Scheduled"
 	Write-Host "Set Auto Reply state to Scheduled. `nStart time for OOF Message " $Global:EndOfShift "`nOOF Message will End at " $Global:StartOfShift
 }
 
-function IsOfficeHours($duringshift) 
+function IsOfficeHours 
 {
 	$duringshift = -1
 	#check if it is during shift return bool based on start and end time
@@ -137,16 +143,6 @@ function IsOfficeHours($duringshift)
 	$Global:StartOfShift = GetShiftTime "start" 
 	$Global:EndOfShift = GetShiftTime "end" 
 
-	<#
-	if(-not $Global:EndOfShift)
-	{
-		$Global:StartOfShift = GetShiftTime "start" 
-	}
-	if(-not $Global:EndOfShift)
-	{
-		$Global:EndOfShift = GetShiftTime "end" 
-	}#>
-
 	#Write-Host ($Global:StartOfShift) 
 	#Write-Host ($Global:EndOfShift)
 	#Write-Host ($CurrentTime)
@@ -158,11 +154,11 @@ function IsOfficeHours($duringshift)
 	if($CurrentTime.DayOfWeek -in $WorkDays)
 	{
 		Write-Host "You should be working today," $CurrentTime.DayOfWeek
-		if($CurrentTime -lt $StartOfShift){ 
+		if($CurrentTime -lt $Global:StartOfShift){ 
 			Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to set for overnight oof
 			$duringshift = 0
 		}
-		elseif($CurrentTime -gt $EndOfShift){
+		elseif($CurrentTime -gt $Global:EndOfShift){
 			Write-Host "Currently After Shift" ### use tomorrows start time and todays end time
 			$duringshift = 1 
 		}
@@ -174,14 +170,19 @@ function IsOfficeHours($duringshift)
 	}
 	else
 	{
-		Write-Host "You are not working today," $CurrentTime.DayOfWeek
+		Write-Host "You are not working today" $CurrentTime.DayOfWeek
 		### What should be the end time for the OOF Message
 		### Next Workday? day++ 
 		while(!($CurrentTime.DayOfWeek -in $WorkDays))
 		{
-			Write-Host $CurrentTime.DayOfWeek " is not currently a work day" $WorkDays
+			Write-Host $CurrentTime.DayOfWeek -ForegroundColor Red -NoNewline 
+			Write-Host " is not currently a work day [" -NoNewline
+			Write-Host  $WorkDays -NoNewline -ForegroundColor Blue
+			Write-Host "]"
 			$CurrentTime = $CurrentTime.adddays(1)			
 		}
+		
+		Write-Host "The start of the next workday is " $CurrenTime.DayOfWeek $Global:StartOfShift.TimeofDay
 	}
 	return $duringshift
 }
@@ -210,19 +211,29 @@ function Workdays_of_week($WD) ### this is a function to declar a variable, it w
 
 function GetShiftTime($StartEnd) 
 {
-	#### add check for start and end times in file
-	if($StartEnd -eq "start" -and $Global:MailboxARC.StartTime)
+	$TempPath = $Global:MessageFilePath + "AutoReplyConfig.json"
+	if(FileDNE $TempPath) 
 	{
-		if((YesNo "Do you want to used the saved $Startend time? ") -eq "Yes")
+		get-ARCFile
+		#### check for start and end times in file
+		if($StartEnd -eq "start")
 		{
-			return [datetime] $Global:MailboxARC.StartTime
+			$PT = (-join"Do you want to used the saved $Startend time? ",$Global:MailboxARC.StartTime)
+			if((YesNo $PT -eq "Yes"))
+			{
+				#Write-Host $Global:MailboxARC.StartTime
+				return [datetime] $Global:MailboxARC.StartTime
+			}
 		}
-	}
-	if($StartEnd -eq "end" -and $Global:MailboxARC.EndTime)
-	{
-		if((YesNo "Do you want to used the saved $Startend time? ") -eq "Yes")
+
+		if($StartEnd -eq "end")
 		{
-			return [datetime] $Global:MailboxARC.EndTime
+			$PT = (-join"Do you want to used the saved $Startend time? ",$Global:MailboxARC.EndTime)
+			if((YesNo $PT -eq "Yes"))
+			{
+				#Write-Host $Global:MailboxARC.EndTime
+				return [datetime] $Global:MailboxARC.EndTime
+			}
 		}
 	}
 
@@ -239,7 +250,7 @@ function DisconnectEXO
 
 function YesNo($Prompt) 
 {
-	$PT = $Prompt + " [Yes] No"
+	$PT = $Prompt + "[Yes] No"
 	$YN = Read-Host -Prompt $PT
     if($YN -eq "" -or $YN -eq "Yes"  -or  $YN -eq "YES"  -or  $YN -eq "Y"  -or  $YN -eq "y"){ #if user doesn't input anything use default
 		return "Yes"
@@ -262,14 +273,14 @@ function InstallEXOM
 	return
 }
 
-$Global:CurrentUser=$null #obatined from user folder name
+#$Global:CurrentUser=$null #obatined from user folder name
 $Global:UserAlias=get-Alias #$null #combined with suffix
 
 $Global:UserAliasSuffix="@Microsoft.com"
-$Global:MailboxARC=$null #auto reply configuration object
+#$Global:MailboxARC= get-arc #auto reply configuration object
 
-$Global:EndOfShift=$null#[datetime]"6:00pm"
-$Global:StartOfShift=$null#[datetime]"9:00am"
-$Global:AliasPath = $Global:UserAlias.replace("@","_")
+#$Global:EndOfShift=$null#[datetime]"6:00pm"
+#$Global:StartOfShift=$null#[datetime]"9:00am"
+#$Global:AliasPath = $Global:UserAlias.replace("@","_")
 $Global:MessageFilePath= Get-Location
 $Global:MessageFilePath= $Global:MessageFilePath.tostring() + "\"
