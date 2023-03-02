@@ -24,9 +24,33 @@ function get-Alias
 function ConnectAlias2EXO 
 {
 	InstallEXOM #is EXO module installed
-	Write-Host "Connecting to your Outlook Account with Alias $Global:UserAlias`n" 
+	Write-Host "Connecting to your Outlook Account with alias $Global:UserAlias`n" 
 	Connect-ExchangeOnline -UserPrincipalName $Global:UserAlias
 	Write-Host "Done Connecting"
+}
+
+function set-ARCFile
+{
+	if(FileDNE $Global:MessageFilePath) 
+	{
+        ###file exists do you want to overwrite
+		$Q = YesNo "File already exists, over write $Global:MessageFilePath ? -ForegroundColor Red"
+	}
+	else
+	{
+		###write file
+		$Q = YesNo "No local copy found, do you want to save a local copy on $Global:MessageFilePath ?"
+	}
+	if($Q -eq "Yes") 
+	{
+		SaveIt "AutoConfig is being written to JSON file from current configuration to $Global:MessageFilePath"	
+	}
+}
+
+function SaveIt($PT)
+{	
+	Write-Host "$PT"
+	$Global:MailboxARC | ConvertTo-Json -depth 100 | Set-Content $Global:MessageFilePath
 }
 
 function get-ARC 
@@ -45,12 +69,11 @@ function get-ARC
 	{
 		$Global:MailboxARC = Get-MailboxAutoReplyConfiguration -UserPrincipalName $UserAlias
 
-		$SaveIt = YesNo "Do you want to save a local copy on $Global:MessageFilePath ?"
-		if($SaveIt -eq "Yes") 
+		$Q = YesNo "Do you want to save current online configuration to a local copy at $Global:MessageFilePath ?"
+		if($Q -eq "Yes") 
 		{
-			Write-Host "AutoConfig is being written to JSON file $Global:MessageFilePath"
 			$Global:MailboxARC = Get-MailboxAutoReplyConfiguration -UserPrincipalName $UserAlias
-			$Global:MailboxARC | ConvertTo-Json -depth 100 | Set-Content $Global:MessageFilePath
+			SaveIt "AutoConfig is being written to JSON file from current Exchange Online connection to $Global:MessageFilePath"
 		}
     }
 	Write-Host "Current Auto Reply State is : "$Global:MailboxARC.AutoReplyState
@@ -61,6 +84,7 @@ function get-ARCFile
 	#Write-Host $Global:MessageFilePath
     $Global:MailboxARC = Get-Content $Global:MessageFilePath -raw | ConvertFrom-Json 
 }
+
 function FileDNE($FilePath) 
 {
     return (Get-Item -Path $FilePath -ErrorAction Ignore)
@@ -79,17 +103,20 @@ function Set-ARCSTATEScheduled
 
 	##gets office hours, if not hardcoded at end of this file, ask user for input
 	$daystoadd = IsOfficeHours
-	$Global:StartOfShift = [datetime] $Global:StartOfShift.adddays($daystoadd)
-	$Global:EndOfShift = [datetime] $Global:EndOfShift.adddays($daystoadd)
-	
-	#$Global:StartOfShift = [datetime] $Global:StartOfShift
-	#$Global:EndOfShift = [datetime] $Global:EndOfShift
+
+	$Global:StartOfShift = [datetime] (Get-Date).Date.AddHours($Global:StartOfShift)
+	$Global:EndOfShift = [datetime] (Get-Date).Date.AddHours$Global:EndOfShift
 
 	#Write-Host ([datetime] $Global:StartOfShift) ([datetime] $Global:EndOfShift)
 	#Set-MailboxAutoReplyConfiguration -Identity $UserAlias -ExternalMessage $Global:MailboxARC.ExternalMessage -InternalMessage $Global:MailboxARC.InternalMessage -StartTime $Global:EndOfShift -EndTime $Global:StartOfShift -AutoReplyState "Scheduled"
 
 	Set-MailboxAutoReplyConfiguration -Identity $Global:UserAlias -AutoReplyState "Scheduled"
-	Write-Host "Set Auto Reply state to Scheduled. `nOOF Message will start:" $Global:StartofShift "`nOOF Message will End: " $Global:EndOfShift
+	Write-Host "Set Auto Reply state to Scheduled. `nOOF Message will start:" $Global:MailboxARC.StartTime "`nOOF Message will End: " $Global:MailboxARC.EndTime
+	Write-Host "Set Auto Reply state to Scheduled. `nOOF Message will start:" $Global:EndOfShift "`nOOF Message will End: " $Global:StartOfShift
+
+	###update json
+	set-ARCFile
+
 }
 
 function IsOfficeHours 
@@ -102,9 +129,6 @@ function IsOfficeHours
 
 	$CuTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
 	$CuTime =  [datetime] $CuTime
-
-	$Global:StartOfShift = GetShiftTime "start" 
-	$Global:EndOfShift = GetShiftTime "end" 
 
 	#Write-Host ($Global:StartOfShift) 
 	#Write-Host ($Global:EndOfShift)
@@ -149,8 +173,8 @@ function IsOfficeHours
 		}
 		$duringshift = $i
 		#Write-Host $CuTime.DayOfWeek
-		#Write-Host $Global:StartOfShift.TimeofDay
-		Write-Host (-join("The start of the next workday is ",$CuTime.DayOfWeek," ",$Global:StartOfShift))
+		#Write-Host $Global:StartOfShift.TimeOfDay
+		Write-Host (-join("The start of the next workday is ",$CuTime.DayOfWeek," ",$Global:StartOfShift.TimeOfDay))
 		
 	}
 	return $duringshift
@@ -186,23 +210,29 @@ function GetShiftTime($StartEnd)
 		#### check for start and end times in file
 		if($StartEnd -eq "start")
 		{
-			$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will end ",$Global:MailboxARC.EndTime.TimeofDay))
+			$ST = [datetime] $Global:MailboxARC.EndTime
+			$ST = $ST.TimeOfDay
+			#Write-Host $ST
+			$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will end ",$ST," "))
 			if((YesNo $PT -eq "Yes"))
 			{
 				#Write-Host $Global:MailboxARC.StartTime
-				$Global:StartOfShift = $Global:MailboxARC.EndTime
-				return [datetime] $Global:MailboxARC.StartTime
+				#$Global:StartOfShift = $ST
+				return $ST
 			}
 		}
 
 		if($StartEnd -eq "end")
 		{
-			$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will start ",$Global:MailboxARC.StartTime.TimeofDay))
+			$ET = [datetime] $Global:MailboxARC.StartTime
+			$ET = $ET.TimeOfDay
+			#Write-Host $ET.TimeOfDay
+			$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will start ",$ET," "))
 			if((YesNo $PT -eq "Yes"))
 			{
 				#Write-Host $Global:MailboxARC.EndTime
-				$Global:EndOfShift = $Global:MailboxARC.StartTime
-				return [datetime] $Global:MailboxARC.EndTime
+				#$Global:EndOfShift = $ET
+				return $ET
 			}
 		}
 	}
@@ -248,3 +278,5 @@ $Global:UserAlias = get-Alias #based on user folder name combined with suffix
 $Global:MessageFilePath = Get-Location
 $Global:MessageFilePath = (-join($Global:MessageFilePath.tostring(),'\','AutoReplyConfig.json'))
 ConnectAlias2EXO
+$Global:StartOfShift = GetShiftTime "start" 
+$Global:EndOfShift = GetShiftTime "end"
