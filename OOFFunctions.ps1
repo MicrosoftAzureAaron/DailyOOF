@@ -157,7 +157,7 @@ function set-ARCmessagefile
 	$MessageFilePath = (-join($MessageFilePath.tostring(),'\','message.html'))
 	#Write-Host $MessageFilePath
 	$text = $Global:MailboxARC.ExternalMessage.tostring()
-	ConvertTo-Html -InputObject $text | Out-File -FilePath $MessageFilePath
+	$text | Out-File -FilePath $MessageFilePath
 }
 
 function IsOfficeHours($duringshift) 
