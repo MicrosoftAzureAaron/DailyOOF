@@ -1,32 +1,31 @@
-# $StartOfShift = $null #9:00am #Get-ShiftTime "start" #hard code a time here if you dont want to be asked
-# $EndOfShift = $null #"6:00pm" #Get-ShiftTime "end" #hard code a time here if you dont want to be asked
+$StartOfShift = "9:00am"
+$EndOfShift = "6:00pm"
 $UserAliasSuffix = "@microsoft.com"
-
+$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
 #Get current username from local user foldername
 function Get-UsernameFromWindows 
 {
 	$CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
-    Write-Host "CurrentUser is " -NoNewline
-	Write-Host "$CurrentUser" -ForegroundColor Blue
+    #Write-Host "CurrentUser is " -NoNewline
+	#Write-Host "$CurrentUser" -ForegroundColor Blue
 	return $CurrentUser
 }
 
 #Get alias from userfolder, if this fails, it will prompt for creds
 function Get-Alias 
 {
-	Get-Suffix
+	if($UserAliasSuffix -eq "" -or $null -eq $UserAliasSuffix)
+	{
+		Get-Suffix
+	}
 	$CurrentUser = Get-UsernameFromWindows
     $UA = (-join($CurrentUser,$UserAliasSuffix))
-    #Write-Host "UserAlias is " -NoNewline
-	#Write-Host "$UA" -ForegroundColor Blue
-    #Write-Host "UserAliasSuffix is " -NoNewline
-	#Write-Host "$UserAliasSuffix" -ForegroundColor Blue
 	return $UA
 }
 function Get-Suffix 
 {
-    Write-Host "Current suffix is ${UserAliasSuffix}" -NoNewline
+    Write-Host "Current suffix is ${UserAliasSuffix}"
 	$PT = "What email suffix would you like to use? Format @microsoft.com"
 	$UserAliasSuffix = Read-Host -Prompt $PT
 	return $UserAliasSuffix
@@ -35,10 +34,13 @@ function Get-Suffix
 #connect to exchange online
 function Connect-Alias2EXO 
 {
-	InstallEXOM #is EXO module installed
-	Write-Host "Connecting to your Outlook Account with alias $UserAlias" 
+	Get-EXOM #is EXO module installed
+	$UserAlias = Get-Alias
+	#Write-Host "Current account is " -NoNewline
+	#Write-Host "${UserAlias}" -ForegroundColor Blue
+	#Write-Host "Connecting to your Outlook Account with alias $UserAlias" 
 	Connect-ExchangeOnline -UserPrincipalName $UserAlias
-	Write-Host "Done Connecting"
+	#Write-Host "Done Connecting"
 }
 
 function Get-ARCFilePath 
@@ -52,54 +54,58 @@ function Get-ARCFilePath
 function Set-ARCFile
 {
 	$ARCFilePath = Get-ARCFilePath
-	if(Test-Path $ARCFilePath) 
-	{
-        ###file exists do you want to overwrite
-		$Q = YesNo "Auto Reply config file already exists, over write ${ARCFilePath}?"
-	}
-	else
-	{
-		###write file
-		$Q = YesNo "No local copy found, do you want to save a local copy on ${ARCFilePath}?"
-	}
-	if($Q -eq "Yes") 
-	{
-		Write-Host "Auto Reply config is being written to JSON file from current configuration to ${ARCFilePath}"
-		$MailboxARC | ConvertTo-Json -depth 100 | Set-Content $ARCFilePath
-	}
+	# if(Test-Path $ARCFilePath) 
+	# {
+    #     ###file exists do you want to overwrite
+	# 	$Q = YesNo "Auto Reply config file already exists, over write ${ARCFilePath}?"
+	# }
+	# else
+	# {
+	# 	###write file
+	# 	$Q = YesNo "No local copy found, do you want to save a local copy on ${ARCFilePath}?"
+	# }
+	# if($Q -eq "Yes") 
+	# {
+	# 	Write-Host "Auto Reply config is being written to JSON file from current configuration to ${ARCFilePath}"
+	# 	$MailboxARC | ConvertTo-Json -depth 100 | Set-Content $ARCFilePath
+	# }
+
+	#This is only called when writing the file, no need to check to overwrite
+	$MailboxARC | ConvertTo-Json -depth 100 | Set-Content $ARCFilePath
 }
 
-#write the file file from 'memory'
-# function SaveIt($PT)
-# {	
-
-# }
-
-#Get current config, local file first, otherwise whats online
+#Get current config from online
 function Get-ARC 
 {
-	$ARCFilePath = Get-ARCFilePath
-	#add choice load from file or load from online exchange
-	#prefers local store over remote
-	if(Test-Path $ARCFilePath) 
-	{
-        Write-Host "ARC File stored locally" $ARCFilePath
-        $MailboxARC = Get-ARCFile
-		Write-Host "ARC File Loaded from Local File"
-		#Write-Host $MailboxARC
-	}
-    else 
-	{
-		$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias
+	# $ARCFilePath = Get-ARCFilePath
+	# #add choice load from file or load from online exchange
+	# #prefers local store over remote
+	# if(Test-Path $ARCFilePath) 
+	# {
+    #     Write-Host "ARC File stored locally" $ARCFilePath
+    #     $MailboxARC = Get-ARCFile
+	# 	Write-Host "ARC File Loaded from Local File"
+	# 	#Write-Host $MailboxARC
+	# }
+    # else 
+	# {
+	# 	$UserAlias = Get-Alias
+	# 	$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias
 
-		$Q = YesNo "Do you want to save current online configuration to a local copy at $ARCFilePath ?"
-		if($Q -eq "Yes") 
-		{
-			$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias
-			Set-ARCFile
-			# SaveIt "Auto Reply config is being written to JSON file from current Exchange Online connection to $ARCFilePath"
-		}
-    }
+	# 	# $Q = YesNo "Do you want to save current online configuration to a local copy at $ARCFilePath ?"
+	# 	# if($Q -eq "Yes") 
+	# 	# {
+	# 	# 	$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias
+	# 	# 	Set-ARCFile
+	# 	# 	# SaveIt "Auto Reply config is being written to JSON file from current Exchange Online connection to $ARCFilePath"
+	# 	# }
+
+		
+    # }
+
+	$UserAlias = Get-Alias #get alias
+	$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias #get arc
+	Set-ARCFile #Always write the file to disk
 	Return $MailboxARC
 }
 
@@ -111,23 +117,37 @@ function Get-ARCFile
     return Get-Content $ARCFilePath -raw | ConvertFrom-Json 
 }
 
-# check to see if file is there
-# function FileDNE($FilePath) 
-# {
-#     return (Get-Item -Path $FilePath -ErrorAction Ignore)
-# }
 
-#Set auto reply to scheduled
+#Set auto reply to scheduled/endabled/disabled
 function Set-ARCState 
 {
+	$UserAlias = Get-Alias	
+	$MailboxARC = Get-ARC
+	Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
 	#is Reply state disabled or enabled by the user manually instead of scheduled
-	if($MailboxARC.AutoReplyState -eq "Disabled" -or $MailboxARC.AutoReplyState -eq "Enabled"){
-		Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
-	}
-	Set-MailboxAutoReplyConfiguration -Identity $UserAlias -AutoReplyState "Scheduled"
+	#if($MailboxARC.AutoReplyState -eq "Disabled" -or $MailboxARC.AutoReplyState -eq "Enabled"){
+	#	Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
+	#}
+	$Swit = Read-Host -Prompt "What mode should Auto Reply be set to?`n1. Enabled`n2. Disabled`n3. Scheduled`nChoice "
+	switch($Swit)
+	{
+		'1'
+		{
+			Set-MailboxAutoReplyConfiguration -Identity $UserAlias -AutoReplyState "Enabled"
+		}
+		'2'
+		{
+			Set-MailboxAutoReplyConfiguration -Identity $UserAlias -AutoReplyState "Disabled"
+		}
+		'3'
+		{
+			Set-MailboxAutoReplyConfiguration -Identity $UserAlias -AutoReplyState "Scheduled"
+		}
+	}	
 	#Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
 	###update json
 	#Set-ARCFile  add option to save from menu to local file
+	$MailboxARC = Get-ARC
 }
 
 #Set auto reply start and end times
@@ -200,7 +220,7 @@ function Get-Schedule
 	$CuTime =  [datetime] $CuTime
 
 	#what days of the week do you work hard code it if you dont wanna be asked
-	$WorkDays = Workdays_of_week
+	$WorkDays = Get-WD
 
 	if(!($CuTime.DayOfWeek -in $WorkDays))
 	{
@@ -244,7 +264,7 @@ function Get-Schedule
 	return $duringshift
 }
 
-function Workdays_of_week 
+function Get-WD 
 {   
 	### this is a function to either Set an array of days of the week that you work by uncommenting or configuring your own line below
 	### These are the days of the week that you work
@@ -268,13 +288,23 @@ function Workdays_of_week
 
 	if(!$WD)
 	{
-		$Swit = Read-Host -Prompt "Which of the following matches your weekly work schedule`n1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'`n2. 'Monday', 'Tuesday', 'Wednesday', 'Sunday'`n3. 'Wednesday', 'Thursday', 'Friday', 'Saturday'`n Choice "
+		$Swit = Read-Host -Prompt "Which of the following matches your weekly work schedule`n1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'`n2. 'Monday', 'Tuesday', 'Wednesday', 'Sunday'`n3. 'Wednesday', 'Thursday', 'Friday', 'Saturday'`nChoice "
 		switch($Swit)
 		{
-			1{$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')}
-			2{$WD = @('Monday', 'Tuesday', 'Wednesday', 'Sunday')}
-			3{$WD = @('Wednesday', 'Thursday', 'Friday', 'Saturday')}
+			'1'
+			{
+				$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+			}
+			'2'
+			{
+				$WD = @('Monday', 'Tuesday', 'Wednesday', 'Sunday')
+			}
+			'3'
+			{
+				$WD = @('Wednesday', 'Thursday', 'Friday', 'Saturday')
+			}
 		}
+		Write-Host $WD
 	}
 	return $WD
 }
@@ -282,11 +312,10 @@ function Workdays_of_week
 #what time do you start or end your shift
 function Get-ShiftTime($StartEnd) 
 {
+	$MailboxARC = Get-ARC
 	$ARCFilePath = Get-ARCFilePath
 	if(Test-Path $ARCFilePath) 
 	{
-		### ask to use file or online
-		$MailboxARC = Get-ARC
 		#### check for start and end times in file
 		if($StartEnd -eq "start")
 		{
@@ -346,7 +375,7 @@ function YesNo($Prompt)
 }
 
 #install the module
-function InstallEXOM 
+function Get-EXOM
 {
 	if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
 		#Write-Host "ExchangeOnlineManagement exists, not installing`n"
@@ -361,40 +390,67 @@ function InstallEXOM
 	return
 }
 
-function Show-Menu {
+function Show-Menu 
+{
     param (
         [string]$Title = 'Email Out of Office Automation'
     )
     Clear-Host
     Write-Host "================ $Title ================"
     
-    Write-Host "1: Press '1' To set your office hours and and weekday Schedule"
+    Write-Host "1: Press '1' Enable Scheduled Auto Reply and Quit"
     Write-Host "2: Press '2' To set your email suffix"
-    Write-Host "3: Press '3' To get the current Auto Reply Configuration from Exchange"
+	Write-Host "3: Press '3' To set your office hours"
+    Write-Host "4: Press '4' To set your work days"
+	Write-Host "5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled"
+	Write-Host "6: Press '6' "
     Write-Host "Q: Press 'Q' to quit."
 }
 
 do
- {
-    Show-Menu
-    $selection = Read-Host "Please make a selection"
-    switch ($selection)
-    {
+{
+	Show-Menu
+	$selection = Read-Host "Please make a selection"
+	switch ($selection)
+	{
 		'1'
 		{
-			'You chose option #1'
 			Get-Schedule
+			$UserAlias = Get-Alias
+			Connect-Alias2EXO
+			Set-MailboxAutoReplyConfiguration -Identity $UserAlias -AutoReplyState "Scheduled"
+			$MailboxARC = Get-ARC
+			Write-Host "Auto Reply state is currently Set to" $MailboxARC.AutoReplyState
+			Write-Host "Auto Reply will start at" $MailboxARC.StartTime
+			Write-Host "Auto Reply will end at" $MailboxARC.EndTime
+			DisconnectEXO
+			$selection = 'q'
 		}
 		'2'
 		{
-			'You chose option #2'
+			$UserAliasSuffix = Get-Suffix
 		}
 		'3'
 		{
-			'You chose option #3'
-			Get-ARC
+			$StartOfShift = (Get-ShiftTime "start")
+			$EndOfShift = (Get-ShiftTime "end")
 		}
-    }
-    pause
- }
- until ($selection -eq 'q')
+		'4'
+		{
+			$WD = ''
+			$WD = Get-WD
+		}
+		'5'
+		{
+			Connect-Alias2EXO
+			Set-ARCState
+			DisconnectEXO
+		}
+		'6'
+		{
+		}
+	}
+	pause
+}
+until ($selection -eq 'q')
+DisconnectEXO
