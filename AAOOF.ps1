@@ -1,3 +1,8 @@
+# $StartOfShift = $null #9:00am #Get-ShiftTime "start" #hard code a time here if you dont want to be asked
+# $EndOfShift = $null #"6:00pm" #Get-ShiftTime "end" #hard code a time here if you dont want to be asked
+$UserAliasSuffix = "@microsoft.com"
+
+
 #Get current username from local user foldername
 function Get-UsernameFromWindows 
 {
@@ -10,6 +15,7 @@ function Get-UsernameFromWindows
 #Get alias from userfolder, if this fails, it will prompt for creds
 function Get-Alias 
 {
+	Get-Suffix
 	$CurrentUser = Get-UsernameFromWindows
     $UA = (-join($CurrentUser,$UserAliasSuffix))
     #Write-Host "UserAlias is " -NoNewline
@@ -17,6 +23,13 @@ function Get-Alias
     #Write-Host "UserAliasSuffix is " -NoNewline
 	#Write-Host "$UserAliasSuffix" -ForegroundColor Blue
 	return $UA
+}
+function Get-Suffix 
+{
+    Write-Host "Current suffix is ${UserAliasSuffix}" -NoNewline
+	$PT = "What email suffix would you like to use? Format @microsoft.com"
+	$UserAliasSuffix = Read-Host -Prompt $PT
+	return $UserAliasSuffix
 }
 
 #connect to exchange online
@@ -124,7 +137,7 @@ function Set-ARCTimes
 	if($null -eq $EndOfShift){$EndOfShift = (Get-ShiftTime "end")}
 	##Gets office hours, if not hardcoded at end of this file, ask user for input
 	$daysToAdd = 0
-	$daysToAdd = IsOfficeHours
+	$daysToAdd = Get-Schedule
 
 	#convert daily time to todays time
 	$hours = (Get-Date $StartOfShift)
@@ -177,7 +190,7 @@ function Set-ARCmessagefile
 	Write-Host "Message file saved as $ARCMessageFile"
 }
 
-function IsOfficeHours
+function Get-Schedule
 {
 	if($null -eq $StartOfShift){$StartOfShift = (Get-ShiftTime "start")}
 	if($null -eq $EndOfShift){$EndOfShift = (Get-ShiftTime "end")}
@@ -251,7 +264,7 @@ function Workdays_of_week
     #$WD = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
 
 	### Standard Monday - Friday
-	$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+	#$WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
 	if(!$WD)
 	{
@@ -348,10 +361,40 @@ function InstallEXOM
 	return
 }
 
-# james was here A A ron you done messed up
-$UserAliasSuffix = "@microsoft.com"
-$UserAlias = Get-Alias #based on user folder name combined with suffix, or hard code it
-Connect-Alias2EXO
-$MailboxARC = Get-ARC
-$StartOfShift = $null #9:00am #Get-ShiftTime "start" #hard code a time here if you dont want to be asked
-$EndOfShift = $null #"6:00pm" #Get-ShiftTime "end" #hard code a time here if you dont want to be asked
+function Show-Menu {
+    param (
+        [string]$Title = 'Email Out of Office Automation'
+    )
+    Clear-Host
+    Write-Host "================ $Title ================"
+    
+    Write-Host "1: Press '1' To set your office hours and and weekday Schedule"
+    Write-Host "2: Press '2' To set your email suffix"
+    Write-Host "3: Press '3' To get the current Auto Reply Configuration from Exchange"
+    Write-Host "Q: Press 'Q' to quit."
+}
+
+do
+ {
+    Show-Menu
+    $selection = Read-Host "Please make a selection"
+    switch ($selection)
+    {
+		'1'
+		{
+			'You chose option #1'
+			Get-Schedule
+		}
+		'2'
+		{
+			'You chose option #2'
+		}
+		'3'
+		{
+			'You chose option #3'
+			Get-ARC
+		}
+    }
+    pause
+ }
+ until ($selection -eq 'q')
