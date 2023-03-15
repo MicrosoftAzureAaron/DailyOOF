@@ -1,5 +1,5 @@
-$StartOfShift = "9:00am"
-$EndOfShift = "6:00pm"
+$StartOfShift = [datetime]"9:00am"
+$EndOfShift = [datetime]"6:00pm"
 $UserAliasSuffix = "@microsoft.com"
 $WD = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
@@ -20,8 +20,8 @@ function Get-Alias
 		Get-Suffix
 	}
 	$CurrentUser = Get-UsernameFromWindows
-    $UA = (-join($CurrentUser,$UserAliasSuffix))
-	return $UA
+    $UserAlias = (-join($CurrentUser,$UserAliasSuffix))
+	return $UserAlias
 }
 function Get-Suffix 
 {
@@ -32,7 +32,7 @@ function Get-Suffix
 }
 
 #connect to exchange online
-function Connect-Alias2EXO 
+function Get-EXOConnection 
 {
 	Get-EXOM #is EXO module installed
 	$UserAlias = Get-Alias
@@ -75,35 +75,13 @@ function Set-ARCFile
 }
 
 #Get current config from online
-function Get-ARC 
+#save to local file
+function Get-ARC($UserAlias)
 {
-	# $ARCFilePath = Get-ARCFilePath
-	# #add choice load from file or load from online exchange
-	# #prefers local store over remote
-	# if(Test-Path $ARCFilePath) 
-	# {
-    #     Write-Host "ARC File stored locally" $ARCFilePath
-    #     $MailboxARC = Get-ARCFile
-	# 	Write-Host "ARC File Loaded from Local File"
-	# 	#Write-Host $MailboxARC
-	# }
-    # else 
-	# {
-	# 	$UserAlias = Get-Alias
-	# 	$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias
-
-	# 	# $Q = YesNo "Do you want to save current online configuration to a local copy at $ARCFilePath ?"
-	# 	# if($Q -eq "Yes") 
-	# 	# {
-	# 	# 	$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias
-	# 	# 	Set-ARCFile
-	# 	# 	# SaveIt "Auto Reply config is being written to JSON file from current Exchange Online connection to $ARCFilePath"
-	# 	# }
-
-		
-    # }
-
-	$UserAlias = Get-Alias #get alias
+	if(!$UserAlias)
+	{	
+		$UserAlias = Get-Alias #get alias
+	}
 	$MailboxARC = Get-MailboxAutoReplyConfiguration -Identity $UserAlias #get arc
 	Set-ARCFile #Always write the file to disk
 	Return $MailboxARC
@@ -119,17 +97,21 @@ function Get-ARCFile
 
 
 #Set auto reply to scheduled/endabled/disabled
-function Set-ARCState 
+function Set-ARCState($S)
 {
-	$UserAlias = Get-Alias	
-	$MailboxARC = Get-ARC
+	if(!$UserAlias)
+	{	
+		$UserAlias = Get-Alias #get alias
+	}
+	#get current configuration
+	$MailboxARC = Get-ARC $UserAlias
 	Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
-	#is Reply state disabled or enabled by the user manually instead of scheduled
-	#if($MailboxARC.AutoReplyState -eq "Disabled" -or $MailboxARC.AutoReplyState -eq "Enabled"){
-	#	Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
-	#}
-	$Swit = Read-Host -Prompt "What mode should Auto Reply be set to?`n1. Enabled`n2. Disabled`n3. Scheduled`nChoice "
-	switch($Swit)
+
+	if(!$S)
+	{
+		$S = Read-Host -Prompt "What mode should Auto Reply be set to?`n1. Enabled`n2. Disabled`n3. Scheduled`nChoice "
+	}
+	switch($S)
 	{
 		'1'
 		{
@@ -145,18 +127,25 @@ function Set-ARCState
 		}
 	}	
 	#Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
-	###update json
-	#Set-ARCFile  add option to save from menu to local file
-	$MailboxARC = Get-ARC
+	#update json
+	Get-ARC $UserAlias
 }
 
 #Set auto reply start and end times
-function Set-ARCTimes
+function Set-ARCTimes($StartOfShift,$EndOfShift)
 {
+	##Gets office hours, if not hardcoded at the start of this file, ask user for input
 	if($null -eq $StartOfShift){$StartOfShift = (Get-ShiftTime "start")}
 	if($null -eq $EndOfShift){$EndOfShift = (Get-ShiftTime "end")}
-	##Gets office hours, if not hardcoded at end of this file, ask user for input
+	
+	#need the users alias 
+	$UserAlias = Get-Alias
+	
+	#get current configuration
+	$MailboxARC = Get-ARC $UserAlias
+
 	$daysToAdd = 0
+	#how many days till next day of work
 	$daysToAdd = Get-Schedule
 
 	#convert daily time to todays time
@@ -172,10 +161,14 @@ function Set-ARCTimes
 	$hours = Get-Date "$EndOfShift"
 	$EndOfShift = [datetime] (Get-Date).Date.AddHours($hours.Hour)
 
-	Write-Host "From File start:" $MailboxARC.StartTime "`nFrom File will End: " $MailboxARC.EndTime
-	Write-Host "`nLive Config start:" $EndOfShift "`nLive Config will End: " $StartOfShift
+	Write-Host "Current Online start:" $MailboxARC.StartTime "`nCurrent Online will End: " $MailboxARC.EndTime
+	Write-Host "Live Config start:" $EndOfShift "`nLive Config will End: " $StartOfShift
+
+	#Set start and end time for scheduled auto reply
 	Set-MailboxAutoReplyConfiguration -Identity $UserAlias -StartTime $EndOfShift -EndTime $StartOfShift
-	#Set-ARCFile  add option to save from menu to local file
+	
+	#Write Current Config to file
+	Get-ARC $UserAlias
 }
 
 #Set auto reply message
@@ -210,6 +203,7 @@ function Set-ARCmessagefile
 	Write-Host "Message file saved as $ARCMessageFile"
 }
 
+#returns the number of days till next work day
 function Get-Schedule
 {
 	if($null -eq $StartOfShift){$StartOfShift = (Get-ShiftTime "start")}
@@ -244,17 +238,17 @@ function Get-Schedule
 	{
 		if($CuTime -lt $StartOfShift)
 		{ 
-			#Write-Host "Currently Before Shift" ### use todays start and end times, rerun during shift to Set for overnight oof
+			Write-Host "${CuTime} Currently Before Shift" ### use todays start and end times, rerun during shift to Set for overnight oof
 			$duringshift = 0
 		}
-		elseif($CuTime -gt $StartOfShift)
+		elseif($CuTime -gt $EndofShift)
 		{
-			#Write-Host "Currently After Shift"### use tomorrows start time and todays end time
+			Write-Host "${CuTime} Currently After Shift"### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
 		elseif($CuTime -le $EndOfShift -And $CuTime -ge $StartOfShift)
 		{
-			#Write-Host "Currently During Shift" ### use tomorrows start time and todays end time
+			Write-Host "${CuTime} Currently During Shift" ### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
 		else {
@@ -288,8 +282,8 @@ function Get-WD
 
 	if(!$WD)
 	{
-		$Swit = Read-Host -Prompt "Which of the following matches your weekly work schedule`n1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'`n2. 'Monday', 'Tuesday', 'Wednesday', 'Sunday'`n3. 'Wednesday', 'Thursday', 'Friday', 'Saturday'`nChoice "
-		switch($Swit)
+		$S = Read-Host -Prompt "Which of the following matches your weekly work schedule`n1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'`n2. 'Monday', 'Tuesday', 'Wednesday', 'Sunday'`n3. 'Wednesday', 'Thursday', 'Friday', 'Saturday'`nChoice "
+		switch($S)
 		{
 			'1'
 			{
@@ -312,44 +306,44 @@ function Get-WD
 #what time do you start or end your shift
 function Get-ShiftTime($StartEnd) 
 {
-	$MailboxARC = Get-ARC
-	$ARCFilePath = Get-ARCFilePath
-	if(Test-Path $ARCFilePath) 
-	{
-		#### check for start and end times in file
-		if($StartEnd -eq "start")
-		{
-			$ST = [datetime] $MailboxARC.EndTime
-			$TODST = $ST.TimeOfDay
-			# Write-Host $MailboxARC.EndTime
-			# Write-Host $ST
-			$PT = "Do you want to used the saved ${StartEnd} of shift time? This is when the OOF message will end ${TODST}"
-			#$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will end ",$ST.TimeOfDay," "))
-			if(((YesNo $PT) -eq "Yes"))
-			{
-				#Write-Host $MailboxARC.StartTime
-				#$StartOfShift = $ST
-				return $ST
-			}
-		}
+	# $MailboxARC = Get-ARC
+	# $ARCFilePath = Get-ARCFilePath
+	# if(Test-Path $ARCFilePath) 
+	# {
+	# 	#### check for start and end times in file
+	# 	if($StartEnd -eq "start")
+	# 	{
+	# 		$ST = [datetime] $MailboxARC.EndTime
+	# 		$TODST = $ST.TimeOfDay
+	# 		# Write-Host $MailboxARC.EndTime
+	# 		# Write-Host $ST
+	# 		$PT = "Do you want to used the saved ${StartEnd} of shift time? This is when the OOF message will end ${TODST}"
+	# 		#$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will end ",$ST.TimeOfDay," "))
+	# 		if(((YesNo $PT) -eq "Yes"))
+	# 		{
+	# 			#Write-Host $MailboxARC.StartTime
+	# 			#$StartOfShift = $ST
+	# 			return $ST
+	# 		}
+	# 	}
 
-		if($StartEnd -eq "end")
-		{
-			$ET = [datetime] $MailboxARC.StartTime
-			$TODET = $ET.TimeOfDay
-			# Write-Host $MailboxARC.StartTime
-			# Write-Host $ET
-			#$ET = $ET.TimeOfDay
-			#Write-Host $ET.TimeOfDay			
-			$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will start ",$TODET))
-			if((YesNo $PT -eq "Yes"))
-			{
-				#Write-Host $MailboxARC.EndTime
-				#$EndOfShift = $ET
-				return $ET
-			}
-		}
-	}
+	# 	if($StartEnd -eq "end")
+	# 	{
+	# 		$ET = [datetime] $MailboxARC.StartTime
+	# 		$TODET = $ET.TimeOfDay
+	# 		# Write-Host $MailboxARC.StartTime
+	# 		# Write-Host $ET
+	# 		#$ET = $ET.TimeOfDay
+	# 		#Write-Host $ET.TimeOfDay			
+	# 		$PT = (-join("Do you want to used the saved $StartEnd of shift time? This is when the OOF message will start ",$TODET))
+	# 		if((YesNo $PT -eq "Yes"))
+	# 		{
+	# 			#Write-Host $MailboxARC.EndTime
+	# 			#$EndOfShift = $ET
+	# 			return $ET
+	# 		}
+	# 	}
+	# }
 
 	$PT = "Enter when you $StartEnd your work day. Format 9:00am"
 	$ShiftTime = Read-Host -Prompt $PT
@@ -410,19 +404,38 @@ function Show-Menu
 do
 {
 	Show-Menu
-	$selection = Read-Host "Please make a selection"
-	switch ($selection)
+	$S = Read-Host "Please make a selection"
+	switch ($S)
 	{
 		'1'
 		{
-			Get-Schedule
+			#get user alias
 			$UserAlias = Get-Alias
-			Connect-Alias2EXO
-			Set-MailboxAutoReplyConfiguration -Identity $UserAlias -AutoReplyState "Scheduled"
-			$MailboxARC = Get-ARC
+			#connect to exchange online
+			Get-EXOConnection
+			#get the users work days and start/end of shift time
+			#if hardcoded at start of file this will be silent
+			Get-Schedule
+			
+			#get current configuration
+			#$MailboxARC = Get-ARC($UserAlias)
+			
+			Write-Host "Current account is " -NoNewline
+			Write-Host "${UserAlias}" -ForegroundColor Blue
+
+			#set to scheduled
+			Set-ARCState '3' 
+
+			#set start and end times
+			Set-ARCTimes "9:00 am" "6:00 pm"
+
+			#get current configuration
+			$MailboxARC = Get-ARC $UserAlias
+
 			Write-Host "Auto Reply state is currently Set to" $MailboxARC.AutoReplyState
 			Write-Host "Auto Reply will start at" $MailboxARC.StartTime
 			Write-Host "Auto Reply will end at" $MailboxARC.EndTime
+
 			DisconnectEXO
 			$selection = 'q'
 		}
@@ -434,6 +447,9 @@ do
 		{
 			$StartOfShift = (Get-ShiftTime "start")
 			$EndOfShift = (Get-ShiftTime "end")
+			Set-ARCTimes
+			$UserAlias = Get-Alias
+			Get-ARC $UserAlias
 		}
 		'4'
 		{
@@ -442,7 +458,7 @@ do
 		}
 		'5'
 		{
-			Connect-Alias2EXO
+			Get-EXOConnection
 			Set-ARCState
 			DisconnectEXO
 		}
