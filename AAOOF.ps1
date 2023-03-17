@@ -316,9 +316,9 @@ function Get-ShiftTime
 function Get-VacationDate
 {
 	$TempT = Read-Host -Prompt "Enter the next date of work when you return from vacation. Format YYYY/MM/DD"
-	Write-Host "Time for end of autoreply is "$global:StartOfShift.TimeOfDay
+	#Write-Host "Time for end of autoreply is "$global:StartOfShift.TimeOfDay
 	$TempT = [datetime] $Tempt
-	Write-Host "Date for end of autoreply is " $Tempt
+	#Write-Host "Date for end of autoreply is " $Tempt
 	$global:StartOfShift = $Tempt + $global:StartOfShift.TimeOfDay
 	Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -StartTime $global:EndOfShift -EndTime $global:StartOfShift
 }
