@@ -204,7 +204,7 @@ function Get-NextWorkDay
 		$duringshift = $i
 		#Write-Host $CTime.DayOfWeek
 		#Write-Host $global:StartOfShift.TimeOfDay
-		Write-Host (-join("The start of the next workday is ",$CTime.DayOfWeek," ",$global:StartOfShift.TimeOfDay))
+		#Write-Host (-join("The start of the next workday is ",$CTime.DayOfWeek," ",$global:StartOfShift.TimeOfDay))
 	}
 	else
 	{
@@ -226,7 +226,7 @@ function Get-NextWorkDay
 		{
 			#Write-Host $CTime.DayOfWeek
 			#Write-Host $global:StartOfShift.TimeOfDay
-			Write-Host (-join("The start of the next workday is ",$CTime.DayOfWeek," ",$global:StartOfShift.TimeOfDay))
+			#Write-Host (-join("The start of the next workday is ",$CTime.DayOfWeek," ",$global:StartOfShift.TimeOfDay))
 			$global:StartOfShift = $CTime - $CTime.TimeOfDay + $global:StartOfShift.TimeOfDay
 			Return $i
 		}
@@ -294,7 +294,7 @@ function Get-WD
 			}
 			'3'
 			{
-				$WD = @('Wednesday','Saturday','Sunday','Monday')
+				$WD = @('Wednesday','Thursday','Friday','Saturday')
 			}
 		}
 		Write-Host $WD
@@ -310,7 +310,18 @@ function Get-ShiftTime
 	
 	$TempT = Read-Host -Prompt "Enter when you end your work day. Format 6:00pm"
 	$global:EndOfShift = [datetime] $TempT
-} 
+}
+
+#get date for return to work, this sets autoreply to start at end of shift today and end on start of shift on date entered
+function Get-VacationDate
+{
+	$TempT = Read-Host -Prompt "Enter the next date of work when you return from vacation. Format YYYY/MM/DD"
+	Write-Host "Time for end of autoreply is "$global:StartOfShift.TimeOfDay
+	$TempT = [datetime] $Tempt
+	Write-Host "Date for end of autoreply is " $Tempt
+	$global:StartOfShift = $Tempt + $global:StartOfShift.TimeOfDay
+	Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -StartTime $global:EndOfShift -EndTime $global:StartOfShift
+}
 
 #force disconnect
 function Set-EXODisconnect 
@@ -358,7 +369,7 @@ function Show-Menu
     Write-Host "Current account is " -NoNewline
 	Write-Host "$alias" -ForegroundColor Blue
     Write-Host "1: Press '1' Enable Scheduled Auto Reply and Quit"
-    Write-Host "2: Press '2' To display the currect Auto Reply Configuration"
+    Write-Host "2: Press '2' To set an end date for a extended out of office message"
 	Write-Host "3: Press '3' To set your office hours"
     Write-Host "4: Press '4' To set your work days"
 	Write-Host "5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled"
@@ -386,14 +397,9 @@ do
 			#Write-Host "Current account is " -NoNewline
 			#Write-Host "${global:UserAlias}" -ForegroundColor Blue
 
-			#set to scheduled
+			#set to scheduled, scheduled also calls set-arctimes
 			Set-ARCState '3' 
 
-			#set start and end times
-			Set-ARCTimes
-
-			#save current config to local file why?
-			Set-ARCFILE
 			$TempARC = Get-ARC
 			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
 			Write-Host "Auto Reply will start at" $TempARC.StartTime
@@ -404,7 +410,12 @@ do
 		}
 		'2'
 		{
-			Get-ARC
+			Get-VacationDate
+		
+			$TempARC = Get-ARC
+			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
+			Write-Host "Auto Reply will start at" $TempARC.StartTime
+			Write-Host "Auto Reply will end at" $TempARC.EndTime
 		}
 		'3'
 		{
