@@ -456,4 +456,3 @@ until ($S -eq 'q')
 
 #ensure disconnection
 Set-EXODisconnect
-exit
