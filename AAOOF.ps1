@@ -1,3 +1,8 @@
+Param
+(
+	[string]$S2
+)
+
 $global:StartOfShift =  [datetime]"9:00am" #$null
 $global:EndOfShift = [datetime]"6:00pm" #$null 
 $global:UserAliasSuffix = "@microsoft.com"
@@ -384,8 +389,15 @@ Get-EXOConnection
 #### get connected once, this assumes the suffix is correctly hardcoded, if not everything breaks lol
 do
 {
-	Show-Menu
-	$S = Read-Host "Please make a selection"
+	if($S2 -ne '1')
+	{
+		Show-Menu
+		$S = Read-Host "Please make a selection"
+	}
+	else
+	{
+		$S = $S2
+	}
 	switch ($S)
 	{
 		'1'
@@ -444,3 +456,4 @@ until ($S -eq 'q')
 
 #ensure disconnection
 Set-EXODisconnect
+exit
