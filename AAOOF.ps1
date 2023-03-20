@@ -307,10 +307,10 @@ function Get-WD
 function Get-ShiftTime
 {
 	$TempT = Read-Host -Prompt "Enter when you start your work day. Format 9:00am"
-	$global:StartOfShift = [datetime] $TempT
+	$global:StartOfShift = $global:StartOfShift = [datetime] $TempT
 	
 	$TempT = Read-Host -Prompt "Enter when you end your work day. Format 6:00pm"
-	$global:EndOfShift = [datetime] $TempT
+	$global:EndOfShift = $global:EndOfShift = [datetime] $TempT
 }
 
 #get date for return to work, this sets autoreply to start at end of shift today and end on start of shift on date entered
@@ -414,6 +414,7 @@ do
 			#get the users work days and start/end of shift time
 			#if hardcoded at start of file this will be silent
 			$waste = Get-NextWorkDay
+			$waste = $null
 			
 			#Write-Host "Current account is " -NoNewline
 			#Write-Host "${global:UserAlias}" -ForegroundColor Blue
@@ -436,26 +437,32 @@ do
 			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
 			Write-Host "Auto Reply will start at" $TempARC.StartTime
 			Write-Host "Auto Reply will end at" $TempARC.EndTime
+			$InputParm = $null
 		}
 		'3'
 		{
 			Get-ShiftTime
 			Set-ARCTimes
+			$InputParm = $null
 		}
 		'4'
 		{
 			$WD = ''
 			$WD = Get-WD
 			$waste = Get-NextWorkDay
+			$waste = $null
 			Set-ARCTimes
+			$InputParm = $null
 		}
 		'5'
 		{
 			Set-ARCState
+			$InputParm = $null
 		}
 		'6'
 		{
 			Set-ARCmessagefile
+			$InputParm = $null
 		}
 	}
 	pause
