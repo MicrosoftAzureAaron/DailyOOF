@@ -1,4 +1,6 @@
-$global:StartOfShift =  [datetime]"9:00am" #$null
+param([string]$InputParm)
+
+$global:StartOfShift = [datetime]"9:00am" #$null
 $global:EndOfShift = [datetime]"6:00pm" #$null 
 $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = Get-Alias
@@ -45,8 +47,7 @@ function Get-EXOConnection
 	#Write-Host "Done Connecting"
 }
 
-function Get-ARCFilePath 
-
+function Get-ARCFilePath
 {
 	$AFP = Get-Location #store local copy in same folder as script
 	$AFP = (-join($AFP.tostring(),'\','AutoReplyConfig.json'))
@@ -313,11 +314,18 @@ function Get-ShiftTime
 }
 
 #get date for return to work, this sets autoreply to start at end of shift today and end on start of shift on date entered
-function Get-VacationDate
+function Get-VacationDate ($TempT)
 {
-	$TempT = Read-Host -Prompt "Enter the next date of work when you return from vacation. Format YYYY/MM/DD"
-	#Write-Host "Time for end of autoreply is "$global:StartOfShift.TimeOfDay
-	$TempT = [datetime] $Tempt
+	if(!$TempT)
+	{
+		$TempT = Read-Host -Prompt "Enter the next date of work when you return from vacation. Format YYYY/MM/DD"
+		#Write-Host "Time for end of autoreply is "$global:StartOfShift.TimeOfDay
+		$TempT = [datetime] $TempT
+	}
+	else 
+	{
+		$TempT = [datetime] $TempT
+	}
 	#Write-Host "Date for end of autoreply is " $Tempt
 	$global:StartOfShift = $Tempt + $global:StartOfShift.TimeOfDay
 	Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -StartTime $global:EndOfShift -EndTime $global:StartOfShift
@@ -359,15 +367,10 @@ function Get-EXOM
 #menu here
 function Show-Menu 
 {
-    param (
-        [string]$Title = "Email Out of Office Automation"
-		
-    )
-	$alias = Get-Alias
     Clear-Host
-    Write-Host "================ $Title ================"
+    Write-Host "================ Email Out of Office Automation ================"
     Write-Host "Current account is " -NoNewline
-	Write-Host "$alias" -ForegroundColor Blue
+	Write-Host "$global:UserAlias" -ForegroundColor Blue
     Write-Host "1: Press '1' Enable Scheduled Auto Reply and Quit"
     Write-Host "2: Press '2' To set an end date for a extended out of office message"
 	Write-Host "3: Press '3' To set your office hours"
@@ -377,15 +380,33 @@ function Show-Menu
     Write-Host "Q: Press 'Q' to quit."
 }
 
-
-
 ##################### here is where the magic starts ####################
 Get-EXOConnection
 #### get connected once, this assumes the suffix is correctly hardcoded, if not everything breaks lol
 do
 {
-	Show-Menu
-	$S = Read-Host "Please make a selection"
+	if(!$InputParm)
+	{
+		Show-Menu
+		$S = Read-Host "Please make a selection"
+	}
+	else
+	{	
+		#is the inputParm is a date option 2
+		if([string]$InputParm -as [DateTime])
+		{
+			Get-VacationDate $InputParm
+			$TempARC = Get-ARC
+			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
+			Write-Host "Auto Reply will start at" $TempARC.StartTime
+			Write-Host "Auto Reply will end at" $TempARC.EndTime
+			$S = 'q'
+		}
+		else #everything else should be a menu option expect 2
+		{
+			$S = $InputParm
+		}
+	}
 	switch ($S)
 	{
 		'1'
@@ -409,9 +430,8 @@ do
 			$S = 'q'
 		}
 		'2'
-		{
+		{		
 			Get-VacationDate
-		
 			$TempARC = Get-ARC
 			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
 			Write-Host "Auto Reply will start at" $TempARC.StartTime
@@ -444,3 +464,4 @@ until ($S -eq 'q')
 
 #ensure disconnection
 Set-EXODisconnect
+Exit 
