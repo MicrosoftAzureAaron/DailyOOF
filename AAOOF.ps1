@@ -431,6 +431,7 @@ do
 		}
 		'2'
 		{		
+			Get-VacationDate
 			$TempARC = Get-ARC
 			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
 			Write-Host "Auto Reply will start at" $TempARC.StartTime
