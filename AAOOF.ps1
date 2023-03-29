@@ -65,21 +65,14 @@ function Set-ARCFile
 function Set-WorkTimesToFile
 {
 	$FP = Get-Location 
+	$OFP = (-join($FP.tostring(),'\','AAOOF.ps1test'))
 	$FP = (-join($FP.tostring(),'\','AAOOF.ps1'))
-	Get-Content -Path $FP
-	ForEach-Object { 
-		if ($_.ReadCount -eq 3) 
-		{ 
-			"$global:StartOfShift = ${global:StartOfShift}"
-		} 
-		elseif ($_.ReadCount -eq 4) 
-		{ 
-			"$global:EndOfShift = ${global:EndOfShift}"
-		}
-		else {
-			$_
-		}
-	} | Set-Content -Path $FP
+	$content = Get-Content -Path $FP
+
+	$content[3] = "`$global:StartOfShift = ${global:StartOfShift}"
+	$content[4] = "`$global:EndOfShift = ${global:EndOfShift}"
+
+	Set-Content $OFP $content
 }
 
 #Get current config from online
