@@ -60,6 +60,26 @@ function Set-ARCFile
 	$ARCFilePath = Get-ARCFilePath
 	#This is only called when writing the file, no need to check to overwrite
 	Get-ARC | ConvertTo-Json -depth 100 | Set-Content $ARCFilePath
+} 
+
+function Set-WorkTimesToFile
+{
+	$FP = Get-Location 
+	$FP = (-join($FP.tostring(),'\','AAOOF.ps1'))
+	Get-Content -Path $FP
+	ForEach-Object { 
+		if ($_.ReadCount -eq 3) 
+		{ 
+			"$global:StartOfShift = ${global:StartOfShift}"
+		} 
+		elseif ($_.ReadCount -eq 4) 
+		{ 
+			"$global:EndOfShift = ${global:EndOfShift}"
+		}
+		else {
+			$_
+		}
+	} | Set-Content -Path $FP
 }
 
 #Get current config from online
@@ -372,9 +392,11 @@ function Show-Menu
     Write-Host "Current account is " -NoNewline
 	Write-Host "$global:UserAlias" -ForegroundColor Blue
     Write-Host "1: Press '1' Enable Scheduled Auto Reply and Quit"
-    Write-Host "2: Press '2' To set an end date for a extended out of office message"
-	Write-Host "3: Press '3' To set your office hours"
-    Write-Host "4: Press '4' To set your work days"
+    Write-Host "2: Press '2' To set an end date for a extended out of office message`n`n"
+	Write-Host "================ Configure the Script Defaults ================"
+	Write-Host "3: Press '3' To set your office hours and save to script"
+    Write-Host "4: Press '4' To set your work days and save to script`n`n"
+	Write-Host "================ Configure the Auto Reply Message and Settings ================"
 	Write-Host "5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled"
 	Write-Host "6: Press '6' Save Auto Reply Message to Local HTML File"
     Write-Host "Q: Press 'Q' to quit."
@@ -443,6 +465,7 @@ do
 		{
 			Get-ShiftTime
 			Set-ARCTimes
+			Set-WorkTimesToFile
 			$InputParm = $null
 		}
 		'4'
