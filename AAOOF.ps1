@@ -442,16 +442,7 @@ function Get-VacationDate ($TempT)
 function Set-EXODisconnect 
 {
 	Disconnect-ExchangeOnline -Confirm:$false
-}
-
-#reusable yesno prompt
-function YesNo($Prompt) 
-{
-	$PT = $Prompt + " [Yes] No"
-	$YN = Read-Host -Prompt $PT
-    if($YN -eq "" -or $YN -eq "Yes"  -or  $YN -eq "YES"  -or  $YN -eq "Y"  -or  $YN -eq "y"){ #if user doesn't input anything use default
-		Return "Yes"
-	} 
+	## close msedge window when done
 }
 
 #install the module
