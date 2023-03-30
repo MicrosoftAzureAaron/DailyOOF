@@ -2,7 +2,7 @@ param([string]$InputParm)
 $global:StartOfShift = $null
 $global:EndOfShift = $null
 $global:WorkDays = $null
-
+#I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = Get-Alias
 
@@ -252,6 +252,7 @@ function Get-NextWorkDay
 		{ 
 			#Write-Host "${CuTime} Currently Before Shift" ### use todays start and end times, rerun during shift to Set for overnight oof
 			$duringshift = 0
+			##### wait till shift starts +1 minute and run script again with default option?
 		}
 		elseif($CTime -gt $global:EndOfShift)
 		{
@@ -489,12 +490,11 @@ function Show-Menu
 
 Get-EXOConnection
 #### get connected once, this assumes the suffix is correctly hardcoded, if not everything breaks lol
+#### add check for check for connection if possible
 
 #### close edge window
-
-
-
-#####
+#### need a way to silently authenticate or close the window when done?
+#### close edge window on disconnection?
 
 
 do
@@ -600,7 +600,7 @@ do
 			#Set-ARCState '3'
 			$InputParm = $null
 		}
-		'Z' ### hidden reset option
+		'Z' ### hidden reset option, allows me to commit the script with the default null values and not have to manually update the main branch 
 		{
 			#set null defaults to script
 			$FP = Get-Location
