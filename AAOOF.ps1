@@ -400,11 +400,11 @@ function Get-ShiftTime
 		until ($valid)
 		$valid = $false
 	}
-	$Temp +=  ""
-	$Temp += $global:StartOfShift.TimeOfDay 
-	$Temp += " till "
-	$Temp += $global:EndOfShift.TimeOfDay
-	Write-Host $Temp
+	# $Temp +=  ""
+	# $Temp += $global:StartOfShift.TimeOfDay 
+	# $Temp += " till "
+	# $Temp += $global:EndOfShift.TimeOfDay
+	# Write-Host $Temp
 }
 #currently writes to test file not actual ps1
 function Set-WorkTimesToFile
