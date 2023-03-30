@@ -1,7 +1,7 @@
 param([string]$InputParm)
-$global:StartOfShift = $null
-$global:EndOfShift = $null
-$global:WorkDays = $null
+$global:StartOfShift = $null  
+$global:EndOfShift = $null  
+$global:WorkDays = $null  
 #I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = Get-Alias
