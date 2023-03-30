@@ -1,24 +1,25 @@
 param([string]$InputParm)
 $global:StartOfShift = [datetime] "09:00:00"
 $global:EndOfShift = [datetime] "18:00:00"
-$global:WorkDays = @('Monday','Tuesday','Wednesday','Thursday','Friday')
+$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 #I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
-$global:UserAlias = Get-Alias
+$global:UserAlias = $null
 
 #Get alias from userfolder, if this fails, exo connection will prompt for creds
 function Get-Alias {
 	if ($global:UserAliasSuffix -eq "" -or $null -eq $global:UserAliasSuffix) {
 		$global:UserAliasSuffix = Get-Suffix
 	}
+
 	$CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
     
-	Write-Host "Current account is " -NoNewline
-	Write-Host "${global:UserAlias}" -ForegroundColor Blue
-	$global:UserAlias = (-join($CurrentUser, $global:UserAliasSuffix))
-	pause
-	Return $global:UserAlias
+	#Write-Host "Current account is " -NoNewline
+	#Write-Host "$CurrentUser" -ForegroundColor Blue
+	$CurrentUser = ( -join ($CurrentUser, $global:UserAliasSuffix))
+	Return $CurrentUser 
 }
+
 function Get-Suffix {
 	Write-Host "Current suffix is $global:UserAliasSuffix"
 	$PT = "What email suffix would you like to use? Deafult  [@microsoft.com]"
@@ -29,34 +30,6 @@ function Get-Suffix {
 		Write-Host "Bad Input $global:UserAliasSuffix"
 	}
 	Return $global:UserAliasSuffix
-}
-
-#connect to exchange online
-function Get-EXOConnection {
-	#$global:UserAlias = Get-Alias
-	Get-EXOM #is EXO module installed
-	#Write-Host "Current account is " -NoNewline
-	#Write-Host "${global:UserAlias}" -ForegroundColor Blue
-	#Write-Host "Connecting to your Outlook Account with alias $global:UserAlias " 
-	
-	# Get the current PowerShell connection
-	$session = Get-ConnectionInformation
-	# Check if there is an active Exchange Online PowerShell v3 connection
-	if ($session -ne $null) {
-		$exchangeSession = $session | Where-Object { $_.ConfigurationName -eq "Microsoft.Exchange" -and $_.Name -eq "ExchangeOnline" }
-		if ($exchangeSession -ne $null) {
-			Write-Host "An active Exchange Online PowerShell v3 connection exists."
-		}
-		else {
-			Write-Host "No active Exchange Online PowerShell v3 connection exists."
-		}
-	}
-	else {
-		Write-Host "No PowerShell session exists." + $global:UserAlias 
-		Connect-ExchangeOnline -UserPrincipalName $global:UserAlias 
-		#Connect-ExchangeOnline -InlineCredential
-	}
-	Write-Host "Done Connecting"
 }
 
 function Get-ARCFilePath {
@@ -427,6 +400,33 @@ function Get-VacationDate ($TempT) {
 	Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -StartTime $global:EndOfShift -EndTime $global:StartOfShift
 }
 
+#connect to exchange online
+function Get-EXOConnection {
+	if ($null -eq $global:UserAlias) { $global:UserAlias = Get-Alias }
+	Get-EXOM #is EXO module installed
+	#Write-Host "Current account is " -NoNewline
+	#Write-Host "${global:UserAlias}" -ForegroundColor Blue
+	#Write-Host "Connecting to your Outlook Account with alias $global:UserAlias " 
+	
+	# Get the current PowerShell connection
+	$session = Get-ConnectionInformation
+	# Check if there is an active Exchange Online PowerShell v3 connection
+	if ($session -ne $null) {
+		$exchangeSession = $session | Where-Object { $_.ConfigurationName -eq "Microsoft.Exchange" -and $_.Name -eq "ExchangeOnline" }
+		if ($exchangeSession -ne $null) {
+			Write-Host "An active Exchange Online PowerShell v3 connection exists."
+		}
+		else {
+			Write-Host "No active Exchange Online PowerShell v3 connection exists."
+		}
+	}
+	else {
+		#Write-Host "No PowerShell session exists." + $global:UserAlias + "`n"
+		#Connect-ExchangeOnline -UserPrincipalName $global:UserAlias
+	}
+	Write-Host "Done Connecting"
+}
+
 #force disconnect
 function Set-EXODisconnect {
 	Disconnect-ExchangeOnline -Confirm:$false
@@ -461,12 +461,13 @@ function Show-Menu {
 	Write-Host "4: Press '4' To set your work days and save to script`n`n"
 	Write-Host "================ Configure the Auto Reply Settings ================"
 	Write-Host "5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled"
-	Write-Host "5: Press '6' To set a Schedule Task to run the 'AAOOF.ps1 1' 15 minutes after the start of your shift daily`n`n"
+	Write-Host "6: Press '6' To set a Schedule Task to run the 'AAOOF.ps1 1' 15 minutes after the start of your shift daily`n`n"
 	Write-Host "================ Configure the Auto Reply Message ================"
-	Write-Host "6: Press '9' Save the current Auto Reply Message to File"
-	Write-Host "6: Press '0' Load an Auto Reply Message to File`n`n"
+	Write-Host "9: Press '9' Save the current Auto Reply Message to File"
+	Write-Host "0: Press '0' Load an Auto Reply Message to File`n`n"
 	Write-Host "Q: Press 'Q' to quit."
 }
+
 
 Get-EXOConnection
 
@@ -481,8 +482,7 @@ do {
 			Set-WorkDaysToFile			
 		}
 	}
-	if ([string]$InputParm -as [datetime]) {
-		Get-EXOConnection
+	if ($InputParm -as [datetime]) {
 		Get-VacationDate $InputParm
 		$TempARC = Get-ARC
 		Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
@@ -490,16 +490,14 @@ do {
 		Write-Host "Auto Reply will end at" $TempARC.EndTime
 		$S = 'q'
 	}
-	if ($InputParm) {
-		#everything else should be a menu option expect 2..... so far
-		$S = $InputParm
-	}
-	else {
+	if (!$InputParm) {
 		Show-Menu
 		$S = Read-Host "Please make a selection"
 	}
+	else {
+		$S = $InputParm
+	}
 	
-
 	switch ($S) {
 		'1' {
 			# run daily option after start of shift
@@ -579,6 +577,10 @@ do {
 }
 until ($S -eq 'q')
 
-#ensure disconnection
-Set-EXODisconnect
-Exit 
+try {
+	#ensure disconnection
+	Set-EXODisconnect	
+}
+catch {
+	Write-Host "Did not disconnect"
+}
