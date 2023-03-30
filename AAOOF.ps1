@@ -14,7 +14,7 @@ function Get-UsernameFromWindows
 
 	### if not linux ask for input
 
-    #Write-Host "CurrentUser is " -NoNewline
+	#Write-Host "CurrentUser is " -NoNewline
 	#Write-Host "$CurrentUser" -ForegroundColor Blue
 	Return $CurrentUser
 }
