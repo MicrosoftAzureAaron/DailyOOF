@@ -1,7 +1,7 @@
 param([string]$InputParm)
 $global:StartOfShift = $null
 $global:EndOfShift = $null
-$WorkDays = $null
+$global:WorkDays = $null
 
 $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = Get-Alias
@@ -128,7 +128,7 @@ function Set-ARCTimes
 {
 	##Gets office hours, if not hardcoded at the start of this file, ask user for input
 	if($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift){Get-ShiftTime}
-	if($null -eq $WorkDays){Get-WorkDaysOfTheWeek}
+	if($null -eq $global:WorkDays){Get-WorkDaysOfTheWeek}
 	
 	$daysToAdd = 0
 	#how many days till next day of work
@@ -200,18 +200,18 @@ function Get-NextWorkDay
 	$CTime =  [datetime] $CTime
 
 	#what days of the week do you work hard code it if you dont wanna be asked
-	$WorkDays = Get-WorkDaysOfTheWeek
+	$global:WorkDays = Get-WorkDaysOfTheWeek
 
-	if(!($CTime.DayOfWeek -in $WorkDays))
+	if(!($CTime.DayOfWeek -in $global:WorkDays))
 	{
 		$i = 0
 		#Write-Host "You are not working today" $CTime.DayOfWeek
-		while(!($CTime.DayOfWeek -in $WorkDays))
+		while(!($CTime.DayOfWeek -in $global:WorkDays))
 		{
 			$i += 1
 			#Write-Host $CTime.DayOfWeek -ForegroundColor Red -NoNewline 
 			#Write-Host " is not currently a work day [" -NoNewline
-			#Write-Host  $WorkDays -NoNewline -ForegroundColor Blue
+			#Write-Host  $global:WorkDays -NoNewline -ForegroundColor Blue
 			#Write-Host "]"
 			$CTime = $CTime.adddays(1)		
 		}
@@ -227,13 +227,13 @@ function Get-NextWorkDay
 		#Do I work Tomorrow?
 		$CTime = $CTime.adddays(1)
 		$i = 1
-		while(!($CTime.DayOfWeek -in $WorkDays))
+		while(!($CTime.DayOfWeek -in $global:WorkDays))
 		{
 			$i += 1
 			$CTime = $CTime.adddays(1)	
 			#Write-Host $CTime.DayOfWeek -ForegroundColor Red -NoNewline 
 			#Write-Host " is not currently a work day [" -NoNewline
-			#Write-Host  $WorkDays -NoNewline -ForegroundColor Blue
+			#Write-Host  $global:WorkDays -NoNewline -ForegroundColor Blue
 			#Write-Host "]"
 		}
 		if($i -gt 1)
@@ -279,21 +279,21 @@ function Get-WorkDaysOfTheWeek
 	### Or edit the default
 
 	### 4 Days Sunday - Wednesday 
-	#$WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Sunday')
+	#$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Sunday')
 
 	### 4 Days Wednesday - Saturday
-	#$WorkDays = @('Wednesday', 'Thursday', 'Friday', 'Saturday')
+	#$global:WorkDays = @('Wednesday', 'Thursday', 'Friday', 'Saturday')
 
 	### Twitter Employee Working 7 days wont need this script
-    #$WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+    #$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 
 	### no wednesdays or thursdays testing
-    #$WorkDays = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
+    #$global:WorkDays = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
 
 	### Standard Monday - Friday
-	#$WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+	#$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
-	if($null -eq $WorkDays)
+	if($null -eq $global:WorkDays)
 	{
 		
 		Clear-Host
@@ -307,25 +307,25 @@ function Get-WorkDaysOfTheWeek
 		{
 			'1'
 			{
-				$WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+				$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 			}
 			'2'
 			{
-				$WorkDays = @('Monday', 'Tuesday', 'Saturday', 'Sunday')
+				$global:WorkDays = @('Monday', 'Tuesday', 'Saturday', 'Sunday')
 			}
 			'3'
 			{
-				$WorkDays = @('Thursday', 'Friday', 'Saturday', 'Sunday')
+				$global:WorkDays = @('Thursday', 'Friday', 'Saturday', 'Sunday')
 			}
 			default
 			{
-				$WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+				$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 			}
 
 		}
-		#Write-Host $WorkDays
+		#Write-Host $global:WorkDays
 	}
-	Return $WorkDays
+	Return $global:WorkDays
 }
 
 function Set-WorkDaysToFile
@@ -333,8 +333,8 @@ function Set-WorkDaysToFile
 	$FP = Get-Location
 	$FP = (-join($FP.tostring(),'\','AAOOF.ps1'))
 	$content = Get-Content -Path $FP
-	$Temp = "`$WorkDays = @("
-	foreach ($day in $WorkDays)
+	$Temp = "`$global:WorkDays = @("
+	foreach ($day in $global:WorkDays)
 	{
 		$Temp += "`'" + $day + "`',"
 	}
@@ -503,19 +503,19 @@ do
 	{
 		Get-ShiftTime
 		Set-WorkTimesToFile
-		pause
+		
 	}
 	if($null -eq $global:EndOfShift)
 	{
 		Get-ShiftTime
 		Set-WorkTimesToFile
-		pause
+		
 	}
-	if($null -eq $WorkDays)#-eq @())
+	if($null -eq $global:WorkDays)#-eq @())
 	{
-		$WorkDays = Get-WorkDaysOfTheWeek
+		$global:WorkDays = Get-WorkDaysOfTheWeek
 		Set-WorkDaysToFile
-		pause
+		
 	}
 	if(!$InputParm)
 	{
@@ -577,8 +577,8 @@ do
 		}
 		'4'
 		{
-			$WorkDays = $null
-			$WorkDays = Get-WorkDaysOfTheWeek
+			$global:WorkDays = $null
+			$global:WorkDays = Get-WorkDaysOfTheWeek
 			Set-ARCTimes
 			Set-WorkDaysToFile
 			Set-WorkTimesToFile
@@ -605,7 +605,7 @@ do
 			$content = Get-Content -Path $FP
 			$content[1] = "`$global:StartOfShift = `$null"
 			$content[2] = "`$global:EndOfShift = `$null"
-			$content[3] = "`$WorkDays = `$null"
+			$content[3] = "`$global:WorkDays = `$null"
 			Set-Content $FP $content
 			$InputParm = $null
 			$S = 'q'
