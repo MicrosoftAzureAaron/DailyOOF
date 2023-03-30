@@ -39,10 +39,6 @@ Current account is aarosanders@microsoft.com<br>
 Q: Press 'Q' to quit.<br>
 <br><br>
 
-
-
-
-
 TO ADD:<br><br>
 remove unused functions
 
@@ -51,7 +47,7 @@ set scheduled task to run ps1 once a day<br>
 save message to html file for local loading<br><br>
 load message from file function<br><br>
 Pre saved messages - load from html file<br>
-    <br>normal oof<br>
-    <br>vacation oof<br>
-    <br>sick oof<br>
-    <br>Holiday oof<br>
+<br>normal oof<br>
+<br>vacation oof<br>
+<br>sick oof<br>
+<br>Holiday oof<br>
