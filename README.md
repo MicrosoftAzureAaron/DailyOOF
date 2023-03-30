@@ -44,11 +44,14 @@ Q: Press 'Q' to quit.<br>
 
 
 TO ADD:<br><br>
+remove unused functions
 
 set scheduled task to run ps1 once a day<br>
-save message to html file for local loading<br>
+
+save message to html file for local loading<br><br>
+load message from file function<br><br>
 Pre saved messages - load from html file<br>
-    normal oof<br>
-    vacation oof<br>
-    sick oof<br>
-    Holiday oof<br>
+    <br>normal oof<br>
+    <br>vacation oof<br>
+    <br>sick oof<br>
+    <br>Holiday oof<br>
