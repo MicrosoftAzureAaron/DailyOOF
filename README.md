@@ -25,25 +25,31 @@ Run with nothing for menu
 <br><br><br>
 # Example Menu
 ================ Email Out of Office Automation ================  
-Current account is JoeBob@microsoft.com  
+Current account is  
 1: Press '1' Enable Scheduled Auto Reply and Quit  
 2: Press '2' To set an end date for a extended out of office message  
-<br>  
-  
+<br>
+<br>
 ================ Configure the Script Defaults ================  
 3: Press '3' To set your office hours and save to script  
-4: Press '4' To set your work days and save to script  
-<br>  
-  
-================ Configure the Auto Reply Message and Settings ================  
+4: Press '4' To set your work days and save to script 
+<br>
+<br>
+================ Configure the Auto Reply Settings ================  
 5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled  
-6: Press '6' Save Auto Reply Message to Local HTML File  
-Q: Press 'Q' to quit.  
+6: Press '6' To set a Schedule Task to run the 'AAOOF.ps1 1' 15 minutes after the start of your shift daily  
+<br>
+<br>
+================ Configure the Auto Reply Message ================  
+9: Press '9' Save the current Auto Reply Message to File  
+0: Press '0' Load an Auto Reply Message to File  
+<br>
+<br>
+Q: Press 'Q' to quit.<br>
 <br><br><br>
 # TO ADD:
 
 - remove unused functions
-- set scheduled task to run ps1 once a day
 - save message to html file for local loading
 - load message from file function
 - Pre saved messages - load from html file

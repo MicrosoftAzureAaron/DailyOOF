@@ -604,4 +604,4 @@ try {
 }
 catch {
 	Write-Host "Did not disconnect"
-}
+}  
