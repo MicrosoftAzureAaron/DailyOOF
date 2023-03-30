@@ -107,6 +107,7 @@ function Set-ARCState($S) {
 }
 
 #Set auto reply start and end times
+function Set-ARCTimes
 {
 	##Gets office hours, if not hardcoded at the start of this file, ask user for input
 	if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { Get-ShiftTime }
