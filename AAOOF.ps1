@@ -1,7 +1,7 @@
 param([string]$InputParm)
-$global:StartOfShift = $null  
-$global:EndOfShift = $null  
-$global:WorkDays = $null  
+$global:StartOfShift = [DateTime] "09:00:00"
+$global:EndOfShift = [DateTime] "18:00:00"
+$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 #I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = Get-Alias
@@ -107,6 +107,7 @@ function Set-ARCState($S) {
 }
 
 #Set auto reply start and end times
+function Set-ARCTimes
 {
 	##Gets office hours, if not hardcoded at the start of this file, ask user for input
 	if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { Get-ShiftTime }
@@ -380,6 +381,26 @@ function Set-WorkTimesToFile {
 	Set-Content $FP $content
 }
 
+##create scheduled task function
+function Set-DailyScriptTask {
+	$TriggerTime = $global:StartOfShift.TimeOfDay.addminutes(15)
+	# Define the trigger for the scheduled task 15 minutes after start of shift
+	$trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
+
+	# Define the action for the scheduled task
+	$FP = Get-Location
+	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
+	$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-File ${FP}"
+	try {
+		# Register the scheduled task
+		Register-ScheduledTask -TaskName "My Daily Automatic Out of Office script" -Trigger $trigger -Action $action -RunLevel Highest
+	}
+	catch {
+		pause
+	}
+	
+}
+
 #get date for return to work, this sets autoreply to start at end of shift today and end on start of shift on date entered
 function Get-VacationDate ($TempT) {
 	if (!$TempT) {
@@ -443,7 +464,7 @@ Get-EXOConnection
 
 
 do {
-	while ($InputParm -ne 'z' -or $InputParm -ne 'Z') {
+	while ($InputParm -ne 'z' -or $InputParm -ne 'x') {
 		if ($null -eq $global:StartOfShift) {
 			Get-ShiftTime
 			Set-WorkTimesToFile
@@ -474,12 +495,14 @@ do {
 			Write-Host "Auto Reply will end at" $TempARC.EndTime
 			$S = 'q'
 		}
-		else { #everything else should be a menu option expect 2
+		else {
+			#everything else should be a menu option expect 2
 			$S = $InputParm
 		}
 	}
 	switch ($S) {
-		'1' { # run daily option after start of shift
+		'1' {
+			# run daily option after start of shift
 			#Write-Host "Current account is " -NoNewline
 			#Write-Host "${global:UserAlias}" -ForegroundColor Blue
 
@@ -494,7 +517,8 @@ do {
 			#quitting time
 			$S = 'q'
 		}
-		'2' { #set the return date for vacation oof, use vacation oof message if present otherwise use default		
+		'2' {
+			#set the return date for vacation oof, use vacation oof message if present otherwise use default		
 			Get-VacationDate
 			$TempARC = Get-ARC
 			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
@@ -502,7 +526,8 @@ do {
 			Write-Host "Auto Reply will end at" $TempARC.EndTime
 			$InputParm = $null
 		}
-		'3' { #change the start and end of shift times and save to script
+		'3' {
+			#change the start and end of shift times and save to script
 			$global:StartOfShift = $null
 			$global:EndOfShift = $null
 			Get-ShiftTime
@@ -510,24 +535,33 @@ do {
 			Set-WorkTimesToFile
 			$InputParm = $null
 		}
-		'4' { #change what days of the week you work and save to script
+		'4' {
+			#change what days of the week you work and save to script
 			$global:WorkDays = $null
 			$global:WorkDays = Get-WorkDaysOfTheWeek
 			Set-WorkDaysToFile
 			$InputParm = $null
 		}
-		'5' { #set endable disabled or scheduled
+		'5' {
+			#set endable disabled or scheduled
 			Set-ARCState
 			$InputParm = $null
 		}
-		'6' { #save the current message to the default message.html file
+		'6' {
+			#save the current message to the default message.html file
 			Set-ARCmessagefile
 			#Set-WorkTimesToFile
 			#Set-WorkDaysToFile	
 			#Set-ARCState '3'
 			$InputParm = $null
 		}
-		'Z' { ### hidden reset option, allows me to commit the script with the default null values and not have to manually update the main branch 
+		'X' {
+			Set-DailyScriptTask
+			$InputParm = $null
+			$S = 'q'
+		}
+		'Z' {
+			### hidden reset option, allows me to commit the script with the default null values and not have to manually update the main branch 
 			#set null defaults to script
 			$FP = Get-Location
 			$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
