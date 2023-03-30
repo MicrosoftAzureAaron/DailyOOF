@@ -7,8 +7,7 @@ $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = Get-Alias
 
 #Get current username from local user foldername
-function Get-UsernameFromWindows 
-{
+function Get-UsernameFromWindows {
 	####check for windows if not ask for user alias
 	$CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
 
@@ -20,10 +19,8 @@ function Get-UsernameFromWindows
 }
 
 #Get alias from userfolder, if this fails, exo connection will prompt for creds
-function Get-Alias 
-{
-	if($global:UserAliasSuffix -eq "" -or $null -eq $global:UserAliasSuffix)
-	{
+function Get-Alias {
+	if ($global:UserAliasSuffix -eq "" -or $null -eq $global:UserAliasSuffix) {
 		$global:UserAliasSuffix = Get-Suffix
 	}
 	$CurrentUser = Get-UsernameFromWindows
@@ -31,26 +28,22 @@ function Get-Alias
 	#Write-Host "Current account is " -NoNewline
 	#Write-Host "${global:UserAlias}" -ForegroundColor Blue
 
-	Return (-join($CurrentUser,$global:UserAliasSuffix))
+	Return ( -join ($CurrentUser, $global:UserAliasSuffix))
 }
-function Get-Suffix 
-{
-    Write-Host "Current suffix is $global:UserAliasSuffix"
+function Get-Suffix {
+	Write-Host "Current suffix is $global:UserAliasSuffix"
 	$PT = "What email suffix would you like to use? Deafult  [@microsoft.com]"
-	try 
-	{
+	try {
 		$global:UserAliasSuffix = Read-Host -Prompt $PT
 	}
-	catch
-	{
+	catch {
 		Write-Host "Bad Input $global:UserAliasSuffix"
 	}
 	Return $global:UserAliasSuffix
 }
 
 #connect to exchange online
-function Get-EXOConnection 
-{
+function Get-EXOConnection {
 	$global:UserAlias = Get-Alias
 	Get-EXOM #is EXO module installed
 	#Write-Host "Current account is " -NoNewline
@@ -60,16 +53,14 @@ function Get-EXOConnection
 	#Write-Host "Done Connecting"
 }
 
-function Get-ARCFilePath
-{
+function Get-ARCFilePath {
 	$AFP = Get-Location #store local copy in same folder as script
-	$AFP = (-join($AFP.tostring(),'\','AutoReplyConfig.json'))
+	$AFP = ( -join ($AFP.tostring(), '\', 'AutoReplyConfig.json'))
 	Return $AFP
 }
 
 #write current config to file
-function Set-ARCFile
-{
+function Set-ARCFile {
 	$ARCFilePath = Get-ARCFilePath
 	#This is only called when writing the file, no need to check to overwrite
 	Get-ARC | ConvertTo-Json -depth 100 | Set-Content $ARCFilePath
@@ -77,43 +68,35 @@ function Set-ARCFile
 
 #Get current config from online
 #save to local file
-function Get-ARC
-{
+function Get-ARC {
 	Return Get-MailboxAutoReplyConfiguration -Identity $global:UserAlias
 }
 
 #read the locally stored file
-function Get-ARCFile 
-{
+function Get-ARCFile {
 	$ARCFilePath = Get-ARCFilePath
 	#Write-Host $ARCFilePath
-    Return Get-Content $ARCFilePath -raw | ConvertFrom-Json 
+	Return Get-Content $ARCFilePath -raw | ConvertFrom-Json 
 }
 
 #Set auto reply to scheduled/endabled/disabled
-function Set-ARCState($S)
-{
+function Set-ARCState($S) {
 	#get current configuration
 	$MailboxARC = Get-ARC
 	#Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
 
-	if(!$S)
-	{
+	if (!$S) {
 		Write-Host "Auto Reply state is currently Set to"$MailboxARC.AutoReplyState
 		$S = Read-Host -Prompt "What mode should Auto Reply be set to?`n1. Enabled`n2. Disabled`n3. Scheduled`nChoice "
 	}
-	switch($S)
-	{
-		'1'
-		{
+	switch ($S) {
+		'1' {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Enabled"
 		}
-		'2'
-		{
+		'2' {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Disabled"
 		}
-		'3'
-		{
+		'3' {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Scheduled"
 			#have to set the times again too
 			Set-ARCTimes
@@ -124,11 +107,10 @@ function Set-ARCState($S)
 }
 
 #Set auto reply start and end times
-function Set-ARCTimes
 {
 	##Gets office hours, if not hardcoded at the start of this file, ask user for input
-	if($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift){Get-ShiftTime}
-	if($null -eq $global:WorkDays){Get-WorkDaysOfTheWeek}
+	if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { Get-ShiftTime }
+	if ($null -eq $global:WorkDays) { Get-WorkDaysOfTheWeek }
 	
 	$daysToAdd = 0
 	#how many days till next day of work
@@ -158,53 +140,42 @@ function Set-ARCTimes
 }
 
 #Set auto reply message
-function Set-ARCMessage($message,$IOE)
-{
-	switch -Regex ($IOE)
-	{
-		"Internal"
-		{
+function Set-ARCMessage($message, $IOE) {
+	switch -Regex ($IOE) {
+		"Internal" {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -InternalMessage $message 
 		}
-		"1"
-		{
+		"1" {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -InternalMessage $message 
 		}
-		"I"
-		{
+		"I" {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -InternalMessage $message 
 		}
-		"External"
-		{
+		"External" {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $message  
 		}
-		"2"
-		{
+		"2" {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $message  
 		}
-		"E"
-		{
+		"E" {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $message  
 		}
-		default
-		{
+		default {
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $message -InternalMessage $message 
 		}
 	}
 }
 
 # get the message file, need to deliniate the separate messages, either within a single file or in multiple files for simpler editing
-function Get-ARCmessagefile
-{
+function Get-ARCmessagefile {
 	$ARCMessageFile = Get-Location #store local copy in same folder as script
-	$ARCMessageFile = (-join($ARCMessageFile.tostring(),'\','message.html'))
+	$ARCMessageFile = ( -join ($ARCMessageFile.tostring(), '\', 'message.html'))
 	return $ARCMessageFile
 }
 #save online message to html file
-function Set-ARCmessagefile
-{
+function Set-ARCmessagefile {
 	$ARCMessageFile = Get-Location #store local copy in same folder as script
-	$ARCMessageFile = (-join($ARCMessageFile.tostring(),'\','message.html'))
+	$ARCMessageFile = ( -join ($ARCMessageFile.tostring(), '\', 'message.html'))
 	#Write-Host $ARCMessageFile
 	$TempARC = Get-ARC
 	$text = $TempARC.ExternalMessage.tostring()
@@ -213,23 +184,20 @@ function Set-ARCmessagefile
 }
 
 #Returns the number of days till next work day
-function Get-NextWorkDay
-{
-	if($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift){Get-ShiftTime}
+function Get-NextWorkDay {
+	if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { Get-ShiftTime }
 
 	$duringshift = 0
-	$CTime =  Get-Date #-Format "MM/dd/yyyy HH:mm"
-	$CTime =  [datetime] $CTime
+	$CTime = Get-Date #-Format "MM/dd/yyyy HH:mm"
+	$CTime = [datetime] $CTime
 
 	#what days of the week do you work hard code it if you dont wanna be asked
 	$global:WorkDays = Get-WorkDaysOfTheWeek
 
-	if(!($CTime.DayOfWeek -in $global:WorkDays))
-	{
+	if (!($CTime.DayOfWeek -in $global:WorkDays)) {
 		$i = 0
 		#Write-Host "You are not working today" $CTime.DayOfWeek
-		while(!($CTime.DayOfWeek -in $global:WorkDays))
-		{
+		while (!($CTime.DayOfWeek -in $global:WorkDays)) {
 			$i += 1
 			#Write-Host $CTime.DayOfWeek -ForegroundColor Red -NoNewline 
 			#Write-Host " is not currently a work day [" -NoNewline
@@ -242,15 +210,13 @@ function Get-NextWorkDay
 		#Write-Host $global:StartOfShift.TimeOfDay
 		#Write-Host (-join("The start of the next workday is ",$CTime.DayOfWeek," ",$global:StartOfShift.TimeOfDay))
 	}
-	else
-	{
+	else {
 		#Write-Host "You are working today" $CTime.DayOfWeek
 		#When is next work day?
 		#Do I work Tomorrow?
 		$CTime = $CTime.adddays(1)
 		$i = 1
-		while(!($CTime.DayOfWeek -in $global:WorkDays))
-		{
+		while (!($CTime.DayOfWeek -in $global:WorkDays)) {
 			$i += 1
 			$CTime = $CTime.adddays(1)	
 			#Write-Host $CTime.DayOfWeek -ForegroundColor Red -NoNewline 
@@ -258,8 +224,7 @@ function Get-NextWorkDay
 			#Write-Host  $global:WorkDays -NoNewline -ForegroundColor Blue
 			#Write-Host "]"
 		}
-		if($i -gt 1)
-		{
+		if ($i -gt 1) {
 			#Write-Host $CTime.DayOfWeek
 			#Write-Host $global:StartOfShift.TimeOfDay
 			#Write-Host (-join("The start of the next workday is ",$CTime.DayOfWeek," ",$global:StartOfShift.TimeOfDay))
@@ -268,34 +233,29 @@ function Get-NextWorkDay
 		}
 
 		# if $i is not > 1 then next work day is today, or tomorrow
-		$CTime =  Get-Date #reset CTime to current
-		$CTime =  [datetime] $CTime
-		if($CTime -lt $global:StartOfShift)
-		{ 
+		$CTime = Get-Date #reset CTime to current
+		$CTime = [datetime] $CTime
+		if ($CTime -lt $global:StartOfShift) { 
 			#Write-Host "${CuTime} Currently Before Shift" ### use todays start and end times, rerun during shift to Set for overnight oof
 			$duringshift = 0
 			##### wait till shift starts +1 minute and run script again with default option?
 		}
-		elseif($CTime -gt $global:EndOfShift)
-		{
+		elseif ($CTime -gt $global:EndOfShift) {
 			#Write-Host "${CuTime} Currently After Shift"### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
-		elseif($CTime -le $global:EndOfShift -And $CTime -ge $global:StartOfShift)
-		{
+		elseif ($CTime -le $global:EndOfShift -And $CTime -ge $global:StartOfShift) {
 			#Write-Host "${CuTime} Currently During Shift" ### use tomorrows start time and todays end time
 			$duringshift = 1
 		}
-		else 
-		{
+		else {
 			Write-Host "Twilight Zone"
 		}
 	}
 	Return $duringshift
 }
 
-function Get-WorkDaysOfTheWeek 
-{   
+function Get-WorkDaysOfTheWeek {   
 	### this is a function to either Set an array of days of the week that you work by uncommenting or configuring your own line below
 	### These are the days of the week that you work
 	### Common examples can be uncommented
@@ -308,16 +268,15 @@ function Get-WorkDaysOfTheWeek
 	#$global:WorkDays = @('Wednesday', 'Thursday', 'Friday', 'Saturday')
 
 	### Twitter Employee Working 7 days wont need this script
-    #$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+	#$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 
 	### no wednesdays or thursdays testing
-    #$global:WorkDays = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
+	#$global:WorkDays = @('Monday', 'Tuesday', 'Friday', 'Saturday', 'Sunday')
 
 	### Standard Monday - Friday
 	#$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
-	if($null -eq $global:WorkDays)
-	{
+	if ($null -eq $global:WorkDays) {
 		
 		Clear-Host
 		Write-Host "================ What days of the Week do you Work? ================"
@@ -326,22 +285,17 @@ function Get-WorkDaysOfTheWeek
 		Write-Host "2. 'Monday', 'Tuesday', 'Saturday', 'Sunday'"
 		Write-Host "3. 'Thursday','Friday','Saturday','Sunday'"
 		$S = Read-Host -Prompt "Choice [1]"
-		switch($S)
-		{
-			'1'
-			{
+		switch ($S) {
+			'1' {
 				$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 			}
-			'2'
-			{
+			'2' {
 				$global:WorkDays = @('Monday', 'Tuesday', 'Saturday', 'Sunday')
 			}
-			'3'
-			{
+			'3' {
 				$global:WorkDays = @('Thursday', 'Friday', 'Saturday', 'Sunday')
 			}
-			default
-			{
+			default {
 				$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 			}
 
@@ -351,14 +305,12 @@ function Get-WorkDaysOfTheWeek
 	Return $global:WorkDays
 }
 
-function Set-WorkDaysToFile
-{
+function Set-WorkDaysToFile {
 	$FP = Get-Location
-	$FP = (-join($FP.tostring(),'\','AAOOF.ps1'))
+	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
 	$content = Get-Content -Path $FP
 	$Temp = "`$global:WorkDays = @("
-	foreach ($day in $global:WorkDays)
-	{
+	foreach ($day in $global:WorkDays) {
 		$Temp += "`'" + $day + "`',"
 	}
 	$Temp = $Temp.Substring(0, $Temp.Length - 1)
@@ -369,27 +321,20 @@ function Set-WorkDaysToFile
 }
 
 #what time do you start and end your shift
-function Get-ShiftTime
-{
-	if($null -eq $global:StartOfShift)
-	{
-		do
-		{
-			try
-			{
+function Get-ShiftTime {
+	if ($null -eq $global:StartOfShift) {
+		do {
+			try {
 				$TempT = Read-Host -Prompt "Enter when you start your work day. Default [9:00am]"
-				if($TempT -eq "")
-				{
+				if ($TempT -eq "") {
 					$global:StartOfShift = [datetime] "9:00 am"
 				}
-				else
-				{
+				else {
 					$global:StartOfShift = [datetime] $TempT
 				}
 				$valid = $true
 			}
-			catch
-			{
+			catch {
 				Write-Host "Invalid input: $TempT"
 				$valid = $false
 			}
@@ -397,25 +342,19 @@ function Get-ShiftTime
 		until ($valid)
 		$valid = $false
 	}
-	if($null -eq $global:EndOfShift)
-	{
-		do
-		{
-			try
-			{
+	if ($null -eq $global:EndOfShift) {
+		do {
+			try {
 				$TempT = Read-Host -Prompt "Enter when you end your work day. Default [6:00pm]"
-				if($TempT -eq "")
-				{
+				if ($TempT -eq "") {
 					$global:EndOfShift = [datetime] "6:00 pm"
 				}
-				else
-				{
+				else {
 					$global:EndOfShift = [datetime] $TempT
 				}
 				$valid = $true
 			}
-			catch
-			{
+			catch {
 				Write-Host "Invalid input: $TempT"
 				$valid = $false
 			}
@@ -430,10 +369,9 @@ function Get-ShiftTime
 	# Write-Host $Temp
 }
 #currently writes to test file not actual ps1
-function Set-WorkTimesToFile
-{
+function Set-WorkTimesToFile {
 	$FP = Get-Location
-	$FP = (-join($FP.tostring(),'\','AAOOF.ps1'))
+	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
 	$content = Get-Content -Path $FP
 	$content[1] = "`$global:StartOfShift = [DateTime] `"" + $global:StartOfShift.TimeOfDay + "`""
 	$content[2] = "`$global:EndOfShift = [DateTime] `"" + $global:EndOfShift.TimeOfDay + "`""
@@ -443,16 +381,13 @@ function Set-WorkTimesToFile
 }
 
 #get date for return to work, this sets autoreply to start at end of shift today and end on start of shift on date entered
-function Get-VacationDate ($TempT)
-{
-	if(!$TempT)
-	{
+function Get-VacationDate ($TempT) {
+	if (!$TempT) {
 		$TempT = Read-Host -Prompt "Enter the next date of work when you return from vacation. Format YYYY/MM/DD"
 		#Write-Host "Time for end of autoreply is "$global:StartOfShift.TimeOfDay
 		$TempT = [datetime] $TempT
 	}
-	else 
-	{
+	else {
 		$TempT = [datetime] $TempT
 	}
 	#Write-Host "Date for end of autoreply is " $Tempt
@@ -461,20 +396,18 @@ function Get-VacationDate ($TempT)
 }
 
 #force disconnect
-function Set-EXODisconnect 
-{
+function Set-EXODisconnect {
 	Disconnect-ExchangeOnline -Confirm:$false
 	## close msedge window when done
 }
 
 #install the module
-function Get-EXOM
-{
+function Get-EXOM {
 	if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
 		#Write-Host "ExchangeOnlineManagement exists, not installing`n"
-        #no output if it is installed, less chatty
+		#no output if it is installed, less chatty
 		Update-Module -Name ExchangeOnlineManagement
-        Return
+		Return
 	} 
 	else {
 		Write-Host "ExchangeOnlineManagement does not exist, installing`n"
@@ -484,21 +417,20 @@ function Get-EXOM
 }
 
 #menu here
-function Show-Menu 
-{
-    Clear-Host
-    Write-Host "================ Email Out of Office Automation ================"
-    Write-Host "Current account is " -NoNewline
+function Show-Menu {
+	Clear-Host
+	Write-Host "================ Email Out of Office Automation ================"
+	Write-Host "Current account is " -NoNewline
 	Write-Host "$global:UserAlias" -ForegroundColor Blue
-    Write-Host "1: Press '1' Enable Scheduled Auto Reply and Quit"
-    Write-Host "2: Press '2' To set an end date for a extended out of office message`n`n"
+	Write-Host "1: Press '1' Enable Scheduled Auto Reply and Quit"
+	Write-Host "2: Press '2' To set an end date for a extended out of office message`n`n"
 	Write-Host "================ Configure the Script Defaults ================"
 	Write-Host "3: Press '3' To set your office hours and save to script"
-    Write-Host "4: Press '4' To set your work days and save to script`n`n"
+	Write-Host "4: Press '4' To set your work days and save to script`n`n"
 	Write-Host "================ Configure the Auto Reply Message and Settings ================"
 	Write-Host "5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled"
 	Write-Host "6: Press '6' Save Auto Reply Message to Local HTML File"
-    Write-Host "Q: Press 'Q' to quit."
+	Write-Host "Q: Press 'Q' to quit."
 }
 
 Get-EXOConnection
@@ -510,39 +442,31 @@ Get-EXOConnection
 #### close edge window on disconnection?
 
 
-do
-{
-	while ($InputParm -ne 'z' -or $InputParm -ne 'Z')
-	{
-		if($null -eq $global:StartOfShift)
-		{
+do {
+	while ($InputParm -ne 'z' -or $InputParm -ne 'Z') {
+		if ($null -eq $global:StartOfShift) {
 			Get-ShiftTime
 			Set-WorkTimesToFile
 			
 		}
-		if($null -eq $global:EndOfShift)
-		{
+		if ($null -eq $global:EndOfShift) {
 			Get-ShiftTime
 			Set-WorkTimesToFile
 			
 		}
-		if($null -eq $global:WorkDays)
-		{
+		if ($null -eq $global:WorkDays) {
 			$global:WorkDays = Get-WorkDaysOfTheWeek
 			Set-WorkDaysToFile
 			
 		}
 	}
-	if(!$InputParm)
-	{
+	if (!$InputParm) {
 		Show-Menu
 		$S = Read-Host "Please make a selection"
 	}
-	else
-	{	
+	else {	
 		#is the inputParm is a date option 2
-		if([string]$InputParm -as [DateTime])
-		{
+		if ([string]$InputParm -as [DateTime]) {
 			Get-VacationDate $InputParm
 			$TempARC = Get-ARC
 			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
@@ -550,15 +474,12 @@ do
 			Write-Host "Auto Reply will end at" $TempARC.EndTime
 			$S = 'q'
 		}
-		else #everything else should be a menu option expect 2
-		{
+		else { #everything else should be a menu option expect 2
 			$S = $InputParm
 		}
 	}
-	switch ($S)
-	{
-		'1' # run daily option after start of shift
-		{
+	switch ($S) {
+		'1' { # run daily option after start of shift
 			#Write-Host "Current account is " -NoNewline
 			#Write-Host "${global:UserAlias}" -ForegroundColor Blue
 
@@ -573,8 +494,7 @@ do
 			#quitting time
 			$S = 'q'
 		}
-		'2' #set the return date for vacation oof, use vacation oof message if present otherwise use default
-		{		
+		'2' { #set the return date for vacation oof, use vacation oof message if present otherwise use default		
 			Get-VacationDate
 			$TempARC = Get-ARC
 			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
@@ -582,8 +502,7 @@ do
 			Write-Host "Auto Reply will end at" $TempARC.EndTime
 			$InputParm = $null
 		}
-		'3' #change the start and end of shift times and save to script
-		{
+		'3' { #change the start and end of shift times and save to script
 			$global:StartOfShift = $null
 			$global:EndOfShift = $null
 			Get-ShiftTime
@@ -591,31 +510,27 @@ do
 			Set-WorkTimesToFile
 			$InputParm = $null
 		}
-		'4' #change what days of the week you work and save to script
-		{
+		'4' { #change what days of the week you work and save to script
 			$global:WorkDays = $null
 			$global:WorkDays = Get-WorkDaysOfTheWeek
 			Set-WorkDaysToFile
 			$InputParm = $null
 		}
-		'5' #set endable disabled or scheduled
-		{
+		'5' { #set endable disabled or scheduled
 			Set-ARCState
 			$InputParm = $null
 		}
-		'6' #save the current message to the default message.html file
-		{
+		'6' { #save the current message to the default message.html file
 			Set-ARCmessagefile
 			#Set-WorkTimesToFile
 			#Set-WorkDaysToFile	
 			#Set-ARCState '3'
 			$InputParm = $null
 		}
-		'Z' ### hidden reset option, allows me to commit the script with the default null values and not have to manually update the main branch 
-		{
+		'Z' { ### hidden reset option, allows me to commit the script with the default null values and not have to manually update the main branch 
 			#set null defaults to script
 			$FP = Get-Location
-			$FP = (-join($FP.tostring(),'\','AAOOF.ps1'))
+			$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
 			$content = Get-Content -Path $FP
 			$content[1] = "`$global:StartOfShift = `$null"
 			$content[2] = "`$global:EndOfShift = `$null"
