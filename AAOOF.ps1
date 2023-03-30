@@ -1,10 +1,10 @@
 param([string]$InputParm)
-$global:StartOfShift = $null
-$global:EndOfShift = $null
-$global:WorkDays = $null
+$global:StartOfShift = [datetime] "09:00:00"
+$global:EndOfShift = [datetime] "18:00:00"
+$global:WorkDays = @('Monday','Tuesday','Wednesday','Thursday','Friday')
 #I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
-$global:UserAlias = Get-UserAlias
+$global:UserAlias = $null
 
 #Get alias from userfolder, if this fails, exo connection will prompt for creds
 function Get-UserAlias {
@@ -469,8 +469,6 @@ function Show-Menu {
 	Write-Host "Q: Press 'Q' to quit."
 }
 
-Get-EXOConnection
-
 do {
 	if ($InputParm -ne 'z') {
 		if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) {
@@ -481,8 +479,11 @@ do {
 			$global:WorkDays = Get-WorkDaysOfTheWeek
 			Set-WorkDaysToFile			
 		}
+		$S = 'q'
 	}
 	if ($InputParm -as [datetime]) {
+		#connect
+		Get-EXOConnection
 		Get-VacationDate $InputParm
 		$TempARC = Get-ARC
 		Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
@@ -497,12 +498,16 @@ do {
 	else {
 		$S = $InputParm
 	}
-	
+
 	switch ($S) {
 		'1' {
 			# run daily option after start of shift
 			#Write-Host "Current account is " -NoNewline
 			#Write-Host "${global:UserAlias}" -ForegroundColor Blue
+
+			
+			#connect
+			Get-EXOConnection
 
 			#set to scheduled, scheduled also calls set-arctimes
 			Set-ARCState '3' 
@@ -516,6 +521,9 @@ do {
 			$S = 'q'
 		}
 		'2' {
+			#connect
+			Get-EXOConnection
+
 			#set the return date for vacation oof, use vacation oof message if present otherwise use default		
 			Get-VacationDate
 			$TempARC = Get-ARC
@@ -541,7 +549,9 @@ do {
 			$InputParm = $null
 		}
 		'5' {
-			
+			#connect
+			Get-EXOConnection
+
 			#set endable disabled or scheduled
 			Set-ARCState
 			$InputParm = $null
@@ -551,8 +561,10 @@ do {
 			Set-DailyScriptTask
 			$InputParm = $null
 		}
-		'9' {	
-			
+		'9' {
+			#connect
+			Get-EXOConnection
+
 			#save the current message to the default message.html file
 			Set-ARCmessagefile
 			#Set-WorkTimesToFile
