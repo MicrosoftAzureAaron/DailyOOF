@@ -1,34 +1,23 @@
 param([string]$InputParm)
-$global:StartOfShift = [DateTime] "09:00:00"
-$global:EndOfShift = [DateTime] "18:00:00"
-$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+$global:StartOfShift = [datetime] "09:00:00"
+$global:EndOfShift = [datetime] "18:00:00"
+$global:WorkDays = @('Monday','Tuesday','Wednesday','Thursday','Friday')
 #I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = Get-Alias
-
-#Get current username from local user foldername
-function Get-UsernameFromWindows {
-	####check for windows if not ask for user alias
-	$CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
-
-	### if not linux ask for input
-
-	#Write-Host "CurrentUser is " -NoNewline
-	#Write-Host "$CurrentUser" -ForegroundColor Blue
-	Return $CurrentUser
-}
 
 #Get alias from userfolder, if this fails, exo connection will prompt for creds
 function Get-Alias {
 	if ($global:UserAliasSuffix -eq "" -or $null -eq $global:UserAliasSuffix) {
 		$global:UserAliasSuffix = Get-Suffix
 	}
-	$CurrentUser = Get-UsernameFromWindows
+	$CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
     
-	#Write-Host "Current account is " -NoNewline
-	#Write-Host "${global:UserAlias}" -ForegroundColor Blue
-
-	Return ( -join ($CurrentUser, $global:UserAliasSuffix))
+	Write-Host "Current account is " -NoNewline
+	Write-Host "${global:UserAlias}" -ForegroundColor Blue
+	$global:UserAlias = (-join($CurrentUser, $global:UserAliasSuffix))
+	pause
+	Return $global:UserAlias
 }
 function Get-Suffix {
 	Write-Host "Current suffix is $global:UserAliasSuffix"
@@ -44,13 +33,30 @@ function Get-Suffix {
 
 #connect to exchange online
 function Get-EXOConnection {
-	$global:UserAlias = Get-Alias
+	#$global:UserAlias = Get-Alias
 	Get-EXOM #is EXO module installed
 	#Write-Host "Current account is " -NoNewline
 	#Write-Host "${global:UserAlias}" -ForegroundColor Blue
 	#Write-Host "Connecting to your Outlook Account with alias $global:UserAlias " 
-	Connect-ExchangeOnline -UserPrincipalName $global:UserAlias 
-	#Write-Host "Done Connecting"
+	
+	# Get the current PowerShell connection
+	$session = Get-ConnectionInformation
+	# Check if there is an active Exchange Online PowerShell v3 connection
+	if ($session -ne $null) {
+		$exchangeSession = $session | Where-Object { $_.ConfigurationName -eq "Microsoft.Exchange" -and $_.Name -eq "ExchangeOnline" }
+		if ($exchangeSession -ne $null) {
+			Write-Host "An active Exchange Online PowerShell v3 connection exists."
+		}
+		else {
+			Write-Host "No active Exchange Online PowerShell v3 connection exists."
+		}
+	}
+	else {
+		Write-Host "No PowerShell session exists." + $global:UserAlias 
+		Connect-ExchangeOnline -UserPrincipalName $global:UserAlias 
+		#Connect-ExchangeOnline -InlineCredential
+	}
+	Write-Host "Done Connecting"
 }
 
 function Get-ARCFilePath {
@@ -115,6 +121,7 @@ function Set-ARCTimes {
 	$daysToAdd = 0
 	#how many days till next day of work
 	$daysToAdd = Get-NextWorkDay
+	
 
 	#convert daily time to todays time
 	$hours = Get-Date $global:StartOfShift
@@ -123,17 +130,18 @@ function Set-ARCTimes {
 	$global:StartOfShift = [datetime] (Get-Date).Date.AddHours($hours.Hour)
 
 	#add the number of days till next shift to the time for when the OOF message should end, aka the START of your next shift
-	$EndOfAR = $global:StartOfShift.adddays($daysToAdd)
+	$global:StartOfShift = $global:StartOfShift.adddays($daysToAdd)
 
 	#convert daily time to todays time, round to hour
 	$hours = Get-Date $global:EndOfShift
 	$global:EndOfShift = [datetime] (Get-Date).Date.AddHours($hours.Hour)
-
+	
 	#Write-Host "Current Online start:" $MailboxARC.StartTime "`nCurrent Online will End: " $MailboxARC.EndTime
 	#Write-Host "Live Config start:" $global:EndOfShift "`nLive Config will End: " $global:StartOfShift
 
 	#Set start and end time for scheduled auto reply
-	Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -StartTime $global:EndOfShift -EndTime $EndOfAR
+	if ($daysToAdd -eq 0) { $global:EndOfShift = $global:EndOfShift.adddays(-1) }#shift has not started, move start of OOF back a day
+	Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -StartTime $global:EndOfShift -EndTime $global:StartOfShift
 	
 	#Write Current Config to file
 	Set-ARCFILE
@@ -186,13 +194,11 @@ function Set-ARCmessagefile {
 #Returns the number of days till next work day
 function Get-NextWorkDay {
 	if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { Get-ShiftTime }
+	if ($null -eq $global:WorkDays) { Get-WorkDaysOfTheWeek }
 
 	$duringshift = 0
 	$CTime = Get-Date #-Format "MM/dd/yyyy HH:mm"
 	$CTime = [datetime] $CTime
-
-	#what days of the week do you work hard code it if you dont wanna be asked
-	$global:WorkDays = Get-WorkDaysOfTheWeek
 
 	if (!($CTime.DayOfWeek -in $global:WorkDays)) {
 		$i = 0
@@ -373,8 +379,8 @@ function Set-WorkTimesToFile {
 	$FP = Get-Location
 	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
 	$content = Get-Content -Path $FP
-	$content[1] = "`$global:StartOfShift = [DateTime] `"" + $global:StartOfShift.TimeOfDay + "`""
-	$content[2] = "`$global:EndOfShift = [DateTime] `"" + $global:EndOfShift.TimeOfDay + "`""
+	$content[1] = "`$global:StartOfShift = [datetime] `"" + $global:StartOfShift.TimeOfDay + "`""
+	$content[2] = "`$global:EndOfShift = [datetime] `"" + $global:EndOfShift.TimeOfDay + "`""
 	#Write-Host $content[1]
 	#Write-Host	$content[2]
 	Set-Content $FP $content
@@ -382,26 +388,28 @@ function Set-WorkTimesToFile {
 
 ##create scheduled task function
 function Set-DailyScriptTask {
-	$date = Get-Date -Date (Get-Date).Date
-	$TriggerTime = $global:StartOfShift.TimeOfDay
-	$TriggerTime = $date.AddMinutes(15) + $TriggerTime
 	
-	# Define the trigger for the scheduled task 15 minutes after start of shift
-	$trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
-
 	$FP = Get-Location
 	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
-	#$cmd2 = "PowerShell -NoProfile -ExecutionPolicy Unrestricted -Command `"& {Start-Process PowerShell -ArgumentList `'${cmd}`' -Verb RunAs}`""
 
-	# Define the action for the scheduled task
-	$action = New-ScheduledTaskAction -Execute $FP
-
-	# Register the scheduled task
+	#the scheduled task
 	$taskname = "AAOOF"
-	#Register-ScheduledTask -TaskName ${taskname} -Trigger $trigger -Action $action -RunLevel Highest
-	Set-ScheduledTask -TaskName ${taskname} -Trigger $trigger -Action $action
-	#if exisits use below
-	#Set-ScheduledTaskAction
+	
+
+	$Task = Get-ScheduledTask -TaskPath '\' -TaskName $taskname
+	$Task.Actions[0].Arguments = "${FP} 1"
+
+	Set-ScheduledTask -InputObject $Task | Out-Null
+
+	# if task dne
+	# $action = New-ScheduledTaskAction -Execute 'powershell.exe'
+	# $date = Get-Date -Date (Get-Date).Date
+	# $TriggerTime = $global:StartOfShift.TimeOfDay
+	# $TriggerTime = $date.AddMinutes(15) + $TriggerTime
+	
+	# # Define the trigger for the scheduled task 15 minutes after start of shift
+	# $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
+	# Register-ScheduledTask -TaskName ${taskname} -Trigger $trigger -Action $action -RunLevel Highest
 }
 
 #get date for return to work, this sets autoreply to start at end of shift today and end on start of shift on date entered
@@ -451,59 +459,46 @@ function Show-Menu {
 	Write-Host "================ Configure the Script Defaults ================"
 	Write-Host "3: Press '3' To set your office hours and save to script"
 	Write-Host "4: Press '4' To set your work days and save to script`n`n"
-	Write-Host "================ Configure the Auto Reply Message and Settings ================"
+	Write-Host "================ Configure the Auto Reply Settings ================"
 	Write-Host "5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled"
-	Write-Host "6: Press '6' Save Auto Reply Message to Local HTML File"
+	Write-Host "5: Press '6' To set a Schedule Task to run the 'AAOOF.ps1 1' 15 minutes after the start of your shift daily`n`n"
+	Write-Host "================ Configure the Auto Reply Message ================"
+	Write-Host "6: Press '9' Save the current Auto Reply Message to File"
+	Write-Host "6: Press '0' Load an Auto Reply Message to File`n`n"
 	Write-Host "Q: Press 'Q' to quit."
 }
 
-#### close edge window
-#### need a way to silently authenticate or close the window when done?
-#### close edge window on disconnection?
-
+Get-EXOConnection
 
 do {
-	if ($InputParm -ne 'z' -and $InputParm -ne 'x') {
-		if ($null -eq $global:StartOfShift) {
+	if ($InputParm -ne 'z') {
+		if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) {
 			Get-ShiftTime
 			Set-WorkTimesToFile
-			
-		}
-		if ($null -eq $global:EndOfShift) {
-			Get-ShiftTime
-			Set-WorkTimesToFile
-			
 		}
 		if ($null -eq $global:WorkDays) {
 			$global:WorkDays = Get-WorkDaysOfTheWeek
-			Set-WorkDaysToFile
-			
+			Set-WorkDaysToFile			
 		}
 	}
-	
-	Get-EXOConnection
-	#### get connected once, this assumes the suffix is correctly hardcoded, if not everything breaks lol
-	#### add check for check for connection if possible
-
-	if (!$InputParm) {
+	if ([string]$InputParm -as [datetime]) {
+		Get-EXOConnection
+		Get-VacationDate $InputParm
+		$TempARC = Get-ARC
+		Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
+		Write-Host "Auto Reply will start at" $TempARC.StartTime
+		Write-Host "Auto Reply will end at" $TempARC.EndTime
+		$S = 'q'
+	}
+	if ($InputParm) {
+		#everything else should be a menu option expect 2..... so far
+		$S = $InputParm
+	}
+	else {
 		Show-Menu
 		$S = Read-Host "Please make a selection"
 	}
-	else {	
-		#is the inputParm is a date option 2
-		if ([string]$InputParm -as [DateTime]) {
-			Get-VacationDate $InputParm
-			$TempARC = Get-ARC
-			Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
-			Write-Host "Auto Reply will start at" $TempARC.StartTime
-			Write-Host "Auto Reply will end at" $TempARC.EndTime
-			$S = 'q'
-		}
-		else {
-			#everything else should be a menu option expect 2
-			$S = $InputParm
-		}
-	}
+	
 
 	switch ($S) {
 		'1' {
@@ -548,22 +543,24 @@ do {
 			$InputParm = $null
 		}
 		'5' {
+			
 			#set endable disabled or scheduled
 			Set-ARCState
 			$InputParm = $null
 		}
 		'6' {
+			#create schedule windows task
+			Set-DailyScriptTask
+			$InputParm = $null
+		}
+		'9' {	
+			
 			#save the current message to the default message.html file
 			Set-ARCmessagefile
 			#Set-WorkTimesToFile
 			#Set-WorkDaysToFile	
 			#Set-ARCState '3'
 			$InputParm = $null
-		}
-		'X' {
-			Set-DailyScriptTask
-			$InputParm = $null
-			$S = 'q'
 		}
 		'Z' {
 			### hidden reset option, allows me to commit the script with the default null values and not have to manually update the main branch 
