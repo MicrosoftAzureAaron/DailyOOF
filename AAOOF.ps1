@@ -1,13 +1,13 @@
 param([string]$InputParm)
-$global:StartOfShift = [datetime] "09:00:00"
-$global:EndOfShift = [datetime] "18:00:00"
-$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+$global:StartOfShift = $null
+$global:EndOfShift = $null
+$global:WorkDays = $null
 #I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
-$global:UserAlias = $null
+$global:UserAlias = Get-UserAlias
 
 #Get alias from userfolder, if this fails, exo connection will prompt for creds
-function Get-Alias {
+function Get-UserAlias {
 	if ($global:UserAliasSuffix -eq "" -or $null -eq $global:UserAliasSuffix) {
 		$global:UserAliasSuffix = Get-Suffix
 	}
@@ -402,7 +402,7 @@ function Get-VacationDate ($TempT) {
 
 #connect to exchange online
 function Get-EXOConnection {
-	if ($null -eq $global:UserAlias) { $global:UserAlias = Get-Alias }
+	if ($null -eq $global:UserAlias) { $global:UserAlias = Get-UserAlias }
 	Get-EXOM #is EXO module installed
 	#Write-Host "Current account is " -NoNewline
 	#Write-Host "${global:UserAlias}" -ForegroundColor Blue
@@ -412,19 +412,20 @@ function Get-EXOConnection {
 	$session = Get-ConnectionInformation
 	# Check if there is an active Exchange Online PowerShell v3 connection
 	if ($session -ne $null) {
-		$exchangeSession = $session | Where-Object { $_.ConfigurationName -eq "Microsoft.Exchange" -and $_.Name -eq "ExchangeOnline" }
+		$exchangeSession = $session | Where-Object { $_.Name -like "ExchangeOnline_*" }
 		if ($exchangeSession -ne $null) {
 			Write-Host "An active Exchange Online PowerShell v3 connection exists."
 		}
 		else {
 			Write-Host "No active Exchange Online PowerShell v3 connection exists."
+			Connect-ExchangeOnline -UserPrincipalName $global:UserAlias
 		}
 	}
 	else {
 		#Write-Host "No PowerShell session exists." + $global:UserAlias + "`n"
-		#Connect-ExchangeOnline -UserPrincipalName $global:UserAlias
+		Connect-ExchangeOnline -UserPrincipalName $global:UserAlias
 	}
-	Write-Host "Done Connecting"
+	#Write-Host "Done Connecting"
 }
 
 #force disconnect
@@ -467,7 +468,6 @@ function Show-Menu {
 	Write-Host "0: Press '0' Load an Auto Reply Message to File`n`n"
 	Write-Host "Q: Press 'Q' to quit."
 }
-
 
 Get-EXOConnection
 
