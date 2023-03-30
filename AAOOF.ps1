@@ -158,12 +158,19 @@ function Set-ARCTimes
 }
 
 #Set auto reply message
-function Set-ARCMessage($IOE,$message)
+function Set-ARCMessage($message,$IOE)
 {
-
 	switch -Regex ($IOE)
 	{
 		"Internal"
+		{
+			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -InternalMessage $message 
+		}
+		"1"
+		{
+			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -InternalMessage $message 
+		}
+		"I"
 		{
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -InternalMessage $message 
 		}
@@ -171,13 +178,28 @@ function Set-ARCMessage($IOE,$message)
 		{
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $message  
 		}
-		"Both"
+		"2"
+		{
+			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $message  
+		}
+		"E"
+		{
+			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $message  
+		}
+		default
 		{
 			Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $message -InternalMessage $message 
 		}
 	}
 }
 
+# get the message file, need to deliniate the separate messages, either within a single file or in multiple files for simpler editing
+function Get-ARCmessagefile
+{
+	$ARCMessageFile = Get-Location #store local copy in same folder as script
+	$ARCMessageFile = (-join($ARCMessageFile.tostring(),'\','message.html'))
+	return $ARCMessageFile
+}
 #save online message to html file
 function Set-ARCmessagefile
 {
@@ -535,7 +557,7 @@ do
 	}
 	switch ($S)
 	{
-		'1'
+		'1' # run daily option after start of shift
 		{
 			#Write-Host "Current account is " -NoNewline
 			#Write-Host "${global:UserAlias}" -ForegroundColor Blue
@@ -551,7 +573,7 @@ do
 			#quitting time
 			$S = 'q'
 		}
-		'2'
+		'2' #set the return date for vacation oof, use vacation oof message if present otherwise use default
 		{		
 			Get-VacationDate
 			$TempARC = Get-ARC
@@ -560,7 +582,7 @@ do
 			Write-Host "Auto Reply will end at" $TempARC.EndTime
 			$InputParm = $null
 		}
-		'3'
+		'3' #change the start and end of shift times and save to script
 		{
 			$global:StartOfShift = $null
 			$global:EndOfShift = $null
@@ -569,21 +591,19 @@ do
 			Set-WorkTimesToFile
 			$InputParm = $null
 		}
-		'4'
+		'4' #change what days of the week you work and save to script
 		{
 			$global:WorkDays = $null
 			$global:WorkDays = Get-WorkDaysOfTheWeek
-			Set-ARCTimes
 			Set-WorkDaysToFile
-			Set-WorkTimesToFile
 			$InputParm = $null
 		}
-		'5'
+		'5' #set endable disabled or scheduled
 		{
 			Set-ARCState
 			$InputParm = $null
 		}
-		'6'
+		'6' #save the current message to the default message.html file
 		{
 			Set-ARCmessagefile
 			#Set-WorkTimesToFile
