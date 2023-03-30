@@ -585,6 +585,15 @@ do {
 			$InputParm = $null
 			$S = 'q'
 		}
+		'Q' {
+			try {
+				#ensure disconnection
+				Set-EXODisconnect	
+			}
+			catch {
+				Write-Host "Did not disconnect"
+			}
+		}
 	}
 }
 until ($S -eq 'q')
