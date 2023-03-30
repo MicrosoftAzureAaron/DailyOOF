@@ -591,10 +591,10 @@ do
 		}
 		'6'
 		{
-			#Set-ARCmessagefile
-			Set-WorkTimesToFile
-			Set-WorkDaysToFile	
-			Set-ARCState '3'
+			Set-ARCmessagefile
+			#Set-WorkTimesToFile
+			#Set-WorkDaysToFile	
+			#Set-ARCState '3'
 			$InputParm = $null
 		}
 		'Z' ### hidden reset option
