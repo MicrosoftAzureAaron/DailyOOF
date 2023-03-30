@@ -411,9 +411,9 @@ function Get-EXOConnection {
 	# Get the current PowerShell connection
 	$session = Get-ConnectionInformation
 	# Check if there is an active Exchange Online PowerShell v3 connection
-	if ($session -ne $null) {
+	if ($null -ne $session) {
 		$exchangeSession = $session | Where-Object { $_.Name -like "ExchangeOnline_*" }
-		if ($exchangeSession -ne $null) {
+		if ($null -ne $exchangeSession) {
 			Write-Host "An active Exchange Online PowerShell v3 connection exists."
 		}
 		else {
