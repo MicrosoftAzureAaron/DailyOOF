@@ -107,8 +107,7 @@ function Set-ARCState($S) {
 }
 
 #Set auto reply start and end times
-function Set-ARCTimes
-{
+function Set-ARCTimes {
 	##Gets office hours, if not hardcoded at the start of this file, ask user for input
 	if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { Get-ShiftTime }
 	if ($null -eq $global:WorkDays) { Get-WorkDaysOfTheWeek }
@@ -383,22 +382,26 @@ function Set-WorkTimesToFile {
 
 ##create scheduled task function
 function Set-DailyScriptTask {
-	$TriggerTime = $global:StartOfShift.TimeOfDay.addminutes(15)
+	$date = Get-Date -Date (Get-Date).Date
+	$TriggerTime = $global:StartOfShift.TimeOfDay
+	$TriggerTime = $date.AddMinutes(15) + $TriggerTime
+	
 	# Define the trigger for the scheduled task 15 minutes after start of shift
 	$trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
 
-	# Define the action for the scheduled task
 	$FP = Get-Location
 	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
-	$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-File ${FP}"
-	try {
-		# Register the scheduled task
-		Register-ScheduledTask -TaskName "My Daily Automatic Out of Office script" -Trigger $trigger -Action $action -RunLevel Highest
-	}
-	catch {
-		pause
-	}
-	
+	#$cmd2 = "PowerShell -NoProfile -ExecutionPolicy Unrestricted -Command `"& {Start-Process PowerShell -ArgumentList `'${cmd}`' -Verb RunAs}`""
+
+	# Define the action for the scheduled task
+	$action = New-ScheduledTaskAction -Execute $FP
+
+	# Register the scheduled task
+	$taskname = "AAOOF"
+	#Register-ScheduledTask -TaskName ${taskname} -Trigger $trigger -Action $action -RunLevel Highest
+	Set-ScheduledTask -TaskName ${taskname} -Trigger $trigger -Action $action
+	#if exisits use below
+	#Set-ScheduledTaskAction
 }
 
 #get date for return to work, this sets autoreply to start at end of shift today and end on start of shift on date entered
@@ -454,17 +457,13 @@ function Show-Menu {
 	Write-Host "Q: Press 'Q' to quit."
 }
 
-Get-EXOConnection
-#### get connected once, this assumes the suffix is correctly hardcoded, if not everything breaks lol
-#### add check for check for connection if possible
-
 #### close edge window
 #### need a way to silently authenticate or close the window when done?
 #### close edge window on disconnection?
 
 
 do {
-	while ($InputParm -ne 'z' -or $InputParm -ne 'x') {
+	if ($InputParm -ne 'z' -and $InputParm -ne 'x') {
 		if ($null -eq $global:StartOfShift) {
 			Get-ShiftTime
 			Set-WorkTimesToFile
@@ -481,6 +480,11 @@ do {
 			
 		}
 	}
+	
+	Get-EXOConnection
+	#### get connected once, this assumes the suffix is correctly hardcoded, if not everything breaks lol
+	#### add check for check for connection if possible
+
 	if (!$InputParm) {
 		Show-Menu
 		$S = Read-Host "Please make a selection"
@@ -500,6 +504,7 @@ do {
 			$S = $InputParm
 		}
 	}
+
 	switch ($S) {
 		'1' {
 			# run daily option after start of shift
