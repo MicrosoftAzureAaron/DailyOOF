@@ -1,16 +1,19 @@
 param([string]$InputParm)
-$global:StartOfShift = [DateTime] "09:00:00"
-$global:EndOfShift = [DateTime] "18:00:00"
-$WorkDays = @('Monday','Tuesday','Wednesday','Thursday','Friday')
+$global:StartOfShift = $null
+$global:EndOfShift = $null
+$WorkDays = $null
 
 $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = Get-Alias
 
-
 #Get current username from local user foldername
 function Get-UsernameFromWindows 
 {
+	####check for windows if not ask for user alias
 	$CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
+
+	### if not linux ask for input
+
     #Write-Host "CurrentUser is " -NoNewline
 	#Write-Host "$CurrentUser" -ForegroundColor Blue
 	Return $CurrentUser
@@ -24,15 +27,24 @@ function Get-Alias
 		$global:UserAliasSuffix = Get-Suffix
 	}
 	$CurrentUser = Get-UsernameFromWindows
-    Return (-join($CurrentUser,$global:UserAliasSuffix))
+    
 	#Write-Host "Current account is " -NoNewline
 	#Write-Host "${global:UserAlias}" -ForegroundColor Blue
+
+	Return (-join($CurrentUser,$global:UserAliasSuffix))
 }
 function Get-Suffix 
 {
-    Write-Host "Current suffix is ${UserAliasSuffix}"
-	$PT = "What email suffix would you like to use? Format @microsoft.com"
-	$global:UserAliasSuffix = Read-Host -Prompt $PT
+    Write-Host "Current suffix is $global:UserAliasSuffix"
+	$PT = "What email suffix would you like to use? Deafult  [@microsoft.com]"
+	try 
+	{
+		$global:UserAliasSuffix = Read-Host -Prompt $PT
+	}
+	catch
+	{
+		Write-Host "Bad Input $global:UserAliasSuffix"
+	}
 	Return $global:UserAliasSuffix
 }
 
@@ -479,25 +491,10 @@ Get-EXOConnection
 #### get connected once, this assumes the suffix is correctly hardcoded, if not everything breaks lol
 
 #### close edge window
-try
-{	
-	# Get a list of all running Microsoft Edge processes
-	$edgeProcesses = Get-Process -Name "msedge"
-	# Loop through each process and check if it has a window open to localhost
-	foreach ($process in $edgeProcesses) 
-	{
-		$windows = $process.MainWindowHandle | ForEach-Object { Get-Process -WindowHandle $_ } | Where-Object {(New-Object -ComObject "InternetExplorer.Application").LocationURL -contains "localhost:"}
-		foreach ($window in $windows) 
-		{
-				Stop-Process -Id $process.Id
-		}
-	}
-}
-catch 
-{
-		Write-Host "Error"
-		pause
-}
+
+
+
+#####
 
 
 do
@@ -599,6 +596,19 @@ do
 			Set-WorkDaysToFile	
 			Set-ARCState '3'
 			$InputParm = $null
+		}
+		'Z' ### hidden reset option
+		{
+			#set null defaults to script
+			$FP = Get-Location
+			$FP = (-join($FP.tostring(),'\','AAOOF.ps1'))
+			$content = Get-Content -Path $FP
+			$content[1] = "`$global:StartOfShift = `$null"
+			$content[2] = "`$global:EndOfShift = `$null"
+			$content[3] = "`$WorkDays = `$null"
+			Set-Content $FP $content
+			$InputParm = $null
+			$S = 'q'
 		}
 	}
 }
