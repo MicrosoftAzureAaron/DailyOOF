@@ -43,12 +43,12 @@ Q: Press 'Q' to quit.<br>
 
 
 
-TO ADD:
+TO ADD:<br><br>
 
-set scheduled task to run ps1 once a day
-save message to html file for local loading
-Pre saved messages - load from html file
-    normal oof
-    vacation oof
-    sick oof
-    Holiday oof
+set scheduled task to run ps1 once a day<br>
+save message to html file for local loading<br>
+Pre saved messages - load from html file<br>
+    normal oof<br>
+    vacation oof<br>
+    sick oof<br>
+    Holiday oof<br>
