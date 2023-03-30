@@ -499,23 +499,26 @@ Get-EXOConnection
 
 do
 {
-	if($null -eq $global:StartOfShift)
+	while ($InputParm -ne 'z' -or $InputParm -ne 'Z')
 	{
-		Get-ShiftTime
-		Set-WorkTimesToFile
-		
-	}
-	if($null -eq $global:EndOfShift)
-	{
-		Get-ShiftTime
-		Set-WorkTimesToFile
-		
-	}
-	if($null -eq $global:WorkDays)#-eq @())
-	{
-		$global:WorkDays = Get-WorkDaysOfTheWeek
-		Set-WorkDaysToFile
-		
+		if($null -eq $global:StartOfShift)
+		{
+			Get-ShiftTime
+			Set-WorkTimesToFile
+			
+		}
+		if($null -eq $global:EndOfShift)
+		{
+			Get-ShiftTime
+			Set-WorkTimesToFile
+			
+		}
+		if($null -eq $global:WorkDays)
+		{
+			$global:WorkDays = Get-WorkDaysOfTheWeek
+			Set-WorkDaysToFile
+			
+		}
 	}
 	if(!$InputParm)
 	{
