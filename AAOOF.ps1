@@ -507,7 +507,6 @@ do {
 			#Write-Host "Current account is " -NoNewline
 			#Write-Host "${global:UserAlias}" -ForegroundColor Blue
 
-			
 			#connect
 			Get-EXOConnection
 
@@ -605,5 +604,5 @@ try {
 	Set-EXODisconnect	
 }
 catch {
-	Write-Host "Did not disconnect"
-}  
+	Write-Host "Did not disconnect" #whoops
+}
