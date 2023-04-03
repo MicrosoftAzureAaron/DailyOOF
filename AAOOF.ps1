@@ -1,7 +1,7 @@
 param([string]$InputParm)
 $global:StartOfShift = $null
 $global:EndOfShift = $null
-$global:WorkDays = $null
+$global:WorkDays = @()
 #I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
 $global:UserAlias = $null
@@ -167,7 +167,7 @@ function Set-ARCmessagefile {
 #Returns the number of days till next work day
 function Get-NextWorkDay {
 	if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { Get-ShiftTime }
-	if ($null -eq $global:WorkDays) { Get-WorkDaysOfTheWeek }
+	if (!$global:WorkDays) { Get-WorkDaysOfTheWeek }
 
 	$duringshift = 0
 	$CTime = Get-Date #-Format "MM/dd/yyyy HH:mm"
@@ -255,10 +255,10 @@ function Get-WorkDaysOfTheWeek {
 	### Standard Monday - Friday
 	#$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
-	if ($null -eq $global:WorkDays) {
+	if (!$global:WorkDays) {
 		
-		Clear-Host
-		Write-Host "================ What days of the Week do you Work? ================"
+		#Clear-Host
+		Write-Host "`n================ What days of the Week do you Work? ================"
 		Write-Host "Which of the following matches your weekly work schedule"
 		Write-Host "1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday"
 		Write-Host "2. 'Monday', 'Tuesday', 'Saturday', 'Sunday'"
@@ -294,9 +294,9 @@ function Set-WorkDaysToFile {
 	}
 	$Temp = $Temp.Substring(0, $Temp.Length - 1)
 	$Temp += ")"
-	$content[3] = $Temp
+	$content[3] = $Temp #overwrite line 3
 	#Write-Host $Temp
-	Set-Content $FP $content
+	Set-Content $FP $content #write to file
 }
 
 #what time do you start and end your shift
@@ -426,6 +426,7 @@ function Get-EXOConnection {
 		Connect-ExchangeOnline -UserPrincipalName $global:UserAlias
 	}
 	#Write-Host "Done Connecting"
+	Clear-Host
 }
 
 #force disconnect
@@ -446,7 +447,6 @@ function Get-EXOM {
 		Write-Host "ExchangeOnlineManagement does not exist, installing`n"
 		Install-Module -Name ExchangeOnlineManagement -force
 	}
-	Return
 }
 
 #menu here
@@ -462,7 +462,9 @@ function Show-Menu {
 	Write-Host "4: Press '4' To set your work days and save to script`n`n"
 	Write-Host "================ Configure the Auto Reply Settings ================"
 	Write-Host "5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled"
-	Write-Host "6: Press '6' To set a Schedule Task to run the 'AAOOF.ps1 1' 15 minutes after the start of your shift daily`n`n"
+	Write-Host "6: Press '6' " -NoNewline
+	Write-Host "REQUIRES ADMIN" -ForegroundColor Red -NoNewline
+	Write-Host "Schedule Task to run the 'AAOOF.ps1 1' 15 minutes after the start of your shift daily`n`n"
 	Write-Host "================ Configure the Auto Reply Message ================"
 	Write-Host "9: Press '9' Save the current Auto Reply Message to File"
 	Write-Host "0: Press '0' Load an Auto Reply Message to File`n`n"
@@ -475,7 +477,7 @@ do {
 			Get-ShiftTime
 			Set-WorkTimesToFile
 		}
-		if ($null -eq $global:WorkDays) {
+		if (!$global:WorkDays) {
 			$global:WorkDays = Get-WorkDaysOfTheWeek
 			Set-WorkDaysToFile			
 		}
@@ -543,7 +545,7 @@ do {
 		}
 		'4' {
 			#change what days of the week you work and save to script
-			$global:WorkDays = $null
+			$global:WorkDays = @()
 			$global:WorkDays = Get-WorkDaysOfTheWeek
 			Set-WorkDaysToFile
 			$InputParm = $null
@@ -580,7 +582,7 @@ do {
 			$content = Get-Content -Path $FP
 			$content[1] = "`$global:StartOfShift = `$null"
 			$content[2] = "`$global:EndOfShift = `$null"
-			$content[3] = "`$global:WorkDays = `$null"
+			$content[3] = "`$global:WorkDays = @()"
 			Set-Content $FP $content
 			$InputParm = $null
 			$S = 'q'
