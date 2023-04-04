@@ -1,8 +1,8 @@
 param([string]$InputParm)
-$global:StartOfShift = $null
-$global:EndOfShift = $null
-$global:WorkDays = @()
-$global:UserAlias = $null
+$global:StartOfShift = [datetime] "09:00:00"
+$global:EndOfShift = [datetime] "18:00:00"
+$global:WorkDays = @('Monday','Tuesday','Wednesday','Thursday','Friday')
+$global:UserAlias = "aarosanders@microsoft.com"
 #I really dont like that the first 5 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
 
