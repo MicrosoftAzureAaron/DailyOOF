@@ -1,10 +1,11 @@
 param([string]$InputParm)
-$global:StartOfShift = $null
-$global:EndOfShift = $null
-$global:WorkDays = @()
-#I really dont like that the first 4 lines of this script must be in this order, as we store the user's values here after this is run the first time
+$global:StartOfShift = [datetime] "09:00:00"
+$global:EndOfShift = [datetime] "18:00:00"
+$global:WorkDays = @('Monday','Tuesday','Wednesday','Thursday','Friday')
+$global:UserAlias = aarosanders@microsoft.com
+#I really dont like that the first 5 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
-$global:UserAlias = $null
+
 
 #Get alias from userfolder, if this fails, exo connection will prompt for creds
 function Get-UserAlias {
@@ -13,11 +14,19 @@ function Get-UserAlias {
 	}
 
 	$CurrentUser = ((Get-WMIObject -ClassName Win32_ComputerSystem).Username).Split('\')[1]
-    
 	#Write-Host "Current account is " -NoNewline
 	#Write-Host "$CurrentUser" -ForegroundColor Blue
 	$CurrentUser = ( -join ($CurrentUser, $global:UserAliasSuffix))
-	Return $CurrentUser 
+	$global:UserAlias = $CurrentUser
+	Set-UserAliasToFile
+}
+
+function Set-UserAliasToFile {
+	$FP = Get-Location
+	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
+	$content = Get-Content -Path $FP
+	$content[4] = "`$global:UserAlias = " + $global:UserAlias
+	Set-Content $FP $content
 }
 
 function Get-Suffix {
@@ -402,7 +411,7 @@ function Get-VacationDate ($TempT) {
 
 #connect to exchange online
 function Get-EXOConnection {
-	if ($null -eq $global:UserAlias) { $global:UserAlias = Get-UserAlias }
+	if ($null -eq $global:UserAlias) { Get-UserAlias }
 	Get-EXOM #is EXO module installed
 	#Write-Host "Current account is " -NoNewline
 	#Write-Host "${global:UserAlias}" -ForegroundColor Blue
@@ -451,20 +460,21 @@ function Get-EXOM {
 
 #menu here
 function Show-Menu {
+	if ($null -eq $global:UserAlias ){Get-UserAlias}
 	Clear-Host
 	Write-Host "================ Email Out of Office Automation ================"
 	Write-Host "Current account is " -NoNewline
-	Write-Host "$global:UserAlias" -ForegroundColor Blue
+	Write-Host "${global:UserAlias}" -ForegroundColor Blue
 	Write-Host "1: Press '1' Enable Scheduled Auto Reply and Quit"
-	Write-Host "2: Press '2' To set an end date for a extended out of office message`n`n"
+	Write-Host "2: Press '2' To set an end date for a extended out of office message`n"
 	Write-Host "================ Configure the Script Defaults ================"
 	Write-Host "3: Press '3' To set your office hours and save to script"
-	Write-Host "4: Press '4' To set your work days and save to script`n`n"
+	Write-Host "4: Press '4' To set your work days and save to script`n"
 	Write-Host "================ Configure the Auto Reply Settings ================"
 	Write-Host "5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled"
 	Write-Host "6: Press '6' " -NoNewline
-	Write-Host "REQUIRES ADMIN" -ForegroundColor Red -NoNewline
-	Write-Host "Schedule Task to run the 'AAOOF.ps1 1' 15 minutes after the start of your shift daily`n`n"
+	Write-Host "REQUIRES ADMIN " -ForegroundColor Red -NoNewline
+	Write-Host "Schedule Task to run the 'AAOOF.ps1 1' daily after shift start`n"
 	Write-Host "================ Configure the Auto Reply Message ================"
 	Write-Host "9: Press '9' Save the current Auto Reply Message to File"
 	Write-Host "0: Press '0' Load an Auto Reply Message to File`n`n"
@@ -582,6 +592,7 @@ do {
 			$content[1] = "`$global:StartOfShift = `$null"
 			$content[2] = "`$global:EndOfShift = `$null"
 			$content[3] = "`$global:WorkDays = @()"
+			$content[4] = "`$global:UserAlias = `$null"
 			Set-Content $FP $content
 			$InputParm = $null
 			$S = 'q'
