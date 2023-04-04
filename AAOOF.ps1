@@ -25,7 +25,7 @@ function Set-UserAliasToFile {
 	$FP = Get-Location
 	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
 	$content = Get-Content -Path $FP
-	$content[4] = "`$global:UserAlias = " + $global:UserAlias
+	$content[4] = "`$global:UserAlias = `"" + $global:UserAlias +"`""
 	Set-Content $FP $content
 }
 
