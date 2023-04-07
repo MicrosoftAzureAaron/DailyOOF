@@ -38,8 +38,8 @@ Current account is
 2: Press '2' To set an end date for a extended out of office message  
 <br>
 ================ Configure the Script Defaults ================  
-3: Press '3' To set your office hours and save to script  
-4: Press '4' To set your work days and save to script 
+3: Press '3' To set your office hours and save to script   
+4: Press '4' To set your work days and save to script  
 <br>
 ================ Configure the Auto Reply Settings ================  
 5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled  
