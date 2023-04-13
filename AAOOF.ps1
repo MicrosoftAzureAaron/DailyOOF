@@ -1,8 +1,8 @@
 param([string]$InputParm)
-$global:StartOfShift = $null
-$global:EndOfShift = $null
-$global:WorkDays = @()
-$global:UserAlias = $null
+$global:StartOfShift = [datetime] "09:00:00"
+$global:EndOfShift = [datetime] "18:00:00"
+$global:WorkDays = @('Monday','Tuesday','Wednesday','Thursday','Friday')
+$global:UserAlias = "aarosanders@microsoft.com"
 #I really dont like that the first 5 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
 
@@ -482,7 +482,7 @@ function Show-Menu {
 }
 
 do {
-	if ($InputParm -ne 'z') {
+	if ($InputParm -ne 'z') { #when not option Z this gets user input if varialbles are not defined at top of script
 		if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) {
 			Get-ShiftTime
 			Set-WorkTimesToFile
@@ -491,7 +491,6 @@ do {
 			$global:WorkDays = Get-WorkDaysOfTheWeek
 			Set-WorkDaysToFile			
 		}
-		$S = 'q'
 	}
 	if ($InputParm -as [datetime]) {
 		#connect
@@ -501,7 +500,7 @@ do {
 		Write-Host "Auto Reply state is currently Set to" $TempARC.AutoReplyState
 		Write-Host "Auto Reply will start at" $TempARC.StartTime
 		Write-Host "Auto Reply will end at" $TempARC.EndTime
-		$S = 'q'
+		$InputParm = 'q'
 	}
 	if (!$InputParm) {
 		Show-Menu
@@ -597,7 +596,7 @@ do {
 			$InputParm = $null
 			$S = 'q'
 		}
-		'Q' {
+		'q' {
 			try {
 				#ensure disconnection
 				Set-EXODisconnect	
