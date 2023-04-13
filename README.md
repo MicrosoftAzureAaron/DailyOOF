@@ -1,10 +1,12 @@
 ﻿# First Run
 Git Clone this repo to a folder and run the Script
-- Example c:/tools/OOF/<br>
-` mkdir c:/tools/OOF/`<br>
-` cd c:/tools/OOF/`<br>
-` git clone https://github.com/MicrosoftAzureAaron/DailyOOF`<br>
-` ./aaoof.ps1`<br>
+- Example c:\tools\DailyOOF  
+  
+` mkdir c:\tools\`  
+` cd c:\tools\`  
+` git clone https://github.com/MicrosoftAzureAaron/DailyOOF`  
+` cd DailyOOF`  
+` .\aaoof.ps1`  
 
 The first time you run the script it will ask for your input and save the values to your script file
 
@@ -15,8 +17,8 @@ The first time you run the script it will ask for your input and save the values
 After configuring the above during the first run, you can run the script with CLI commands to automate the oof configuration.  
 
 I suggest you run once the script once a day after the start of your shift. Or use option 6 from an admin terminal to create a scheduled task to run the script with option 1, 15 minutes after the start of your shift. You need to have one the script once with no options and set the start time, end time, and days of the week you work, which are saved to the script file in the above global variables<br><br>
-` ./aaoof.ps1 6`<br>
-<br>
+` .\aaoof.ps1 6`<br>
+
 # CLI examples
 
 Run with 1 for default options based on stored values, run once a day to set your oof message times automatically
