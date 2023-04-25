@@ -370,28 +370,30 @@ function Set-WorkTimesToFile {
 
 ##create scheduled task function
 function Set-DailyScriptTask {
-	
-	$FP = Get-Location
-	$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
+	if (!(Get-ScheduledTask -TaskName "AAOOF")){
+		$FP = Get-Location
+		$FP = ( -join ($FP.tostring(), '\', 'AAOOF.ps1'))
+		
+		#the scheduled task name
+		$taskname = "AAOOF"	
 
-	#the scheduled task
-	$taskname = "AAOOF"
-	
+		#$Task = Get-ScheduledTask -TaskPath '\' -TaskName $taskname
+		#$Task.Actions[0].Arguments = "${FP} 1"
+		#Set-ScheduledTask -InputObject $Task | Out-Null
 
-	$Task = Get-ScheduledTask -TaskPath '\' -TaskName $taskname
-	$Task.Actions[0].Arguments = "${FP} 1"
+		$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "${FP} 1"
 
-	Set-ScheduledTask -InputObject $Task | Out-Null
-
-	# if task dne
-	# $action = New-ScheduledTaskAction -Execute 'powershell.exe'
-	# $date = Get-Date -Date (Get-Date).Date
-	# $TriggerTime = $global:StartOfShift.TimeOfDay
-	# $TriggerTime = $date.AddMinutes(15) + $TriggerTime
-	
-	# # Define the trigger for the scheduled task 15 minutes after start of shift
-	# $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
-	# Register-ScheduledTask -TaskName ${taskname} -Trigger $trigger -Action $action -RunLevel Highest
+		$date = Get-Date -Date (Get-Date).Date
+		$TriggerTime = $global:StartOfShift.TimeOfDay
+		$TriggerTime = $date.AddMinutes(15) + $TriggerTime
+		
+		# # Define the trigger for the scheduled task 15 minutes after start of shift
+		$trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
+		Register-ScheduledTask -TaskName ${taskname} -Trigger $trigger -Action $action -RunLevel Highest
+	}
+	else {
+		Write-Host "Task is Already Created"
+	}
 }
 
 #get date for return to work, this sets autoreply to start at end of shift today and end on start of shift on date entered
