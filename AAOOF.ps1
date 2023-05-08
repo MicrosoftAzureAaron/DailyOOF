@@ -18,6 +18,7 @@ function Get-UserAlias {
 	#Write-Host "$CurrentUser" -ForegroundColor Blue
 	$CurrentUser = ( -join ($CurrentUser, $global:UserAliasSuffix))
 	$global:UserAlias = $CurrentUser
+	$global:UserAlias
 	Set-UserAliasToFile
 }
 
@@ -60,7 +61,7 @@ function Get-ARC {
 	Return Get-MailboxAutoReplyConfiguration -Identity $global:UserAlias
 }
 
-#read the locally stored file
+#read the locally stored parameter file
 function Get-ARCFile {
 	$ARCFilePath = Get-ARCFilePath
 	#Write-Host $ARCFilePath
