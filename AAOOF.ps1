@@ -1,8 +1,8 @@
 param([string]$InputParm)
-$global:StartOfShift = $null
-$global:EndOfShift = $null
-$global:WorkDays = @()
-$global:UserAlias = $null
+$global:StartOfShift = [datetime] "09:00:00"
+$global:EndOfShift = [datetime] "20:00:00"
+$global:WorkDays = @('Sunday','Monday','Tuesday','Wednesday')
+$global:UserAlias = "aarosanders@microsoft.com"
 #I really dont like that the first 5 lines of this script must be in this order, as we store the user's values here after this is run the first time
 $global:UserAliasSuffix = "@microsoft.com"
 
@@ -266,12 +266,13 @@ function Get-WorkDaysOfTheWeek {
 
 	if (!$global:WorkDays) {
 		
-		#Clear-Host
+		#Clear-Host ## customize the below menu and switch for your own weekdays
 		Write-Host "`n================ What days of the Week do you Work? ================"
 		Write-Host "Which of the following matches your weekly work schedule"
 		Write-Host "1. 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday"
 		Write-Host "2. 'Monday', 'Tuesday', 'Saturday', 'Sunday'"
-		Write-Host "3. 'Thursday','Friday','Saturday','Sunday'"
+		Write-Host "3. 'Sunday','Monday','Tuesday','Wednesday'"
+		Write-Host "4. 'Saturday','Sunday','Monday','Tuesday'"
 		$S = Read-Host -Prompt "Choice [1]"
 		switch ($S) {
 			'1' {
@@ -281,7 +282,10 @@ function Get-WorkDaysOfTheWeek {
 				$global:WorkDays = @('Monday', 'Tuesday', 'Saturday', 'Sunday')
 			}
 			'3' {
-				$global:WorkDays = @('Thursday', 'Friday', 'Saturday', 'Sunday')
+				$global:WorkDays = @('Sunday','Monday','Tuesday','Wednesday')
+			}
+			'4' {
+				$global:WorkDays = @('Saturday','Sunday','Monday','Tuesday')
 			}
 			default {
 				$global:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
