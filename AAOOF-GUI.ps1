@@ -70,9 +70,9 @@ $global:StartOfShift   = $null                       # Shift start time (datetim
 $global:EndOfShift     = $null                       # Shift end time (datetime)
 $global:WorkDays       = $null                       # Array of day names, e.g. @('Monday','Tuesday',...)
 $global:UserAlias      = ""                           # Email address used as Exchange identity
-$global:UserAliasSuffix = "@microsoft.com"            # Domain suffix appended to the Windows username
+$global:UserAliasSuffix = ""                           # Domain suffix appended to the Windows username
 $global:FullName       = ""                           # Display name for auto-generated signature
-$global:Role           = "Azure Support Engineer"     # Job title inserted into templates via [ROLE]
+$global:Role           = ""                           # Job title inserted into templates via [ROLE]
 $global:OverrideAccount = $false                      # True if user manually overrides the account email
 
 # Import-AppConfiguration: Read config.json and populate global variables.
@@ -98,7 +98,10 @@ Import-AppConfiguration
 # Resolve-UserAlias: Build the user's email alias from the Windows login name + suffix.
 function Resolve-UserAlias {
     if ([string]::IsNullOrEmpty($global:UserAliasSuffix)) {
-        $global:UserAliasSuffix = "@microsoft.com"
+        # Try to derive suffix from the machine's DNS domain
+        if ($env:USERDNSDOMAIN) {
+            $global:UserAliasSuffix = "@$($env:USERDNSDOMAIN.ToLower())"
+        }
     }
     $ComputerSystem = Get-CimInstance -ClassName Win32_ComputerSystem
     if ($ComputerSystem.Username) {
@@ -465,8 +468,6 @@ function Initialize-UIFromConfig {
     # Role
     if (![string]::IsNullOrEmpty($global:Role)) {
         $txtRole.Text = $global:Role
-    } else {
-        $txtRole.Text = "Azure Support Engineer"
     }
     # Suffix
     if (![string]::IsNullOrEmpty($global:UserAliasSuffix)) {
