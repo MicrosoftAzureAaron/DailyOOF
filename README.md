@@ -83,8 +83,28 @@ Choose from four built-in HTML templates or load your own:
 
 Templates auto-load when you change the dropdown selection. Your current message is backed up to `message.html.bak` before being replaced.
 
+##### Template Placeholders
+
+You can use the following placeholders anywhere in your HTML templates. They are automatically replaced when a template is loaded:
+
+| Placeholder | Resolves To |
+|---|---|
+| `[FULL NAME]` | Your display name (from Configuration, or derived from alias) |
+| `[FIRST NAME]` | First name portion of your display name |
+| `[LAST NAME]` | Last name portion of your display name |
+| `[ROLE]` | Your configured role (falls back to "member of my team") |
+| `[EMAIL]` | Your full email address |
+| `[OFFICE HOURS]` | Your shift start – end times (e.g. "9:00 AM - 5:00 PM") |
+| `[WORK DAYS]` | Your configured work days (e.g. "Monday, Tuesday, Wednesday") |
+| `[TIMEZONE]` | Your local timezone display name |
+| `[RETURN DATE]` | Selected return date from the date picker |
+| `[HOLIDAY NAME]` | Selected holiday name from the holiday picker |
+| `[SIGNATURE]` | Auto-generated signature block (greeting, name, details, email) |
+
+> If any placeholder remains unresolved when you click Apply, a warning dialog will list the issues before sending.
+
 ##### Template Options
-A **Template Options** panel lets you toggle which dynamic content is injected into templates when loaded:
+A **Template Options** panel lets you toggle which dynamic content is injected into the `[SIGNATURE]` block:
 
 | Option | Placeholder | Effect when unchecked |
 |---|---|---|

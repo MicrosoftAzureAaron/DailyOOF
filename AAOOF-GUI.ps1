@@ -316,6 +316,27 @@ function Get-TemplateWarnings {
     if ($msg -match '\[SIGNATURE\]') {
         $warnings += "Signature was not resolved \u2014 '[SIGNATURE]' will appear as literal text in the email."
     }
+    if ($msg -match '\[FULL NAME\]') {
+        $warnings += "Full name not resolved \u2014 '[FULL NAME]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[FIRST NAME\]') {
+        $warnings += "First name not resolved \u2014 '[FIRST NAME]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[LAST NAME\]') {
+        $warnings += "Last name not resolved \u2014 '[LAST NAME]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[EMAIL\]') {
+        $warnings += "Email not resolved \u2014 '[EMAIL]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[OFFICE HOURS\]') {
+        $warnings += "Office hours not resolved \u2014 '[OFFICE HOURS]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[WORK DAYS\]') {
+        $warnings += "Work days not resolved \u2014 '[WORK DAYS]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[TIMEZONE\]') {
+        $warnings += "Timezone not resolved \u2014 '[TIMEZONE]' will appear as literal text in the email."
+    }
     return $warnings
 }
 
@@ -650,10 +671,17 @@ function Resolve-TemplateFilePath($TemplateName) {
 }
 
 # Resolve-TemplatePlaceholders: Process an HTML template string, replacing:
-#   [RETURN DATE] — with the selected return date from the date picker
-#   [ROLE]        — with the user's configured role (or default)
-#   [SIGNATURE]   — with an auto-generated signature block (or removed if unchecked)
-# The signature block includes: greeting, display name, office details, and email link.
+#   [RETURN DATE]   — with the selected return date from the date picker
+#   [HOLIDAY NAME]  — with the selected holiday name
+#   [ROLE]          — with the user's configured role (or default)
+#   [FULL NAME]     — with the user's display name
+#   [FIRST NAME]    — first name derived from display name
+#   [LAST NAME]     — last name derived from display name
+#   [EMAIL]         — with the user's email address
+#   [OFFICE HOURS]  — with configured shift start–end times
+#   [WORK DAYS]     — with configured work days
+#   [TIMEZONE]      — with the local timezone
+#   [SIGNATURE]     — with an auto-generated signature block (or removed if unchecked)
 function Resolve-TemplatePlaceholders($text) {
     # Replace [RETURN DATE] if present
     if ($null -ne $dpReturnDate -and $null -ne $dpReturnDate.SelectedDate) {
@@ -668,27 +696,57 @@ function Resolve-TemplatePlaceholders($text) {
     $role = if (![string]::IsNullOrWhiteSpace($txtRole.Text)) { $txtRole.Text } else { 'member of my team' }
     $text = $text -replace '\[ROLE\]', $role
 
+    # Derive display name for name-based placeholders
+    if (![string]::IsNullOrWhiteSpace($txtFullName.Text)) {
+        $displayName = $txtFullName.Text
+    } else {
+        $aliasLocal = ($script:UserAlias -split '@')[0]
+        if ($aliasLocal) {
+            if ($aliasLocal -match '\.' ) {
+                $nameParts = $aliasLocal -split '\.'
+            } else {
+                $nameParts = [regex]::Split($aliasLocal, '(?<=[a-z])(?=[A-Z])')
+            }
+            $displayName = ($nameParts | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_.ToLower()) }) -join ' '
+        } else {
+            $displayName = $env:USERNAME
+        }
+    }
+
+    # Replace [FULL NAME], [FIRST NAME], [LAST NAME]
+    $text = $text -replace '\[FULL NAME\]', $displayName
+    $nameTokens = $displayName -split '\s+', 2
+    $firstName = $nameTokens[0]
+    $lastName = if ($nameTokens.Count -gt 1) { $nameTokens[1] } else { '' }
+    $text = $text -replace '\[FIRST NAME\]', $firstName
+    $text = $text -replace '\[LAST NAME\]', $lastName
+
+    # Replace [EMAIL]
+    if (![string]::IsNullOrWhiteSpace($script:UserAlias)) {
+        $text = $text -replace '\[EMAIL\]', $script:UserAlias
+    }
+
+    # Replace [OFFICE HOURS]
+    if ($null -ne $script:StartOfShift -and $null -ne $script:EndOfShift) {
+        $hoursStr = "$($script:StartOfShift.ToString('h:mm tt')) - $($script:EndOfShift.ToString('h:mm tt'))"
+        $text = $text -replace '\[OFFICE HOURS\]', $hoursStr
+    }
+
+    # Replace [WORK DAYS]
+    if ($script:WorkDays -and $script:WorkDays.Count -gt 0) {
+        $weekOrder = @('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')
+        $sorted = $script:WorkDays | Sort-Object { $weekOrder.IndexOf($_) }
+        $text = $text -replace '\[WORK DAYS\]', ($sorted -join ', ')
+    }
+
+    # Replace [TIMEZONE]
+    $text = $text -replace '\[TIMEZONE\]', [System.TimeZoneInfo]::Local.DisplayName
+
     # Auto-generate signature block: the greeting/name is conditional on the
     # "Include Signature" checkbox, but office details are always included per their own toggles.
     $sigLines = @()
 
     if ($chkIncludeSignature.IsChecked) {
-        # Use the Full Name text box, fall back to alias-derived name
-        if (![string]::IsNullOrWhiteSpace($txtFullName.Text)) {
-            $displayName = $txtFullName.Text
-        } else {
-            $aliasLocal = ($script:UserAlias -split '@')[0]
-            if ($aliasLocal) {
-                if ($aliasLocal -match '\.' ) {
-                    $nameParts = $aliasLocal -split '\.'
-                } else {
-                    $nameParts = [regex]::Split($aliasLocal, '(?<=[a-z])(?=[A-Z])')
-                }
-                $displayName = ($nameParts | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_.ToLower()) }) -join ' '
-            } else {
-                $displayName = $env:USERNAME
-            }
-        }
         $sigLines += "<p><b>Best Regards,</b><br/>"
         $sigLines += "$displayName</p>"
     }
