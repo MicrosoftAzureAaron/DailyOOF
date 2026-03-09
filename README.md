@@ -202,15 +202,10 @@ All configuration is stored in the `config/` folder:
 | `EndOfShift` | datetime | — | Configured shift end time |
 | `WorkDays` | string[] | — | Array of working day names (e.g. `["Monday","Tuesday"]`) |
 | `EnableScreenshots` | bool | `false` | Enable **F12** to capture screenshots of all tabs to the `screenshots/` folder. Disabled by default to avoid confusing end users. |
-| `message.html.bak` | Auto-backup of previous message (gitignored) |
-| `AutoReplyConfig.json` | Cached Exchange auto-reply config (gitignored) |
 
-### Custom Templates
+Additional files (gitignored):
 
-You can edit the HTML template files directly or create your own. Supported placeholders:
-
-| Placeholder | Replaced with |
+| File | Purpose |
 |---|---|
-| `[ROLE]` | Your configured role / job title |
-| `[RETURN DATE]` | The return date selected in the Vacation date picker |
-| `[SIGNATURE]` | Auto-generated signature block: greeting, display name, office hours/timezone/work days, and email link |
+| `message.html.bak` | Auto-backup of previous message |
+| `AutoReplyConfig.json` | Cached Exchange auto-reply config |
