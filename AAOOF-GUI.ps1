@@ -451,6 +451,27 @@ function Show-ErrorDialog($Title, $Message) {
     [System.Windows.MessageBox]::Show($Message, $Title, 'OK', 'Error')
 }
 
+# Ensure-ExchangeConnection: Check for an active Exchange Online session and auto-connect
+# if none exists. Updates the connection status UI. Returns $true if connected, $false on failure.
+function Ensure-ExchangeConnection {
+    $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
+    $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
+    if ($connected) { return $true }
+
+    Update-StatusBar "Not connected — attempting to connect..."
+    if (-not $chkOverrideAccount.IsChecked) {
+        $global:UserAliasSuffix = $txtSuffix.Text
+        Resolve-UserAlias
+        $txtAccount.Text = $global:UserAlias
+    } else {
+        $global:UserAlias = $txtAccount.Text
+    }
+    Connect-ExchangeOnlineSession
+    $txtConnectionStatus.Text = "Connected"
+    $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+    return $true
+}
+
 # ===================== Populate Combos =====================
 # Fill the hour, minute, and AM/PM dropdown lists for shift time selection.
 1..12 | ForEach-Object { $cmbStartHour.Items.Add($_.ToString()) | Out-Null; $cmbEndHour.Items.Add($_.ToString()) | Out-Null }
