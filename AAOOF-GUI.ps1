@@ -1681,6 +1681,11 @@ function Save-WindowScreenshot($filePath) {
 $Window.Add_KeyDown({
     if ($_.Key -eq 'F12') {
         $_.Handled = $true
+        # Screenshot capture is disabled by default. Enable via "EnableScreenshots": true in config.json.
+        $cfg = @{}
+        $cfgPath = Join-Path $ScriptDir "config\config.json"
+        if (Test-Path $cfgPath) { $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json }
+        if (-not ($cfg.PSObject.Properties.Name -contains 'EnableScreenshots' -and $cfg.EnableScreenshots -eq $true)) { return }
         try {
             if (!(Test-Path $ScreenshotsDir)) { New-Item -ItemType Directory -Path $ScreenshotsDir | Out-Null }
             Update-StatusBar "Capturing screenshots..."

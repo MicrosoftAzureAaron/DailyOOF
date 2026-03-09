@@ -6,7 +6,7 @@ A PowerShell WPF GUI application that automates Exchange Online Out of Office (O
 
 ## Screenshots
 
-> **Auto-capture:** Press **F12** inside the app to automatically capture all screenshots below and save them to the `screenshots/` folder.
+> **Auto-capture (developer/troubleshooting):** Press **F12** inside the app to capture all tab screenshots and save them to the `screenshots/` folder. This is useful for capturing issues or documenting the current state of the application. Only the application window area is captured — no other screen content is included. This feature is **disabled by default**. To enable it, add `"EnableScreenshots": true` to `config/config.json`.
 
 ### Quick Actions
 <!-- TODO: Add screenshot of the Quick Actions tab -->
@@ -168,6 +168,20 @@ All configuration is stored in the `config/` folder:
 | `sick_oof.html` | Sick OOF template |
 | `holiday_oof.html` | Holiday OOF template |
 | `message.html` | Last-applied message (gitignored) |
+
+#### config.json Options
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `FullName` | string | *(auto-detected)* | Your display name for the signature |
+| `Role` | string | `""` | Job title inserted via `[ROLE]` placeholder |
+| `UserAlias` | string | *(auto-detected)* | Full email address for Exchange Online |
+| `UserAliasSuffix` | string | `@microsoft.com` | Email domain suffix |
+| `OverrideAccount` | bool | `false` | Use `UserAlias` as-is instead of auto-detecting |
+| `StartOfShift` | datetime | — | Configured shift start time |
+| `EndOfShift` | datetime | — | Configured shift end time |
+| `WorkDays` | string[] | — | Array of working day names (e.g. `["Monday","Tuesday"]`) |
+| `EnableScreenshots` | bool | `false` | Enable **F12** to capture screenshots of all tabs to the `screenshots/` folder. Disabled by default to avoid confusing end users. |
 | `message.html.bak` | Auto-backup of previous message (gitignored) |
 | `AutoReplyConfig.json` | Cached Exchange auto-reply config (gitignored) |
 
