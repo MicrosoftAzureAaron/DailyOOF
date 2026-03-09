@@ -1634,12 +1634,12 @@ if (Test-Path $defaultTemplate) {
 
 # ===================== Screenshot Capture (F12) =====================
 # Capture screenshots of every tab for README documentation.
-# Uses WPF RenderTargetBitmap to render each tab at screen DPI and save as PNG.
+# Uses screen capture (CopyFromScreen) so WebBrowser content is included.
+Add-Type -AssemblyName System.Drawing
 $ScreenshotsDir = Join-Path $ScriptDir "screenshots"
 
 function Wait-WebBrowserReady($browser, [int]$timeoutMs = 5000) {
     # Wait for the WebBrowser's LoadCompleted event before proceeding.
-    $loaded = $false
     $handler = [System.Windows.Navigation.LoadCompletedEventHandler]{ $script:_wbLoaded = $true }
     $script:_wbLoaded = $false
     $browser.Add_LoadCompleted($handler)
@@ -1655,30 +1655,32 @@ function Wait-WebBrowserReady($browser, [int]$timeoutMs = 5000) {
 }
 
 function Save-WindowScreenshot($filePath) {
+    # Flush WPF render queue and let the window paint
     $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Render)
-    Start-Sleep -Milliseconds 200
+    Start-Sleep -Milliseconds 300
 
+    # Get window position and size in physical pixels
     $source = [System.Windows.PresentationSource]::FromVisual($Window)
     [double]$dpiX = $source.CompositionTarget.TransformToDevice.M11
     [double]$dpiY = $source.CompositionTarget.TransformToDevice.M22
 
-    [int]$width = [Math]::Ceiling($Window.ActualWidth * $dpiX)
-    [int]$height = [Math]::Ceiling($Window.ActualHeight * $dpiY)
-    [double]$renderDpiX = 96 * $dpiX
-    [double]$renderDpiY = 96 * $dpiY
+    [int]$left   = [Math]::Round($Window.Left * $dpiX)
+    [int]$top    = [Math]::Round($Window.Top  * $dpiY)
+    [int]$width  = [Math]::Round($Window.ActualWidth  * $dpiX)
+    [int]$height = [Math]::Round($Window.ActualHeight * $dpiY)
 
-    $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($width, $height, $renderDpiX, $renderDpiY, [System.Windows.Media.PixelFormats]::Pbgra32)
-    $rtb.Render($Window)
-
-    $encoder = New-Object System.Windows.Media.Imaging.PngBitmapEncoder
-    $encoder.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($rtb))
-    $stream = [System.IO.File]::Create($filePath)
-    $encoder.Save($stream)
-    $stream.Close()
+    # Capture from screen — includes WebBrowser and all hosted Win32 content
+    $bmp = New-Object System.Drawing.Bitmap($width, $height)
+    $gfx = [System.Drawing.Graphics]::FromImage($bmp)
+    $gfx.CopyFromScreen($left, $top, 0, 0, (New-Object System.Drawing.Size($width, $height)))
+    $gfx.Dispose()
+    $bmp.Save($filePath, [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
 }
 
 $Window.Add_KeyDown({
     if ($_.Key -eq 'F12') {
+        $_.Handled = $true
         try {
             if (!(Test-Path $ScreenshotsDir)) { New-Item -ItemType Directory -Path $ScreenshotsDir | Out-Null }
             Update-StatusBar "Capturing screenshots..."
