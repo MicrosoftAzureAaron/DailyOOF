@@ -656,9 +656,11 @@ function Resolve-TemplatePlaceholders($text) {
     $role = if (![string]::IsNullOrWhiteSpace($txtRole.Text)) { $txtRole.Text } else { 'member of my team' }
     $text = $text -replace '\[ROLE\]', $role
 
-    # Auto-generate signature block (or strip placeholder if unchecked)
+    # Auto-generate signature block: the greeting/name is conditional on the
+    # "Include Signature" checkbox, but office details are always included per their own toggles.
+    $sigLines = @()
+
     if ($chkIncludeSignature.IsChecked) {
-        $sigLines = @()
         # Use the Full Name text box, fall back to alias-derived name
         if (![string]::IsNullOrWhiteSpace($txtFullName.Text)) {
             $displayName = $txtFullName.Text
@@ -677,29 +679,31 @@ function Resolve-TemplatePlaceholders($text) {
         }
         $sigLines += "<p><b>Best Regards,</b><br/>"
         $sigLines += "$displayName</p>"
+    }
 
-        # Office details line
-        $detailParts = @()
-        if ($chkIncludeOfficeHours.IsChecked -and $null -ne $script:StartOfShift -and $null -ne $script:EndOfShift) {
-            $detailParts += "$($script:StartOfShift.ToString('h:mm tt')) - $($script:EndOfShift.ToString('h:mm tt'))"
-        }
-        if ($chkIncludeTimezone.IsChecked) {
-            $detailParts += [System.TimeZoneInfo]::Local.DisplayName
-        }
-        if ($chkIncludeWorkDays.IsChecked -and $script:WorkDays) {
-            $weekOrder = @('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')
-            $sorted = $script:WorkDays | Sort-Object { $weekOrder.IndexOf($_) }
-            $detailParts += ($sorted -join ', ')
-        }
-        if ($detailParts.Count -gt 0) {
-            $sigLines += "<p style='color: #555; font-size: 10pt;'>$($detailParts -join ' | ')</p>"
-        }
+    # Office details line (independent of signature toggle)
+    $detailParts = @()
+    if ($chkIncludeOfficeHours.IsChecked -and $null -ne $script:StartOfShift -and $null -ne $script:EndOfShift) {
+        $detailParts += "$($script:StartOfShift.ToString('h:mm tt')) - $($script:EndOfShift.ToString('h:mm tt'))"
+    }
+    if ($chkIncludeTimezone.IsChecked) {
+        $detailParts += [System.TimeZoneInfo]::Local.DisplayName
+    }
+    if ($chkIncludeWorkDays.IsChecked -and $script:WorkDays) {
+        $weekOrder = @('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')
+        $sorted = $script:WorkDays | Sort-Object { $weekOrder.IndexOf($_) }
+        $detailParts += ($sorted -join ', ')
+    }
+    if ($detailParts.Count -gt 0) {
+        $sigLines += "<p style='color: #555; font-size: 10pt;'>$($detailParts -join ' | ')</p>"
+    }
 
-        # Email
-        if (![string]::IsNullOrWhiteSpace($script:UserAlias)) {
-            $sigLines += "<p><a href='mailto:$($script:UserAlias)'>$($script:UserAlias)</a></p>"
-        }
+    # Email link (independent of signature toggle)
+    if (![string]::IsNullOrWhiteSpace($script:UserAlias)) {
+        $sigLines += "<p><a href='mailto:$($script:UserAlias)'>$($script:UserAlias)</a></p>"
+    }
 
+    if ($sigLines.Count -gt 0) {
         $signatureHtml = $sigLines -join "`n"
         $text = $text -replace '\[SIGNATURE\]', $signatureHtml
     } else {
