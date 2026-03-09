@@ -301,6 +301,21 @@
                 </Grid>
             </TabItem>
 
+            <!-- Current OOF Tab -->
+            <TabItem Header="  Current OOF  " FontSize="13" FontWeight="SemiBold">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,8">
+                        <Button x:Name="btnRefreshCurrentOOF" Content="Refresh from Exchange" Style="{StaticResource PrimaryBtn}"/>
+                        <TextBlock x:Name="txtCurrentOOFStatus" Text="Not loaded" FontSize="12" Foreground="#888" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </StackPanel>
+                    <WebBrowser x:Name="wbCurrentOOF" Grid.Row="1"/>
+                </Grid>
+            </TabItem>
+
         </TabControl>
 
         <!-- Status Bar -->

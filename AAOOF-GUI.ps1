@@ -231,17 +231,29 @@ function Set-DailyScriptTask {
             Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -RunLevel Highest -ErrorAction Stop
         }
         catch {
-            # Not running as admin — elevate and retry
+            # Not running as admin — elevate and retry, capturing errors to a log file
             $triggerTimeStr = $TriggerTime.ToString("o")
+            $errorLog = Join-Path $env:TEMP "AAOOF_TaskError.log"
             $elevatedCmd = @"
-\`$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '`"$scriptPath`" 1'
-\`$trigger = New-ScheduledTaskTrigger -Daily -At '$triggerTimeStr'
-Register-ScheduledTask -TaskName '$taskname' -Trigger \`$trigger -Action \`$action -RunLevel Highest -ErrorAction Stop
+try {
+    \`$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '`"$scriptPath`" 1'
+    \`$trigger = New-ScheduledTaskTrigger -Daily -At '$triggerTimeStr'
+    Register-ScheduledTask -TaskName '$taskname' -Trigger \`$trigger -Action \`$action -RunLevel Highest -ErrorAction Stop
+    if (Test-Path '$errorLog') { Remove-Item '$errorLog' -Force }
+} catch {
+    \`$_.Exception.Message | Out-File -FilePath '$errorLog' -Encoding utf8
+    exit 1
+}
 "@
             $encodedCmd = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($elevatedCmd))
             $proc = Start-Process powershell.exe -ArgumentList "-NoProfile -EncodedCommand $encodedCmd" -Verb RunAs -Wait -PassThru
             if ($proc.ExitCode -ne 0) {
-                throw "Scheduled task creation failed even after elevation."
+                $errMsg = "Scheduled task creation failed even after elevation."
+                if (Test-Path $errorLog) {
+                    $errMsg += "`n`nAdmin window error:`n" + (Get-Content $errorLog -Raw)
+                    Remove-Item $errorLog -Force -ErrorAction SilentlyContinue
+                }
+                throw $errMsg
             }
         }
         return $true
@@ -328,6 +340,9 @@ $txtARCStart = $Window.FindName("txtARCStart")
 $txtARCEnd = $Window.FindName("txtARCEnd")
 $btnRefreshStatus = $Window.FindName("btnRefreshStatus")
 $btnViewCurrentMsg = $Window.FindName("btnViewCurrentMsg")
+$wbCurrentOOF = $Window.FindName("wbCurrentOOF")
+$btnRefreshCurrentOOF = $Window.FindName("btnRefreshCurrentOOF")
+$txtCurrentOOFStatus = $Window.FindName("txtCurrentOOFStatus")
 $txtFullName = $Window.FindName("txtFullName")
 $txtRole = $Window.FindName("txtRole")
 $txtSuffix = $Window.FindName("txtSuffix")
@@ -702,6 +717,61 @@ $btnViewCurrentMsg.Add_Click({
     }
 })
 
+# Refresh Current OOF tab
+$btnRefreshCurrentOOF.Add_Click({
+    try {
+        Update-Status "Fetching current OOF message..."
+        $txtCurrentOOFStatus.Text = "Loading..."
+
+        # Check connection — attempt to connect if disconnected
+        $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
+        $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
+        if (-not $connected) {
+            $txtCurrentOOFStatus.Text = "Disconnected — reconnecting..."
+            Update-Status "Not connected — attempting to connect..."
+            try {
+                if (-not $chkOverrideAccount.IsChecked) {
+                    $global:UserAliasSuffix = $txtSuffix.Text
+                    Get-UserAlias
+                    $txtAccount.Text = $global:UserAlias
+                } else {
+                    $global:UserAlias = $txtAccount.Text
+                }
+                Get-EXOConnection
+                $txtConnectionStatus.Text = "Connected"
+                $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+            }
+            catch {
+                $txtConnectionStatus.Text = "Connection Failed"
+                $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+                $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Connection Failed</h3><p>Could not connect to Exchange Online. Please check your account settings and try again.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
+                $txtCurrentOOFStatus.Text = "Connection failed"
+                Update-Status "Connection failed"
+                return
+            }
+        }
+
+        $arc = Get-ARC
+        $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
+               elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
+               else { $null }
+        if ($null -eq $msg) {
+            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
+            $txtCurrentOOFStatus.Text = "No message set"
+            Update-Status "No current OOF message"
+        } else {
+            $wbCurrentOOF.NavigateToString($msg)
+            $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
+            Update-Status "Current OOF message loaded"
+        }
+    }
+    catch {
+        $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not fetch message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
+        $txtCurrentOOFStatus.Text = "Error loading"
+        Update-Status "Failed to fetch current OOF message"
+    }
+})
+
 # Save Suffix
 $btnSaveSuffix.Add_Click({
     $global:UserAliasSuffix = $txtSuffix.Text
@@ -916,12 +986,12 @@ $chkIncludeTimezone.Add_Checked($optionReloadHandler)
 $chkIncludeTimezone.Add_Unchecked($optionReloadHandler)
 
 # Save and reload on Full Name / Role changes
-$txtFullName.Add_LostFocus({
+$txtFullName.Add_TextChanged({
     $global:FullName = $txtFullName.Text
     Save-ConfigToFile
     & $optionReloadHandler
 })
-$txtRole.Add_LostFocus({
+$txtRole.Add_TextChanged({
     $global:Role = $txtRole.Text
     Save-ConfigToFile
     & $optionReloadHandler
