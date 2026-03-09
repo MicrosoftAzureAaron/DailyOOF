@@ -909,8 +909,20 @@ $btnRefreshCurrentOOF.Add_Click({
 })
 
 # Auto-load Current OOF tab on first visit: connect if needed and fetch the message.
+# When switching to the Message Templates tab, sync config globals from UI
+# so templates reflect the latest unsaved changes (work days, shift times, etc.).
 $script:CurrentOOFLoaded = $false
 $tcMain.Add_SelectionChanged({
+    if ($tcMain.SelectedIndex -eq 2) {
+        # Sync config globals from UI before template rendering
+        Read-ShiftTimesFromUI
+        $global:WorkDays = Read-WorkDaysFromUI
+        $global:FullName = $txtFullName.Text
+        $global:Role = $txtRole.Text
+        $global:UserAliasSuffix = $txtSuffix.Text
+        & $optionReloadHandler
+        return
+    }
     if ($tcMain.SelectedIndex -ne 3) { return }
     if ($script:CurrentOOFLoaded) { return }
     $script:CurrentOOFLoaded = $true
