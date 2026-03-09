@@ -885,6 +885,59 @@ $btnRefreshCurrentOOF.Add_Click({
     }
 })
 
+# Auto-load Current OOF tab on first visit: connect if needed and fetch the message.
+$script:CurrentOOFLoaded = $false
+$tcMain.Add_SelectionChanged({
+    if ($tcMain.SelectedIndex -ne 3) { return }
+    if ($script:CurrentOOFLoaded) { return }
+    $script:CurrentOOFLoaded = $true
+    try {
+        Update-StatusBar "Loading current OOF message..."
+        $txtCurrentOOFStatus.Text = "Loading..."
+
+        $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
+        $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
+        if (-not $connected) {
+            $txtCurrentOOFStatus.Text = "Disconnected — connecting..."
+            Update-StatusBar "Not connected — attempting to connect..."
+            if (-not $chkOverrideAccount.IsChecked) {
+                $global:UserAliasSuffix = $txtSuffix.Text
+                Resolve-UserAlias
+                $txtAccount.Text = $global:UserAlias
+            } else {
+                $global:UserAlias = $txtAccount.Text
+            }
+            Connect-ExchangeOnlineSession
+            $txtConnectionStatus.Text = "Connected"
+            $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+        }
+
+        $arc = Get-AutoReplyConfiguration
+        $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
+               elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
+               else { $null }
+        if ($null -eq $msg) {
+            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
+            $txtCurrentOOFStatus.Text = "No message set"
+            Update-StatusBar "No current OOF message"
+        } else {
+            $wbCurrentOOF.NavigateToString($msg)
+            $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
+            Update-StatusBar "Current OOF message loaded"
+        }
+
+        $txtARCState.Text = $arc.AutoReplyState
+        $txtARCStart.Text = $arc.StartTime.ToString()
+        $txtARCEnd.Text = $arc.EndTime.ToString()
+    }
+    catch {
+        $script:CurrentOOFLoaded = $false
+        $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not load message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
+        $txtCurrentOOFStatus.Text = "Error loading"
+        Update-StatusBar "Failed to load current OOF message"
+    }
+})
+
 # Save Suffix: Persist the alias domain suffix and recompute the account (unless overridden).
 $btnSaveSuffix.Add_Click({
     $global:UserAliasSuffix = $txtSuffix.Text
