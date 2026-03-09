@@ -458,7 +458,7 @@ function Resolve-TemplatePlaceholders($text) {
     }
     $tz = [System.TimeZoneInfo]::Local.DisplayName
 
-    # Office hours — include or strip the entire footer line containing all three tokens
+    # Office hours — include or strip
     if ($chkIncludeOfficeHours.IsChecked) {
         $text = $text -replace '\[OFFICE HOURS\]', $hours
     } else {
@@ -479,9 +479,29 @@ function Resolve-TemplatePlaceholders($text) {
         $text = $text -replace '\[TIMEZONE\]', ''
     }
 
-    # If all three footer options are disabled, remove the entire footer line
-    if (!$chkIncludeOfficeHours.IsChecked -and !$chkIncludeWorkDays.IsChecked -and !$chkIncludeTimezone.IsChecked) {
-        $text = $text -replace '(?m)^\s*<p[^>]*>My regular office hours are\s*(<b>\s*</b>\s*)*\.?\s*</p>\s*\r?\n?', ''
+    # Rewrite or remove the footer line based on which options are active
+    $hasHours = $chkIncludeOfficeHours.IsChecked
+    $hasDays  = $chkIncludeWorkDays.IsChecked
+    $hasTZ    = $chkIncludeTimezone.IsChecked
+
+    if (!$hasHours -and !$hasDays -and !$hasTZ) {
+        # All unchecked — remove the entire footer line
+        $text = $text -replace '(?m)^\s*<p[^>]*>My regular office hours are.*?</p>\s*\r?\n?', ''
+    }
+    elseif (!$hasHours -and $hasDays -and !$hasTZ) {
+        # Only work days — rewrite to "My days in office are ..."
+        $text = $text -replace '(?m)(<p[^>]*>)My regular office hours are\s*(<b>\s*</b>\s*)*,?\s*(<b>[^<]+</b>)\s*\.(</p>)', '$1My days in office are $3.$4'
+    }
+    elseif (!$hasHours -and !$hasDays -and $hasTZ) {
+        # Only timezone — rewrite to "My timezone is ..."
+        $text = $text -replace '(?m)(<p[^>]*>)My regular office hours are\s*(<b>[^<]+</b>)\s*,?\s*(<b>\s*</b>)?\s*\.(</p>)', '$1My timezone is $2.$4'
+    }
+    else {
+        # Clean up empty <b></b> tags and stray commas/spaces left by disabled options
+        $text = $text -replace '<b>\s*</b>', ''
+        $text = $text -replace '(?m)(<p[^>]*>My regular office hours are)\s+,', '$1'
+        $text = $text -replace ',\s*\.', '.'
+        $text = $text -replace '\s{2,}', ' '
     }
 
     # Signature — include or strip (also remove "Best regards" when signature is excluded)
