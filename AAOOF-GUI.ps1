@@ -74,6 +74,11 @@ $global:UserAliasSuffix = ""                           # Domain suffix appended 
 $global:FullName       = ""                           # Display name for auto-generated signature
 $global:Role           = ""                           # Job title inserted into templates via [ROLE]
 $global:OverrideAccount = $false                      # True if user manually overrides the account email
+$global:SelectedHolidayName = ""                      # Name of the selected holiday for [HOLIDAY NAME] placeholder
+
+# Script-level tracking for EXO sync state
+$script:IsConnectedToEXO = $false
+$script:EXOMessageSynced = $true
 
 # Import-AppConfiguration: Read config.json and populate global variables.
 function Import-AppConfiguration {
@@ -248,6 +253,72 @@ function Disconnect-ExchangeOnlineSession {
     try { Disconnect-ExchangeOnline -Confirm:$false } catch { }
 }
 
+# Get-USFederalHolidays: Returns US federal holidays with observed dates and return dates.
+function Get-USFederalHolidays {
+    param([int]$Year = (Get-Date).Year)
+    $holidays = @()
+    # Fixed-date holidays (adjusted to observed weekday if on weekend)
+    $fixedDates = @(
+        @{ Name = "New Year's Day"; Month = 1; Day = 1 },
+        @{ Name = "Juneteenth"; Month = 6; Day = 19 },
+        @{ Name = "Independence Day"; Month = 7; Day = 4 },
+        @{ Name = "Veterans Day"; Month = 11; Day = 11 },
+        @{ Name = "Christmas Day"; Month = 12; Day = 25 }
+    )
+    foreach ($fd in $fixedDates) {
+        $date = [datetime]::new($Year, $fd.Month, $fd.Day)
+        if ($date.DayOfWeek -eq 'Sunday') { $date = $date.AddDays(1) }
+        elseif ($date.DayOfWeek -eq 'Saturday') { $date = $date.AddDays(-1) }
+        $holidays += [PSCustomObject]@{ Name = $fd.Name; Date = $date }
+    }
+    # MLK Day: 3rd Monday of January
+    $d = [datetime]::new($Year, 1, 1); while ($d.DayOfWeek -ne 'Monday') { $d = $d.AddDays(1) }
+    $holidays += [PSCustomObject]@{ Name = "Martin Luther King Jr. Day"; Date = $d.AddDays(14) }
+    # Presidents' Day: 3rd Monday of February
+    $d = [datetime]::new($Year, 2, 1); while ($d.DayOfWeek -ne 'Monday') { $d = $d.AddDays(1) }
+    $holidays += [PSCustomObject]@{ Name = "Presidents' Day"; Date = $d.AddDays(14) }
+    # Memorial Day: Last Monday of May
+    $d = [datetime]::new($Year, 5, 31); while ($d.DayOfWeek -ne 'Monday') { $d = $d.AddDays(-1) }
+    $holidays += [PSCustomObject]@{ Name = "Memorial Day"; Date = $d }
+    # Labor Day: 1st Monday of September
+    $d = [datetime]::new($Year, 9, 1); while ($d.DayOfWeek -ne 'Monday') { $d = $d.AddDays(1) }
+    $holidays += [PSCustomObject]@{ Name = "Labor Day"; Date = $d }
+    # Columbus Day: 2nd Monday of October
+    $d = [datetime]::new($Year, 10, 1); while ($d.DayOfWeek -ne 'Monday') { $d = $d.AddDays(1) }
+    $holidays += [PSCustomObject]@{ Name = "Columbus Day"; Date = $d.AddDays(7) }
+    # Thanksgiving: 4th Thursday of November
+    $d = [datetime]::new($Year, 11, 1); while ($d.DayOfWeek -ne 'Thursday') { $d = $d.AddDays(1) }
+    $holidays += [PSCustomObject]@{ Name = "Thanksgiving"; Date = $d.AddDays(21) }
+    # Sort by date and compute return date (next business day after holiday)
+    $holidays = $holidays | Sort-Object Date
+    foreach ($h in $holidays) {
+        $nextDay = $h.Date.AddDays(1)
+        while ($nextDay.DayOfWeek -eq 'Saturday' -or $nextDay.DayOfWeek -eq 'Sunday') { $nextDay = $nextDay.AddDays(1) }
+        $h | Add-Member -NotePropertyName ReturnDate -NotePropertyValue $nextDay
+    }
+    return $holidays
+}
+
+# Get-TemplateWarnings: Check the current editor message for unresolved placeholders.
+function Get-TemplateWarnings {
+    $warnings = @()
+    $msg = $txtMessage.Text
+    if ([string]::IsNullOrWhiteSpace($msg)) { return $warnings }
+    if ($msg -match '\[RETURN DATE\]') {
+        $warnings += "No return date selected \u2014 '[RETURN DATE]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[HOLIDAY NAME\]') {
+        $warnings += "No holiday selected \u2014 '[HOLIDAY NAME]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[ROLE\]') {
+        $warnings += "Role not configured \u2014 '[ROLE]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[SIGNATURE\]') {
+        $warnings += "Signature was not resolved \u2014 '[SIGNATURE]' will appear as literal text in the email."
+    }
+    return $warnings
+}
+
 # Export-MessageToFile: Write an HTML message body to disk.
 function Export-MessageToFile($FilePath, $Content) {
     $Content | Out-File -FilePath $FilePath -Encoding utf8
@@ -372,6 +443,7 @@ $btnConnect = $Window.FindName("btnConnect")
 $btnDisconnect = $Window.FindName("btnDisconnect")
 $btnEnableScheduled = $Window.FindName("btnEnableScheduled")
 $dpReturnDate = $Window.FindName("dpReturnDate")
+$cmbHoliday = $Window.FindName("cmbHoliday")
 $btnSetVacation = $Window.FindName("btnSetVacation")
 $btnCancelVacation = $Window.FindName("btnCancelVacation")
 $txtARCState = $Window.FindName("txtARCState")
@@ -430,11 +502,19 @@ $wbPreview = $Window.FindName("wbPreview")
 
 # --- Status bar ---
 $txtStatusBar = $Window.FindName("txtStatusBar")
+$borderStatusBar = $Window.FindName("borderStatusBar")
 
 # ===================== Helper: UI Dialog Functions =====================
 # Update-StatusBar: Set the bottom status bar text and force a UI render.
 function Update-StatusBar($Message) {
     $txtStatusBar.Text = $Message
+    # Update status bar color based on EXO sync state
+    if ($script:IsConnectedToEXO -and -not $script:EXOMessageSynced) {
+        $borderStatusBar.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
+        $txtStatusBar.Text = [char]0x26A0 + " Message not yet applied to Exchange | $Message"
+    } else {
+        $borderStatusBar.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x00, 0x78, 0xD4))
+    }
     $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Render)
 }
 
@@ -466,6 +546,7 @@ function Ensure-ExchangeConnection {
     Connect-ExchangeOnlineSession
     $txtConnectionStatus.Text = "Connected"
     $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+    $script:IsConnectedToEXO = $true
     return $true
 }
 
@@ -566,6 +647,10 @@ function Resolve-TemplatePlaceholders($text) {
     if ($null -ne $dpReturnDate -and $null -ne $dpReturnDate.SelectedDate) {
         $text = $text -replace '\[RETURN DATE\]', $dpReturnDate.SelectedDate.ToString('MMMM d, yyyy')
     }
+
+    # Replace [HOLIDAY NAME] with selected holiday or generic fallback
+    $holidayName = if (![string]::IsNullOrWhiteSpace($global:SelectedHolidayName)) { $global:SelectedHolidayName } else { 'a company holiday' }
+    $text = $text -replace '\[HOLIDAY NAME\]', $holidayName
 
     # Replace [ROLE] with the role from the text box, or generic fallback
     $role = if (![string]::IsNullOrWhiteSpace($txtRole.Text)) { $txtRole.Text } else { 'member of my team' }
@@ -671,6 +756,7 @@ $btnConnect.Add_Click({
         Connect-ExchangeOnlineSession
         $txtConnectionStatus.Text = "Connected"
         $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+        $script:IsConnectedToEXO = $true
 
         # On first connect, pull current OOF config and message and save locally
         try {
@@ -678,6 +764,11 @@ $btnConnect.Add_Click({
             $txtARCState.Text = $arc.AutoReplyState
             $txtARCStart.Text = $arc.StartTime.ToString()
             $txtARCEnd.Text = $arc.EndTime.ToString()
+
+            # Compare EXO message with editor to detect mismatch
+            $currentMsg = ($txtMessage.Text -replace '\s+', ' ').Trim()
+            $exoMsg = if ($arc.ExternalMessage) { ($arc.ExternalMessage -replace '\s+', ' ').Trim() } else { '' }
+            $script:EXOMessageSynced = ($currentMsg -eq $exoMsg) -or [string]::IsNullOrWhiteSpace($txtMessage.Text)
 
             # Save the current online messages to template files if we don't already have a saved message
             $savedMsgFile = Join-Path $ConfigDir "message.html"
@@ -703,6 +794,8 @@ $btnDisconnect.Add_Click({
         Disconnect-ExchangeOnlineSession
         $txtConnectionStatus.Text = "Disconnected"
         $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+        $script:IsConnectedToEXO = $false
+        $script:EXOMessageSynced = $true
         Update-StatusBar "Disconnected from Exchange Online"
     }
     catch {
@@ -822,6 +915,7 @@ $btnViewCurrentMsg.Add_Click({
             Connect-ExchangeOnlineSession
             $txtConnectionStatus.Text = "Connected"
             $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+            $script:IsConnectedToEXO = $true
         }
 
         $arc = Get-AutoReplyConfiguration
@@ -876,6 +970,7 @@ $btnRefreshCurrentOOF.Add_Click({
                 Connect-ExchangeOnlineSession
                 $txtConnectionStatus.Text = "Connected"
                 $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $script:IsConnectedToEXO = $true
             }
             catch {
                 $txtConnectionStatus.Text = "Connection Failed"
@@ -945,6 +1040,7 @@ $tcMain.Add_SelectionChanged({
             Connect-ExchangeOnlineSession
             $txtConnectionStatus.Text = "Connected"
             $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+            $script:IsConnectedToEXO = $true
         }
 
         $arc = Get-AutoReplyConfiguration
@@ -1138,6 +1234,7 @@ $cmbTemplate.Add_SelectionChanged({
         if ($tcMessageView.SelectedIndex -eq 1) {
             $wbPreview.NavigateToString($txtMessage.Text)
         }
+        if ($script:IsConnectedToEXO) { $script:EXOMessageSynced = $false }
         Update-StatusBar "Template loaded: $selected"
     } else {
         Show-ErrorDialog "Not Found" "Template file not found: $path"
@@ -1163,6 +1260,7 @@ $btnLoadTemplate.Add_Click({
         if ($tcMessageView.SelectedIndex -eq 1) {
             $wbPreview.NavigateToString($txtMessage.Text)
         }
+        if ($script:IsConnectedToEXO) { $script:EXOMessageSynced = $false }
         Update-StatusBar "Template loaded: $selected"
     } else {
         Show-ErrorDialog "Not Found" "Template file not found: $path"
@@ -1238,6 +1336,7 @@ $btnBrowseFile.Add_Click({
     $dialog.InitialDirectory = $ConfigDir
     if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $txtMessage.Text = Get-Content $dialog.FileName -Raw
+        if ($script:IsConnectedToEXO) { $script:EXOMessageSynced = $false }
         Update-StatusBar "Loaded message from $($dialog.FileName)"
     }
 })
@@ -1249,9 +1348,15 @@ $btnApplyInternal.Add_Click({
             Show-ErrorDialog "Empty Message" "Please enter or load a message first."
             return
         }
+        $warnings = Get-TemplateWarnings
+        if ($warnings.Count -gt 0) {
+            $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
+            if ($result -ne 'Yes') { return }
+        }
         Ensure-ExchangeConnection
         Update-StatusBar "Applying internal message..."
         Set-AutoReplyMessage $txtMessage.Text 'Internal'
+        $script:EXOMessageSynced = $true
         Update-StatusBar "Internal message applied"
         Show-InfoDialog "Done" "Internal auto-reply message updated."
     }
@@ -1265,9 +1370,15 @@ $btnApplyExternal.Add_Click({
             Show-ErrorDialog "Empty Message" "Please enter or load a message first."
             return
         }
+        $warnings = Get-TemplateWarnings
+        if ($warnings.Count -gt 0) {
+            $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
+            if ($result -ne 'Yes') { return }
+        }
         Ensure-ExchangeConnection
         Update-StatusBar "Applying external message..."
         Set-AutoReplyMessage $txtMessage.Text 'External'
+        $script:EXOMessageSynced = $true
         Update-StatusBar "External message applied"
         Show-InfoDialog "Done" "External auto-reply message updated."
     }
@@ -1281,9 +1392,15 @@ $btnApplyBoth.Add_Click({
             Show-ErrorDialog "Empty Message" "Please enter or load a message first."
             return
         }
+        $warnings = Get-TemplateWarnings
+        if ($warnings.Count -gt 0) {
+            $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
+            if ($result -ne 'Yes') { return }
+        }
         Ensure-ExchangeConnection
         Update-StatusBar "Applying message to both internal and external..."
         Set-AutoReplyMessage $txtMessage.Text 'Both'
+        $script:EXOMessageSynced = $true
         Update-StatusBar "Both messages applied"
         Show-InfoDialog "Done" "Internal and External auto-reply messages updated."
     }
@@ -1349,6 +1466,35 @@ $tcMessageView.Add_SelectionChanged({
 # Apply saved configuration values to all controls before showing the window.
 Initialize-UIFromConfig
 
+# Populate holiday picker with upcoming US federal holidays
+$today = (Get-Date).Date
+$allHolidays = @(Get-USFederalHolidays -Year $today.Year) + @(Get-USFederalHolidays -Year ($today.Year + 1))
+$upcomingHolidays = $allHolidays | Where-Object { $_.Date -ge $today } | Select-Object -First 12
+$noneItem = New-Object System.Windows.Controls.ComboBoxItem
+$noneItem.Content = "(Select a holiday...)"
+$cmbHoliday.Items.Add($noneItem) | Out-Null
+foreach ($h in $upcomingHolidays) {
+    $item = New-Object System.Windows.Controls.ComboBoxItem
+    $item.Content = "$($h.Name) — $($h.Date.ToString('MMMM d, yyyy'))"
+    $item.Tag = $h
+    $cmbHoliday.Items.Add($item) | Out-Null
+}
+$cmbHoliday.SelectedIndex = 0
+
+# Holiday selection: set return date and holiday name when a holiday is chosen
+$cmbHoliday.Add_SelectionChanged({
+    if ($cmbHoliday.SelectedIndex -le 0) {
+        $global:SelectedHolidayName = ""
+        return
+    }
+    $holiday = $cmbHoliday.SelectedItem.Tag
+    if ($null -ne $holiday) {
+        $dpReturnDate.SelectedDate = $holiday.ReturnDate
+        $global:SelectedHolidayName = $holiday.Name
+        Update-StatusBar "Holiday: $($holiday.Name) — Return date set to $($holiday.ReturnDate.ToString('MMMM d, yyyy'))"
+    }
+})
+
 # Load default template into message box
 $defaultTemplate = Resolve-TemplateFilePath "Normal OOF"
 if (Test-Path $defaultTemplate) {
@@ -1358,6 +1504,20 @@ if (Test-Path $defaultTemplate) {
 # ===================== Show the Window =====================
 # Display the WPF window (blocks execution until closed).
 # On close, disconnect Exchange Online to release the session.
+# Warn if there are unapplied message changes while connected.
+$Window.Add_Closing({
+    if ($script:IsConnectedToEXO -and -not $script:EXOMessageSynced) {
+        $result = [System.Windows.MessageBox]::Show(
+            "Your template message has not been applied to Exchange Online.`n`nAre you sure you want to exit without applying?",
+            "Unapplied Changes",
+            'YesNo',
+            'Warning'
+        )
+        if ($result -ne 'Yes') {
+            $_.Cancel = $true
+        }
+    }
+})
 $Window.Add_Closed({
     try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch { }
 })

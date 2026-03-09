@@ -127,6 +127,10 @@
                                     <TextBlock Text="Return Date:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <DatePicker x:Name="dpReturnDate" Width="200" FontSize="13"/>
                                 </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                    <TextBlock Text="Holiday:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="cmbHoliday" Width="340" FontSize="13" VerticalContentAlignment="Center"/>
+                                </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <Button x:Name="btnSetVacation" Content="Set Vacation OOF" Style="{StaticResource PrimaryBtn}" HorizontalAlignment="Left"/>
                                     <Button x:Name="btnCancelVacation" Content="Cancel Vacation OOF" Style="{StaticResource DangerBtn}" HorizontalAlignment="Left" Margin="8,0,0,0"/>
@@ -327,7 +331,7 @@
         </TabControl>
 
         <!-- Status Bar -->
-        <Border VerticalAlignment="Bottom" Background="#0078D4" Height="28">
+        <Border x:Name="borderStatusBar" VerticalAlignment="Bottom" Background="#0078D4" Height="28">
             <TextBlock x:Name="txtStatusBar" Text="Ready" Foreground="White" FontSize="12" 
                        VerticalAlignment="Center" Margin="12,0,0,0"/>
         </Border>
