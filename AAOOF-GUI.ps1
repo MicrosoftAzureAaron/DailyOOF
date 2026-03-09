@@ -419,13 +419,13 @@ function Resolve-TemplatePlaceholders($text) {
 
 function Read-WorkDaysFromUI {
     $days = @()
+    if ($chkSun.IsChecked) { $days += 'Sunday' }
     if ($chkMon.IsChecked) { $days += 'Monday' }
     if ($chkTue.IsChecked) { $days += 'Tuesday' }
     if ($chkWed.IsChecked) { $days += 'Wednesday' }
     if ($chkThu.IsChecked) { $days += 'Thursday' }
     if ($chkFri.IsChecked) { $days += 'Friday' }
     if ($chkSat.IsChecked) { $days += 'Saturday' }
-    if ($chkSun.IsChecked) { $days += 'Sunday' }
     return $days
 }
 
