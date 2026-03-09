@@ -1637,6 +1637,23 @@ if (Test-Path $defaultTemplate) {
 # Uses WPF RenderTargetBitmap to render each tab at screen DPI and save as PNG.
 $ScreenshotsDir = Join-Path $ScriptDir "screenshots"
 
+function Wait-WebBrowserReady($browser, [int]$timeoutMs = 5000) {
+    # Wait for the WebBrowser's LoadCompleted event before proceeding.
+    $loaded = $false
+    $handler = [System.Windows.Navigation.LoadCompletedEventHandler]{ $script:_wbLoaded = $true }
+    $script:_wbLoaded = $false
+    $browser.Add_LoadCompleted($handler)
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $script:_wbLoaded -and $sw.ElapsedMilliseconds -lt $timeoutMs) {
+        $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Background)
+        Start-Sleep -Milliseconds 50
+    }
+    $browser.Remove_LoadCompleted($handler)
+    # Extra render pass to ensure the layout is painted
+    $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Render)
+    Start-Sleep -Milliseconds 300
+}
+
 function Save-WindowScreenshot($filePath) {
     $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Render)
     Start-Sleep -Milliseconds 200
@@ -1685,10 +1702,12 @@ $Window.Add_KeyDown({
 
             # Tab 2: Message Templates — Preview
             $tcMessageView.SelectedIndex = 1
+            Wait-WebBrowserReady $wbPreview
             Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-preview.png")
 
             # Tab 3: Current OOF
             $tcMain.SelectedIndex = 3
+            Wait-WebBrowserReady $wbCurrentOOF
             Save-WindowScreenshot (Join-Path $ScreenshotsDir "current-oof.png")
 
             # Restore original tab positions
