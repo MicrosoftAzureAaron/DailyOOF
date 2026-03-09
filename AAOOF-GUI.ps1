@@ -318,6 +318,7 @@ $txtARCState = $Window.FindName("txtARCState")
 $txtARCStart = $Window.FindName("txtARCStart")
 $txtARCEnd = $Window.FindName("txtARCEnd")
 $btnRefreshStatus = $Window.FindName("btnRefreshStatus")
+$btnViewCurrentMsg = $Window.FindName("btnViewCurrentMsg")
 $txtSuffix = $Window.FindName("txtSuffix")
 $btnSaveSuffix = $Window.FindName("btnSaveSuffix")
 $cmbStartHour = $Window.FindName("cmbStartHour")
@@ -574,14 +575,20 @@ $btnConnect.Add_Click({
             $msgConfig = Get-MailboxMessageConfiguration -Identity $global:UserAlias
             if (![string]::IsNullOrWhiteSpace($msgConfig.SignatureHtml)) {
                 $global:UserSignature = $msgConfig.SignatureHtml
+                $chkIncludeSignature.IsEnabled = $true
+                $chkIncludeSignature.ToolTip = $null
             } else {
                 $global:UserSignature = ""
                 $chkIncludeSignature.IsChecked = $false
+                $chkIncludeSignature.IsEnabled = $false
+                $chkIncludeSignature.ToolTip = "No OWA signature found. Paste your signature into the message template and save it."
                 Update-Status "Connected as $($global:UserAlias) — No OWA signature found"
             }
         } catch {
             $global:UserSignature = ""
             $chkIncludeSignature.IsChecked = $false
+            $chkIncludeSignature.IsEnabled = $false
+            $chkIncludeSignature.ToolTip = "No OWA signature found. Paste your signature into the message template and save it."
             Update-Status "Connected as $($global:UserAlias) — Could not retrieve signature"
         }
 
@@ -673,6 +680,28 @@ $btnRefreshStatus.Add_Click({
     catch {
         Show-Error "Error" "Could not refresh. Are you connected?`n$($_.Exception.Message)"
         Update-Status "Refresh failed"
+    }
+})
+
+# View Current OOF Message
+$btnViewCurrentMsg.Add_Click({
+    try {
+        Update-Status "Fetching current OOF message..."
+        $arc = Get-ARC
+        if ([string]::IsNullOrWhiteSpace($arc.InternalMessage) -and [string]::IsNullOrWhiteSpace($arc.ExternalMessage)) {
+            Show-Result "Info" "No OOF message is currently set."
+            Update-Status "No current OOF message"
+            return
+        }
+        $txtMessage.Text = $arc.InternalMessage
+        if ($tcMessageView.SelectedIndex -eq 1) {
+            $wbPreview.NavigateToString($txtMessage.Text)
+        }
+        Update-Status "Current OOF message loaded into editor"
+    }
+    catch {
+        Show-Error "Error" "Could not fetch message. Are you connected?`n$($_.Exception.Message)"
+        Update-Status "Failed to fetch OOF message"
     }
 })
 
@@ -774,6 +803,50 @@ $btnCreateTask.Add_Click({
     }
 })
 
+# Populate dynamic items (custom files, backups) when dropdown opens
+$cmbTemplate.Add_DropDownOpened({
+    # Remove previously added dynamic items (identified by Tag)
+    $dynamicItems = @($cmbTemplate.Items | Where-Object { $_.Tag -ne $null })
+    foreach ($item in $dynamicItems) { $cmbTemplate.Items.Remove($item) }
+
+    # Insert dynamic items before "Custom..."
+    $customIdx = -1
+    for ($i = 0; $i -lt $cmbTemplate.Items.Count; $i++) {
+        if ($cmbTemplate.Items[$i].Content -eq "Custom...") { $customIdx = $i; break }
+    }
+    if ($customIdx -lt 0) { $customIdx = $cmbTemplate.Items.Count }
+
+    # Check for message backup
+    $bakFile = Join-Path $ConfigDir "message.html.bak"
+    if (Test-Path $bakFile) {
+        $item = New-Object System.Windows.Controls.ComboBoxItem
+        $item.Content = "Last Message Backup"
+        $item.Tag = $bakFile
+        $cmbTemplate.Items.Insert($customIdx, $item)
+        $customIdx++
+    }
+
+    # Check for saved online message
+    $msgFile = Join-Path $ConfigDir "message.html"
+    if (Test-Path $msgFile) {
+        $item = New-Object System.Windows.Controls.ComboBoxItem
+        $item.Content = "Saved Online Message"
+        $item.Tag = $msgFile
+        $cmbTemplate.Items.Insert($customIdx, $item)
+        $customIdx++
+    }
+
+    # Check for any custom_*.html files
+    $customFiles = Get-ChildItem -Path $ConfigDir -Filter "custom_*.html" -ErrorAction SilentlyContinue
+    foreach ($f in $customFiles) {
+        $item = New-Object System.Windows.Controls.ComboBoxItem
+        $item.Content = "Custom: $($f.BaseName)"
+        $item.Tag = $f.FullName
+        $cmbTemplate.Items.Insert($customIdx, $item)
+        $customIdx++
+    }
+})
+
 # Auto-load template when dropdown selection changes
 $cmbTemplate.Add_SelectionChanged({
     $selected = $cmbTemplate.SelectedItem.Content
@@ -781,7 +854,7 @@ $cmbTemplate.Add_SelectionChanged({
         Update-Status "Use 'Browse File...' to load a custom template"
         return
     }
-    $path = Get-TemplateFilePath $selected
+    $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Get-TemplateFilePath $selected }
     if ($path -and (Test-Path $path)) {
         # Save current message to backup before overwriting
         if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
@@ -807,7 +880,7 @@ $btnLoadTemplate.Add_Click({
         Update-Status "Use 'Browse File...' to load a custom template"
         return
     }
-    $path = Get-TemplateFilePath $selected
+    $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Get-TemplateFilePath $selected }
     if ($path -and (Test-Path $path)) {
         if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
             $backupFile = Join-Path $ConfigDir "message.html.bak"
@@ -828,12 +901,10 @@ $btnLoadTemplate.Add_Click({
 $optionReloadHandler = {
     $selected = $cmbTemplate.SelectedItem.Content
     if ($selected -eq "Custom...") { return }
-    $path = Get-TemplateFilePath $selected
+    $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Get-TemplateFilePath $selected }
     if ($path -and (Test-Path $path)) {
         $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
-        if ($tcMessageView.SelectedIndex -eq 1) {
-            $wbPreview.NavigateToString($txtMessage.Text)
-        }
+        $wbPreview.NavigateToString($txtMessage.Text)
     }
 }
 $chkIncludeSignature.Add_Checked($optionReloadHandler)
