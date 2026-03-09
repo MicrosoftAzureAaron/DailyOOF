@@ -152,12 +152,9 @@ function Set-AutoReplyScheduleTimes {
 
     $DaysToAdd = Get-NextWorkDayOffset
 
-    $ShiftStart = Get-Date $global:StartOfShift
-    $StartTime = [datetime](Get-Date).Date.AddHours($ShiftStart.Hour)
-    $StartTime = $StartTime.AddDays($DaysToAdd)
+    $StartTime = (Get-Date).Date.Add($global:StartOfShift.TimeOfDay).AddDays($DaysToAdd)
 
-    $ShiftEnd = Get-Date $global:EndOfShift
-    $EndTime = [datetime](Get-Date).Date.AddHours($ShiftEnd.Hour)
+    $EndTime = (Get-Date).Date.Add($global:EndOfShift.TimeOfDay)
 
     if ($DaysToAdd -eq 0) { $EndTime = $EndTime.AddDays(-1) }
 
@@ -265,8 +262,7 @@ function Set-VacationAutoReply($ReturnDate) {
 
 # Disable-VacationAutoReply: Turn off the vacation/extended OOF by setting auto-reply to Disabled.
 function Disable-VacationAutoReply {
-    Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Disabled"
-    Save-AutoReplyConfigToFile
+    Set-AutoReplyState 'Disabled'
 }
 
 # Register-DailyScheduledTask: Create a Windows Scheduled Task named 'AAOOF' that
@@ -380,6 +376,7 @@ $txtARCStart = $Window.FindName("txtARCStart")
 $txtARCEnd = $Window.FindName("txtARCEnd")
 $btnRefreshStatus = $Window.FindName("btnRefreshStatus")
 $btnViewCurrentMsg = $Window.FindName("btnViewCurrentMsg")
+$tcMain = $Window.FindName("tcMain")
 $wbCurrentOOF = $Window.FindName("wbCurrentOOF")
 $btnRefreshCurrentOOF = $Window.FindName("btnRefreshCurrentOOF")
 $txtCurrentOOFStatus = $Window.FindName("txtCurrentOOFStatus")
@@ -777,25 +774,56 @@ $btnRefreshStatus.Add_Click({
     }
 })
 
-# View Current OOF Message: Fetch the live auto-reply and load it into the editor pane.
+# View Current OOF Message: Auto-connect if needed, fetch the live auto-reply,
+# render it on the Current OOF tab, and switch to that tab.
 $btnViewCurrentMsg.Add_Click({
     try {
         Update-StatusBar "Fetching current OOF message..."
+        $txtCurrentOOFStatus.Text = "Loading..."
+
+        # Check connection — attempt to connect if disconnected
+        $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
+        $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
+        if (-not $connected) {
+            $txtCurrentOOFStatus.Text = "Disconnected — reconnecting..."
+            Update-StatusBar "Not connected — attempting to connect..."
+            if (-not $chkOverrideAccount.IsChecked) {
+                $global:UserAliasSuffix = $txtSuffix.Text
+                Resolve-UserAlias
+                $txtAccount.Text = $global:UserAlias
+            } else {
+                $global:UserAlias = $txtAccount.Text
+            }
+            Connect-ExchangeOnlineSession
+            $txtConnectionStatus.Text = "Connected"
+            $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+        }
+
         $arc = Get-AutoReplyConfiguration
-        if ([string]::IsNullOrWhiteSpace($arc.InternalMessage) -and [string]::IsNullOrWhiteSpace($arc.ExternalMessage)) {
-            Show-InfoDialog "Info" "No OOF message is currently set."
+        $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
+               elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
+               else { $null }
+        if ($null -eq $msg) {
+            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
+            $txtCurrentOOFStatus.Text = "No message set"
             Update-StatusBar "No current OOF message"
-            return
+        } else {
+            $wbCurrentOOF.NavigateToString($msg)
+            $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
+            Update-StatusBar "Current OOF message loaded"
         }
-        $txtMessage.Text = $arc.InternalMessage
-        if ($tcMessageView.SelectedIndex -eq 1) {
-            $wbPreview.NavigateToString($txtMessage.Text)
-        }
-        Update-StatusBar "Current OOF message loaded into editor"
+
+        $txtARCState.Text = $arc.AutoReplyState
+        $txtARCStart.Text = $arc.StartTime.ToString()
+        $txtARCEnd.Text = $arc.EndTime.ToString()
+
+        # Switch to the Current OOF tab
+        $tcMain.SelectedIndex = 3
     }
     catch {
-        Show-ErrorDialog "Error" "Could not fetch message. Are you connected?`n$($_.Exception.Message)"
-        Update-StatusBar "Failed to fetch OOF message"
+        $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not fetch message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
+        $txtCurrentOOFStatus.Text = "Error loading"
+        Update-StatusBar "Failed to fetch current OOF message"
     }
 })
 
@@ -1003,6 +1031,7 @@ $cmbTemplate.Add_DropDownOpened({
 
 # Auto-load template when dropdown selection changes
 $cmbTemplate.Add_SelectionChanged({
+    if ($null -eq $cmbTemplate.SelectedItem) { return }
     $selected = $cmbTemplate.SelectedItem.Content
     if ($selected -eq "Custom...") {
         Update-StatusBar "Use 'Browse File...' to load a custom template"
@@ -1029,6 +1058,7 @@ $cmbTemplate.Add_SelectionChanged({
 
 # Load Template button (also loads selected template)
 $btnLoadTemplate.Add_Click({
+    if ($null -eq $cmbTemplate.SelectedItem) { return }
     $selected = $cmbTemplate.SelectedItem.Content
     if ($selected -eq "Custom...") {
         Update-StatusBar "Use 'Browse File...' to load a custom template"
