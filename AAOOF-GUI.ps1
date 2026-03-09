@@ -1632,6 +1632,77 @@ if (Test-Path $defaultTemplate) {
     $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $defaultTemplate -Raw)
 }
 
+# ===================== Screenshot Capture (F12) =====================
+# Capture screenshots of every tab for README documentation.
+# Uses WPF RenderTargetBitmap to render each tab at screen DPI and save as PNG.
+$ScreenshotsDir = Join-Path $ScriptDir "screenshots"
+
+function Save-WindowScreenshot($filePath) {
+    $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Render)
+    Start-Sleep -Milliseconds 200
+
+    $source = [System.Windows.PresentationSource]::FromVisual($Window)
+    $dpiX = $source.CompositionTarget.TransformToDevice.M11
+    $dpiY = $source.CompositionTarget.TransformToDevice.M22
+
+    $width = [int]($Window.ActualWidth * $dpiX)
+    $height = [int]($Window.ActualHeight * $dpiY)
+
+    $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($width, $height, 96 * $dpiX, 96 * $dpiY, [System.Windows.Media.PixelFormats]::Pbgra32)
+    $rtb.Render($Window)
+
+    $encoder = New-Object System.Windows.Media.Imaging.PngBitmapEncoder
+    $encoder.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($rtb))
+    $stream = [System.IO.File]::Create($filePath)
+    $encoder.Save($stream)
+    $stream.Close()
+}
+
+$Window.Add_KeyDown({
+    if ($_.Key -eq 'F12') {
+        try {
+            if (!(Test-Path $ScreenshotsDir)) { New-Item -ItemType Directory -Path $ScreenshotsDir | Out-Null }
+            Update-StatusBar "Capturing screenshots..."
+
+            # Remember current tab positions to restore after
+            $originalTab = $tcMain.SelectedIndex
+            $originalSubTab = $tcMessageView.SelectedIndex
+
+            # Tab 0: Quick Actions
+            $tcMain.SelectedIndex = 0
+            Save-WindowScreenshot (Join-Path $ScreenshotsDir "quick-actions.png")
+
+            # Tab 1: Configuration
+            $tcMain.SelectedIndex = 1
+            Save-WindowScreenshot (Join-Path $ScreenshotsDir "configuration.png")
+
+            # Tab 2: Message Templates — Edit
+            $tcMain.SelectedIndex = 2
+            $tcMessageView.SelectedIndex = 0
+            Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-edit.png")
+
+            # Tab 2: Message Templates — Preview
+            $tcMessageView.SelectedIndex = 1
+            Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-preview.png")
+
+            # Tab 3: Current OOF
+            $tcMain.SelectedIndex = 3
+            Save-WindowScreenshot (Join-Path $ScreenshotsDir "current-oof.png")
+
+            # Restore original tab positions
+            $tcMessageView.SelectedIndex = $originalSubTab
+            $tcMain.SelectedIndex = $originalTab
+
+            Update-StatusBar "Screenshots saved to screenshots/ folder"
+            Show-InfoDialog "Screenshots Captured" "5 screenshots saved to:`n$ScreenshotsDir`n`n- quick-actions.png`n- configuration.png`n- message-templates-edit.png`n- message-templates-preview.png`n- current-oof.png"
+        }
+        catch {
+            Show-ErrorDialog "Screenshot Error" "Failed to capture screenshots:`n$($_.Exception.Message)"
+            Update-StatusBar "Screenshot capture failed"
+        }
+    }
+})
+
 # ===================== Show the Window =====================
 # Display the WPF window (blocks execution until closed).
 # On close, disconnect Exchange Online to release the session.

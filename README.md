@@ -6,6 +6,8 @@ A PowerShell WPF GUI application that automates Exchange Online Out of Office (O
 
 ## Screenshots
 
+> **Auto-capture:** Press **F12** inside the app to automatically capture all screenshots below and save them to the `screenshots/` folder.
+
 ### Quick Actions
 <!-- TODO: Add screenshot of the Quick Actions tab -->
 ![Quick Actions Tab](screenshots/quick-actions.png)
