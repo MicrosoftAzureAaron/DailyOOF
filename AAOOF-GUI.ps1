@@ -44,7 +44,6 @@ $global:EndOfShift = $null
 $global:WorkDays = $null
 $global:UserAlias = ""
 $global:UserAliasSuffix = "@microsoft.com"
-$global:UserSignature = ""
 
 function Import-ConfigFromFile {
     if (Test-Path $ConfigFile) {
@@ -352,7 +351,6 @@ $btnApplyExternal = $Window.FindName("btnApplyExternal")
 $btnApplyBoth = $Window.FindName("btnApplyBoth")
 $btnSaveTemplate = $Window.FindName("btnSaveTemplate")
 $btnSaveOnlineMsg = $Window.FindName("btnSaveOnlineMsg")
-$chkIncludeSignature = $Window.FindName("chkIncludeSignature")
 $chkIncludeOfficeHours = $Window.FindName("chkIncludeOfficeHours")
 $chkIncludeWorkDays = $Window.FindName("chkIncludeWorkDays")
 $chkIncludeTimezone = $Window.FindName("chkIncludeTimezone")
@@ -447,71 +445,52 @@ function Get-TemplateFilePath($templateName) {
 }
 
 function Resolve-TemplatePlaceholders($text) {
-    if ($null -ne $global:StartOfShift -and $null -ne $global:EndOfShift) {
-        $hours = "$($global:StartOfShift.ToString('h:mm tt')) - $($global:EndOfShift.ToString('h:mm tt'))"
-    } else {
-        $hours = "not configured"
-    }
-    if ($global:WorkDays) {
-        $days = ($global:WorkDays -join ', ')
-    } else {
-        $days = "not configured"
-    }
-    $tz = [System.TimeZoneInfo]::Local.DisplayName
-
-    # Office hours — include or strip
-    if ($chkIncludeOfficeHours.IsChecked) {
-        $text = $text -replace '\[OFFICE HOURS\]', $hours
-    } else {
-        $text = $text -replace '\[OFFICE HOURS\]', ''
+    # Replace [RETURN DATE] if present
+    if ($null -ne $dpReturnDate -and $null -ne $dpReturnDate.SelectedDate) {
+        $text = $text -replace '\[RETURN DATE\]', $dpReturnDate.SelectedDate.ToString('MMMM d, yyyy')
     }
 
-    # Work days
-    if ($chkIncludeWorkDays.IsChecked) {
-        $text = $text -replace '\[WORK DAYS\]', $days
+    # Auto-generate signature block
+    $sigLines = @()
+    # Derive display name from alias (aarosanders@microsoft.com -> Aaron Sanders)
+    $aliasLocal = ($global:UserAlias -split '@')[0]
+    if ($aliasLocal) {
+        # Try common patterns: first.last, firstlast (split on dots or camelCase boundary)
+        if ($aliasLocal -match '\.' ) {
+            $nameParts = $aliasLocal -split '\.'
+        } else {
+            # Split at lowercase-to-uppercase boundary (e.g., aaronSanders)
+            $nameParts = [regex]::Split($aliasLocal, '(?<=[a-z])(?=[A-Z])')
+        }
+        $displayName = ($nameParts | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_.ToLower()) }) -join ' '
     } else {
-        $text = $text -replace '\[WORK DAYS\]', ''
+        $displayName = $env:USERNAME
     }
+    $sigLines += "<p><b>Best Regards,</b><br/>"
+    $sigLines += "$displayName</p>"
 
-    # Timezone
+    # Office details line
+    $detailParts = @()
+    if ($chkIncludeOfficeHours.IsChecked -and $null -ne $global:StartOfShift -and $null -ne $global:EndOfShift) {
+        $detailParts += "$($global:StartOfShift.ToString('h:mm tt')) - $($global:EndOfShift.ToString('h:mm tt'))"
+    }
     if ($chkIncludeTimezone.IsChecked) {
-        $text = $text -replace '\[TIMEZONE\]', $tz
-    } else {
-        $text = $text -replace '\[TIMEZONE\]', ''
+        $detailParts += [System.TimeZoneInfo]::Local.DisplayName
+    }
+    if ($chkIncludeWorkDays.IsChecked -and $global:WorkDays) {
+        $detailParts += ($global:WorkDays -join ', ')
+    }
+    if ($detailParts.Count -gt 0) {
+        $sigLines += "<p style='color: #555; font-size: 10pt;'>$($detailParts -join ' | ')</p>"
     }
 
-    # Rewrite or remove the footer line based on which options are active
-    $hasHours = $chkIncludeOfficeHours.IsChecked
-    $hasDays  = $chkIncludeWorkDays.IsChecked
-    $hasTZ    = $chkIncludeTimezone.IsChecked
-
-    if (!$hasHours -and !$hasDays -and !$hasTZ) {
-        # All unchecked — remove the entire footer line
-        $text = $text -replace '(?m)^\s*<p[^>]*>My regular office hours are.*?</p>\s*\r?\n?', ''
-    }
-    elseif (!$hasHours -and $hasDays -and !$hasTZ) {
-        # Only work days — rewrite to "My days in office are ..."
-        $text = $text -replace '(?m)(<p[^>]*>)My regular office hours are\s*(<b>\s*</b>\s*)*,?\s*(<b>[^<]+</b>)\s*\.(</p>)', '$1My days in office are $3.$4'
-    }
-    elseif (!$hasHours -and !$hasDays -and $hasTZ) {
-        # Only timezone — rewrite to "My timezone is ..."
-        $text = $text -replace '(?m)(<p[^>]*>)My regular office hours are\s*(<b>[^<]+</b>)\s*,?\s*(<b>\s*</b>)?\s*\.(</p>)', '$1My timezone is $2.$4'
-    }
-    else {
-        # Clean up empty <b></b> tags and stray commas/spaces left by disabled options
-        $text = $text -replace '<b>\s*</b>', ''
-        $text = $text -replace '(?m)(<p[^>]*>My regular office hours are)\s+,', '$1'
-        $text = $text -replace ',\s*\.', '.'
-        $text = $text -replace '\s{2,}', ' '
+    # Email
+    if (![string]::IsNullOrWhiteSpace($global:UserAlias)) {
+        $sigLines += "<p><a href='mailto:$($global:UserAlias)'>$($global:UserAlias)</a></p>"
     }
 
-    # Signature — include or strip (also remove "Best regards" when signature is excluded)
-    if ($chkIncludeSignature.IsChecked -and ![string]::IsNullOrWhiteSpace($global:UserSignature)) {
-        $text = $text -replace '\[SIGNATURE\]', $global:UserSignature
-    } else {
-        $text = $text -replace '(?m)^\s*<p>\s*Best regards\s*</p>\s*\r?\n?', ''
-        $text = $text -replace '(?m)^\s*\[SIGNATURE\]\s*\r?\n?', ''
-    }
+    $signatureHtml = $sigLines -join "`n"
+    $text = $text -replace '\[SIGNATURE\]', $signatureHtml
     return $text
 }
 
@@ -569,28 +548,6 @@ $btnConnect.Add_Click({
                 Save-MessageToFile $savedMsgFile $arc.ExternalMessage
             }
         } catch { }
-
-        # Fetch user's OWA email signature for template placeholder
-        try {
-            $msgConfig = Get-MailboxMessageConfiguration -Identity $global:UserAlias
-            if (![string]::IsNullOrWhiteSpace($msgConfig.SignatureHtml)) {
-                $global:UserSignature = $msgConfig.SignatureHtml
-                $chkIncludeSignature.IsEnabled = $true
-                $chkIncludeSignature.ToolTip = $null
-            } else {
-                $global:UserSignature = ""
-                $chkIncludeSignature.IsChecked = $false
-                $chkIncludeSignature.IsEnabled = $false
-                $chkIncludeSignature.ToolTip = "No OWA signature found. Paste your signature into the message template and save it."
-                Update-Status "Connected as $($global:UserAlias) — No OWA signature found"
-            }
-        } catch {
-            $global:UserSignature = ""
-            $chkIncludeSignature.IsChecked = $false
-            $chkIncludeSignature.IsEnabled = $false
-            $chkIncludeSignature.ToolTip = "No OWA signature found. Paste your signature into the message template and save it."
-            Update-Status "Connected as $($global:UserAlias) — Could not retrieve signature"
-        }
 
         Save-ConfigToFile
         Update-Status "Connected as $($global:UserAlias)"
@@ -907,8 +864,6 @@ $optionReloadHandler = {
         $wbPreview.NavigateToString($txtMessage.Text)
     }
 }
-$chkIncludeSignature.Add_Checked($optionReloadHandler)
-$chkIncludeSignature.Add_Unchecked($optionReloadHandler)
 $chkIncludeOfficeHours.Add_Checked($optionReloadHandler)
 $chkIncludeOfficeHours.Add_Unchecked($optionReloadHandler)
 $chkIncludeWorkDays.Add_Checked($optionReloadHandler)
