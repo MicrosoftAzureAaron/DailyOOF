@@ -47,8 +47,9 @@ The GUI has four tabs:
 | **Connect / Disconnect** | Authenticate to Exchange Online using your alias. On connect, the app fetches your current OOF status. |
 | **Enable Scheduled Auto Reply** | Sets OOF to *Scheduled* mode using your configured shift hours and work days. The start/end times are calculated automatically based on the current day. |
 | **Set Vacation OOF** | Pick a return date and the app sets a *Scheduled* OOF that disables automatically when you return. |
+| **Cancel Vacation OOF** | Immediately disables the vacation/extended OOF. |
 | **Refresh Status** | Shows the current Auto Reply state, start time, and end time from Exchange Online. |
-| **View Current Message** | Fetches the current OOF message from Exchange Online and loads it into the message editor. |
+| **View Current Message** | Fetches the current OOF message from Exchange Online (auto-connects if needed) and displays it on the **Current OOF** tab. |
 
 ---
 
