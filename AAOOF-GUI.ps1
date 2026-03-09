@@ -548,8 +548,8 @@ function Resolve-TemplatePlaceholders($text) {
         $text = $text -replace '\[RETURN DATE\]', $dpReturnDate.SelectedDate.ToString('MMMM d, yyyy')
     }
 
-    # Replace [ROLE] with the role from the text box
-    $role = if (![string]::IsNullOrWhiteSpace($txtRole.Text)) { $txtRole.Text } else { 'Azure Support Engineer' }
+    # Replace [ROLE] with the role from the text box, or generic fallback
+    $role = if (![string]::IsNullOrWhiteSpace($txtRole.Text)) { $txtRole.Text } else { 'member of my team' }
     $text = $text -replace '\[ROLE\]', $role
 
     # Auto-generate signature block (or strip placeholder if unchecked)
