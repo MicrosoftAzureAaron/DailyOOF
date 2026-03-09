@@ -1642,13 +1642,15 @@ function Save-WindowScreenshot($filePath) {
     Start-Sleep -Milliseconds 200
 
     $source = [System.Windows.PresentationSource]::FromVisual($Window)
-    $dpiX = $source.CompositionTarget.TransformToDevice.M11
-    $dpiY = $source.CompositionTarget.TransformToDevice.M22
+    [double]$dpiX = $source.CompositionTarget.TransformToDevice.M11
+    [double]$dpiY = $source.CompositionTarget.TransformToDevice.M22
 
-    $width = [int]($Window.ActualWidth * $dpiX)
-    $height = [int]($Window.ActualHeight * $dpiY)
+    [int]$width = [Math]::Ceiling($Window.ActualWidth * $dpiX)
+    [int]$height = [Math]::Ceiling($Window.ActualHeight * $dpiY)
+    [double]$renderDpiX = 96 * $dpiX
+    [double]$renderDpiY = 96 * $dpiY
 
-    $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($width, $height, 96 * $dpiX, 96 * $dpiY, [System.Windows.Media.PixelFormats]::Pbgra32)
+    $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($width, $height, $renderDpiX, $renderDpiY, [System.Windows.Media.PixelFormats]::Pbgra32)
     $rtb.Render($Window)
 
     $encoder = New-Object System.Windows.Media.Imaging.PngBitmapEncoder
