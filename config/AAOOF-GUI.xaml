@@ -114,7 +114,7 @@
                         <GroupBox Header="Daily Auto Reply (Run Once Per Day)">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
-                                    Text="Sets Out of Office to Scheduled mode using your configured shift and work day settings. Run this once daily after the start of your shift."/>
+                                    Text="Sets Out of Office to Scheduled mode using your configured shift and work day settings. Run this once daily after the start of your shift. To automate this, create a Windows Scheduled Task on the Configuration tab."/>
                                 <Button x:Name="btnEnableScheduled" Content="Enable Scheduled Auto Reply" Style="{StaticResource PrimaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>

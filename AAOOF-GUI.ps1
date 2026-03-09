@@ -913,6 +913,9 @@ if (Test-Path $defaultTemplate) {
 }
 
 # ===================== Show the Window =====================
+$Window.Add_Closed({
+    try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch { }
+})
 $Window.ShowDialog() | Out-Null
 
 # Cleanup: disconnect on window close
