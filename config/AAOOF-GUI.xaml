@@ -288,11 +288,30 @@
 
                     <TabControl x:Name="tcMessageView" Grid.Row="2" FontSize="12">
                         <TabItem Header="  Edit  " FontWeight="SemiBold">
-                            <TextBox x:Name="txtMessage"
-                                     AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
-                                     VerticalScrollBarVisibility="Auto" FontSize="12"
-                                     FontFamily="Consolas" Padding="8"
-                                     BorderBrush="#D0D0D0" BorderThickness="1"/>
+                            <DockPanel>
+                                <WrapPanel DockPanel.Dock="Top" Background="#F0F0F0" Margin="0,0,0,2">
+                                    <Button x:Name="btnFmtBold" Content="B" FontWeight="Bold" ToolTip="Bold  &lt;b&gt;...&lt;/b&gt;" Width="30" Height="28" Margin="2" FontSize="13" Cursor="Hand"/>
+                                    <Button x:Name="btnFmtItalic" Content="I" FontStyle="Italic" ToolTip="Italic  &lt;i&gt;...&lt;/i&gt;" Width="30" Height="28" Margin="2" FontSize="13" Cursor="Hand"/>
+                                    <Button x:Name="btnFmtUnderline" ToolTip="Underline  &lt;u&gt;...&lt;/u&gt;" Width="30" Height="28" Margin="2" FontSize="13" Cursor="Hand">
+                                        <TextBlock TextDecorations="Underline" Text="U"/>
+                                    </Button>
+                                    <Border Width="1" Background="#CCC" Margin="4,4" Height="20"/>
+                                    <Button x:Name="btnFmtH3" Content="H" FontWeight="Bold" ToolTip="Heading  &lt;h3&gt;...&lt;/h3&gt;" Width="30" Height="28" Margin="2" FontSize="13" Cursor="Hand"/>
+                                    <Button x:Name="btnFmtP" Content="P" ToolTip="Paragraph  &lt;p&gt;...&lt;/p&gt;" Width="30" Height="28" Margin="2" FontSize="13" Cursor="Hand"/>
+                                    <Button x:Name="btnFmtBr" Content="BR" ToolTip="Line Break  &lt;br/&gt;" Width="36" Height="28" Margin="2" FontSize="11" Cursor="Hand"/>
+                                    <Border Width="1" Background="#CCC" Margin="4,4" Height="20"/>
+                                    <Button x:Name="btnFmtLink" Content="Link" ToolTip="Hyperlink  &lt;a href=...&gt;" Width="42" Height="28" Margin="2" FontSize="11" Cursor="Hand"/>
+                                    <Button x:Name="btnFmtColor" Content="Color" ToolTip="Colored text  style='color: #hex'" Width="48" Height="28" Margin="2" FontSize="11" Cursor="Hand"/>
+                                    <Button x:Name="btnFmtList" Content="List" ToolTip="Bullet list  &lt;ul&gt;&lt;li&gt;..." Width="42" Height="28" Margin="2" FontSize="11" Cursor="Hand"/>
+                                    <Border Width="1" Background="#CCC" Margin="4,4" Height="20"/>
+                                    <Button x:Name="btnFmtRef" Content="? HTML Ref" ToolTip="Quick HTML reference" Width="72" Height="28" Margin="2" FontSize="11" Cursor="Hand"/>
+                                </WrapPanel>
+                                <TextBox x:Name="txtMessage"
+                                         AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto" FontSize="12"
+                                         FontFamily="Consolas" Padding="8"
+                                         BorderBrush="#D0D0D0" BorderThickness="1"/>
+                            </DockPanel>
                         </TabItem>
                         <TabItem Header="  Preview  " FontWeight="SemiBold">
                             <WebBrowser x:Name="wbPreview"/>

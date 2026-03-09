@@ -500,6 +500,18 @@ $chkIncludeTimezone = $Window.FindName("chkIncludeTimezone")
 $tcMessageView = $Window.FindName("tcMessageView")
 $wbPreview = $Window.FindName("wbPreview")
 
+# --- HTML Formatting toolbar controls ---
+$btnFmtBold = $Window.FindName("btnFmtBold")
+$btnFmtItalic = $Window.FindName("btnFmtItalic")
+$btnFmtUnderline = $Window.FindName("btnFmtUnderline")
+$btnFmtH3 = $Window.FindName("btnFmtH3")
+$btnFmtP = $Window.FindName("btnFmtP")
+$btnFmtBr = $Window.FindName("btnFmtBr")
+$btnFmtLink = $Window.FindName("btnFmtLink")
+$btnFmtColor = $Window.FindName("btnFmtColor")
+$btnFmtList = $Window.FindName("btnFmtList")
+$btnFmtRef = $Window.FindName("btnFmtRef")
+
 # --- Status bar ---
 $txtStatusBar = $Window.FindName("txtStatusBar")
 $borderStatusBar = $Window.FindName("borderStatusBar")
@@ -1331,6 +1343,121 @@ $txtAccount.Add_LostFocus({
         Export-AppConfiguration
         & $optionReloadHandler
     }
+})
+
+# ===================== HTML Formatting Toolbar Handlers =====================
+# Helper: Wrap the selected text in the editor with an HTML tag, or insert at cursor.
+function Insert-HtmlTag($openTag, $closeTag) {
+    $selStart = $txtMessage.SelectionStart
+    $selLen = $txtMessage.SelectionLength
+    if ($selLen -gt 0) {
+        $selected = $txtMessage.Text.Substring($selStart, $selLen)
+        $replacement = "$openTag$selected$closeTag"
+        $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $replacement)
+        $txtMessage.SelectionStart = $selStart
+        $txtMessage.SelectionLength = $replacement.Length
+    } else {
+        $insert = "$openTag$closeTag"
+        $txtMessage.Text = $txtMessage.Text.Insert($selStart, $insert)
+        $txtMessage.SelectionStart = $selStart + $openTag.Length
+    }
+    $txtMessage.Focus()
+}
+
+# Helper: Insert a snippet at the cursor position.
+function Insert-HtmlSnippet($snippet) {
+    $selStart = $txtMessage.SelectionStart
+    $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
+    $txtMessage.SelectionStart = $selStart + $snippet.Length
+    $txtMessage.Focus()
+}
+
+$btnFmtBold.Add_Click({ Insert-HtmlTag '<b>' '</b>' })
+$btnFmtItalic.Add_Click({ Insert-HtmlTag '<i>' '</i>' })
+$btnFmtUnderline.Add_Click({ Insert-HtmlTag '<u>' '</u>' })
+$btnFmtH3.Add_Click({ Insert-HtmlTag '<h3>' '</h3>' })
+$btnFmtP.Add_Click({ Insert-HtmlTag '<p>' '</p>' })
+$btnFmtBr.Add_Click({ Insert-HtmlSnippet '<br/>' })
+
+$btnFmtLink.Add_Click({
+    $selStart = $txtMessage.SelectionStart
+    $selLen = $txtMessage.SelectionLength
+    $linkText = if ($selLen -gt 0) { $txtMessage.Text.Substring($selStart, $selLen) } else { 'link text' }
+    $snippet = "<a href=`"https://`">$linkText</a>"
+    if ($selLen -gt 0) {
+        $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
+    } else {
+        $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
+    }
+    # Position cursor inside the href quotes
+    $txtMessage.SelectionStart = $selStart + 9
+    $txtMessage.SelectionLength = 8
+    $txtMessage.Focus()
+})
+
+$btnFmtColor.Add_Click({
+    $selStart = $txtMessage.SelectionStart
+    $selLen = $txtMessage.SelectionLength
+    $colorText = if ($selLen -gt 0) { $txtMessage.Text.Substring($selStart, $selLen) } else { 'text' }
+    $snippet = "<span style='color: #0078D4;'>$colorText</span>"
+    if ($selLen -gt 0) {
+        $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
+    } else {
+        $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
+    }
+    # Select the hex color so user can change it
+    $txtMessage.SelectionStart = $selStart + 22
+    $txtMessage.SelectionLength = 7
+    $txtMessage.Focus()
+})
+
+$btnFmtList.Add_Click({
+    $selStart = $txtMessage.SelectionStart
+    $selLen = $txtMessage.SelectionLength
+    if ($selLen -gt 0) {
+        $selected = $txtMessage.Text.Substring($selStart, $selLen)
+        $lines = $selected -split "`r?`n" | Where-Object { $_.Trim() -ne '' }
+        $listItems = ($lines | ForEach-Object { "    <li>$($_.Trim())</li>" }) -join "`n"
+        $snippet = "<ul>`n$listItems`n</ul>"
+        $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
+    } else {
+        $snippet = "<ul>`n    <li></li>`n</ul>"
+        $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
+        $txtMessage.SelectionStart = $selStart + 14
+    }
+    $txtMessage.Focus()
+})
+
+$btnFmtRef.Add_Click({
+    $ref = @"
+HTML Quick Reference:
+
+TEXT FORMATTING
+  <b>bold</b>             <i>italic</i>
+  <u>underline</u>        <s>strikethrough</s>
+
+STRUCTURE
+  <p>paragraph</p>        <br/>  line break
+  <h3>heading</h3>        <hr/>  horizontal rule
+
+LISTS
+  <ul>                     <ol>
+    <li>bullet item</li>     <li>numbered item</li>
+  </ul>                    </ol>
+
+LINKS & IMAGES
+  <a href="https://url">link text</a>
+
+COLORS & STYLES (inline)
+  <span style='color: #D83B01;'>colored text</span>
+  <span style='font-size: 14pt;'>sized text</span>
+  <p style='color: #555; font-size: 10pt;'>styled paragraph</p>
+
+COMMON COLORS
+  #0078D4 (blue)    #2E7D32 (green)    #D83B01 (red/orange)
+  #FF8F00 (amber)   #555555 (gray)     #333333 (dark gray)
+"@
+    Show-InfoDialog "HTML Quick Reference" $ref
 })
 
 # Browse File: Open a file picker dialog to load a custom HTML template from disk.

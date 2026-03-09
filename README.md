@@ -51,6 +51,8 @@ The GUI has four tabs:
 | **Refresh Status** | Shows the current Auto Reply state, start time, and end time from Exchange Online. |
 | **View Current Message** | Fetches the current OOF message from Exchange Online (auto-connects if needed) and displays it on the **Current OOF** tab. |
 
+> **Tip — Use your own message from Outlook:** You don't have to compose your OOF message in this tool. You can create and format your Out of Office message directly in **Outlook** (or Outlook on the web) and simply use this tool to **schedule when** the message is active. The scheduling, vacation timing, and daily auto-reply features work independently of the message content. If you'd like to manage the message text as well, the **Message Templates** tab is available — but it's entirely optional.
+
 ---
 
 #### Configuration
