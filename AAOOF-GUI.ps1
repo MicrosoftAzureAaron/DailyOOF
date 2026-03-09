@@ -716,6 +716,7 @@ $btnDisconnect.Add_Click({
 # Enable Scheduled Auto Reply: Read shift/work-day settings and apply Scheduled mode.
 $btnEnableScheduled.Add_Click({
     try {
+        Ensure-ExchangeConnection
         Update-StatusBar "Setting scheduled auto reply..."
         Read-ShiftTimesFromUI
         $global:WorkDays = Read-WorkDaysFromUI
@@ -740,6 +741,7 @@ $btnSetVacation.Add_Click({
             Show-ErrorDialog "Missing Date" "Please select a return date."
             return
         }
+        Ensure-ExchangeConnection
         Update-StatusBar "Setting vacation OOF..."
         Read-ShiftTimesFromUI
         $returnDate = $dpReturnDate.SelectedDate.ToString("yyyy/MM/dd")
@@ -767,6 +769,7 @@ $btnSetVacation.Add_Click({
 # Cancel Vacation OOF: Disable the vacation/extended OOF.
 $btnCancelVacation.Add_Click({
     try {
+        Ensure-ExchangeConnection
         Update-StatusBar "Cancelling vacation OOF..."
         Disable-VacationAutoReply
         $arc = Get-AutoReplyConfiguration
@@ -785,6 +788,7 @@ $btnCancelVacation.Add_Click({
 # Refresh Status: Pull the current auto-reply state and schedule from Exchange.
 $btnRefreshStatus.Add_Click({
     try {
+        Ensure-ExchangeConnection
         Update-StatusBar "Refreshing status..."
         $arc = Get-AutoReplyConfiguration
         $txtARCState.Text = $arc.AutoReplyState
@@ -1012,6 +1016,7 @@ $btnPresetWedSat.Add_Click({
 # Auto Reply State buttons: Directly set the auto-reply mode on Exchange.
 $btnStateEnabled.Add_Click({
     try {
+        Ensure-ExchangeConnection
         Update-StatusBar "Setting auto reply to Enabled..."
         Set-AutoReplyState 'Enabled'
         Update-StatusBar "Auto reply set to Enabled"
@@ -1022,6 +1027,7 @@ $btnStateEnabled.Add_Click({
 
 $btnStateDisabled.Add_Click({
     try {
+        Ensure-ExchangeConnection
         Update-StatusBar "Setting auto reply to Disabled..."
         Set-AutoReplyState 'Disabled'
         Update-StatusBar "Auto reply set to Disabled"
@@ -1032,6 +1038,7 @@ $btnStateDisabled.Add_Click({
 
 $btnStateScheduled.Add_Click({
     try {
+        Ensure-ExchangeConnection
         Update-StatusBar "Setting auto reply to Scheduled..."
         Read-ShiftTimesFromUI
         $global:WorkDays = Read-WorkDaysFromUI
@@ -1237,6 +1244,7 @@ $btnApplyInternal.Add_Click({
             Show-ErrorDialog "Empty Message" "Please enter or load a message first."
             return
         }
+        Ensure-ExchangeConnection
         Update-StatusBar "Applying internal message..."
         Set-AutoReplyMessage $txtMessage.Text 'Internal'
         Update-StatusBar "Internal message applied"
@@ -1252,6 +1260,7 @@ $btnApplyExternal.Add_Click({
             Show-ErrorDialog "Empty Message" "Please enter or load a message first."
             return
         }
+        Ensure-ExchangeConnection
         Update-StatusBar "Applying external message..."
         Set-AutoReplyMessage $txtMessage.Text 'External'
         Update-StatusBar "External message applied"
@@ -1267,6 +1276,7 @@ $btnApplyBoth.Add_Click({
             Show-ErrorDialog "Empty Message" "Please enter or load a message first."
             return
         }
+        Ensure-ExchangeConnection
         Update-StatusBar "Applying message to both internal and external..."
         Set-AutoReplyMessage $txtMessage.Text 'Both'
         Update-StatusBar "Both messages applied"
