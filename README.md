@@ -57,11 +57,11 @@ The GUI has four tabs:
 | Setting | Description |
 |---|---|
 | **Full Name** | Your display name for the auto-generated signature. Changes are saved and applied to templates immediately. |
-| **Role** | Your job title (default: `Azure Support Engineer`). Inserted into templates via the `[ROLE]` placeholder. |
+| **Role** | Your job title, inserted into templates via the `[ROLE]` placeholder. If left blank, templates use "member of my team" instead. |
 | **Email Suffix** | Your email domain suffix (default `@microsoft.com`). Combined with your Windows username to form the mailbox identity. |
 | **Override Account** | Manually set your full email address instead of using auto-detection. |
-| **Office Hours** | Start and end times for your shift. Used for OOF scheduling and the signature's office-hours line. |
-| **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). |
+| **Office Hours** | Start and end times for your shift (supports non-hour-boundary times like 8:30). Used for OOF scheduling and the signature's office-hours line. |
+| **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). Days appear in the signature sorted by your work week (e.g., Wed–Sat starts with Wednesday). |
 | **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
 | **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start. **Note:** Run the script as Administrator before clicking this button. |
 
@@ -89,7 +89,7 @@ A **Template Options** panel lets you toggle which dynamic content is injected i
 | **Include Work Days** | — | Removes your work days from the signature block |
 | **Include Timezone** | — | Removes the timezone from the signature block |
 
-> Toggling any option immediately re-renders the template in the editor and preview.
+> Toggling any option or changing the return date immediately re-renders the template in the editor and preview.
 
 > **Signature note:** The signature is auto-generated from your Full Name field (or derived from your Windows username if blank). Because the auto-derived name is a best guess, **double-check that your name appears correctly** in the preview before applying, or enter your name in the Full Name field on the Configuration tab.
 
@@ -109,7 +109,7 @@ A **Template Options** panel lets you toggle which dynamic content is injected i
 ---
 
 #### Current OOF
-View your live auto-reply message as it appears to senders, rendered in an embedded browser control.
+View your live auto-reply message as it appears to senders, rendered in an embedded browser control. The message is **automatically loaded** (with auto-connect if needed) the first time you switch to this tab.
 
 | Action | Description |
 |---|---|
