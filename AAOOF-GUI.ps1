@@ -66,15 +66,15 @@ foreach ($fileName in $DefaultConfigFiles) {
 # ===================== Configuration (loaded from config.json) =====================
 # Global variables hold the user's settings. Defaults are set here and then
 # overwritten by Import-AppConfiguration if a config.json file exists.
-$global:StartOfShift   = $null                       # Shift start time (datetime)
-$global:EndOfShift     = $null                       # Shift end time (datetime)
-$global:WorkDays       = $null                       # Array of day names, e.g. @('Monday','Tuesday',...)
-$global:UserAlias      = ""                           # Email address used as Exchange identity
-$global:UserAliasSuffix = ""                           # Domain suffix appended to the Windows username
-$global:FullName       = ""                           # Display name for auto-generated signature
-$global:Role           = ""                           # Job title inserted into templates via [ROLE]
-$global:OverrideAccount = $false                      # True if user manually overrides the account email
-$global:SelectedHolidayName = ""                      # Name of the selected holiday for [HOLIDAY NAME] placeholder
+$script:StartOfShift   = $null                       # Shift start time (datetime)
+$script:EndOfShift     = $null                       # Shift end time (datetime)
+$script:WorkDays       = $null                       # Array of day names, e.g. @('Monday','Tuesday',...)
+$script:UserAlias      = ""                           # Email address used as Exchange identity
+$script:UserAliasSuffix = ""                           # Domain suffix appended to the Windows username
+$script:FullName       = ""                           # Display name for auto-generated signature
+$script:Role           = ""                           # Job title inserted into templates via [ROLE]
+$script:OverrideAccount = $false                      # True if user manually overrides the account email
+$script:SelectedHolidayName = ""                      # Name of the selected holiday for [HOLIDAY NAME] placeholder
 
 # Script-level tracking for EXO sync state
 $script:IsConnectedToEXO = $false
@@ -84,14 +84,14 @@ $script:EXOMessageSynced = $true
 function Import-AppConfiguration {
     if (Test-Path $ConfigFile) {
         $cfg = Get-Content $ConfigFile -Raw | ConvertFrom-Json
-        if ($cfg.StartOfShift)    { $global:StartOfShift = [datetime]$cfg.StartOfShift }
-        if ($cfg.EndOfShift)      { $global:EndOfShift = [datetime]$cfg.EndOfShift }
-        if ($cfg.WorkDays)        { $global:WorkDays = @($cfg.WorkDays) }
-        if ($cfg.UserAlias)       { $global:UserAlias = $cfg.UserAlias }
-        if ($cfg.UserAliasSuffix) { $global:UserAliasSuffix = $cfg.UserAliasSuffix }
-        if ($cfg.FullName)        { $global:FullName = $cfg.FullName }
-        if ($cfg.Role)            { $global:Role = $cfg.Role }
-        if ($null -ne $cfg.OverrideAccount) { $global:OverrideAccount = [bool]$cfg.OverrideAccount }
+        if ($cfg.StartOfShift)    { $script:StartOfShift = [datetime]$cfg.StartOfShift }
+        if ($cfg.EndOfShift)      { $script:EndOfShift = [datetime]$cfg.EndOfShift }
+        if ($cfg.WorkDays)        { $script:WorkDays = @($cfg.WorkDays) }
+        if ($cfg.UserAlias)       { $script:UserAlias = $cfg.UserAlias }
+        if ($cfg.UserAliasSuffix) { $script:UserAliasSuffix = $cfg.UserAliasSuffix }
+        if ($cfg.FullName)        { $script:FullName = $cfg.FullName }
+        if ($cfg.Role)            { $script:Role = $cfg.Role }
+        if ($null -ne $cfg.OverrideAccount) { $script:OverrideAccount = [bool]$cfg.OverrideAccount }
     }
 }
 
@@ -102,10 +102,10 @@ Import-AppConfiguration
 
 # Resolve-UserAlias: Build the user's email alias from the Windows login name + suffix.
 function Resolve-UserAlias {
-    if ([string]::IsNullOrEmpty($global:UserAliasSuffix)) {
+    if ([string]::IsNullOrEmpty($script:UserAliasSuffix)) {
         # Try to derive suffix from the machine's DNS domain
         if ($env:USERDNSDOMAIN) {
-            $global:UserAliasSuffix = "@$($env:USERDNSDOMAIN.ToLower())"
+            $script:UserAliasSuffix = "@$($env:USERDNSDOMAIN.ToLower())"
         }
     }
     $ComputerSystem = Get-CimInstance -ClassName Win32_ComputerSystem
@@ -114,7 +114,7 @@ function Resolve-UserAlias {
     } else {
         $CurrentUser = $env:USERNAME
     }
-    $global:UserAlias = "$CurrentUser$global:UserAliasSuffix"
+    $script:UserAlias = "$CurrentUser$script:UserAliasSuffix"
 }
 
 # Get-AutoReplyConfigPath: Return the file path for the local auto-reply config cache.
@@ -130,7 +130,7 @@ function Save-AutoReplyConfigToFile {
 
 # Get-AutoReplyConfiguration: Retrieve the mailbox auto-reply configuration from Exchange Online.
 function Get-AutoReplyConfiguration {
-    return Get-MailboxAutoReplyConfiguration -Identity $global:UserAlias
+    return Get-MailboxAutoReplyConfiguration -Identity $script:UserAlias
 }
 
 # Import-AutoReplyConfigFromFile: Load a previously saved auto-reply config from disk.
@@ -142,10 +142,10 @@ function Import-AutoReplyConfigFromFile {
 # Set-AutoReplyState: Change the auto-reply state (Enabled|Disabled|Scheduled) on Exchange.
 function Set-AutoReplyState($State) {
     switch ($State) {
-        'Enabled'   { Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Enabled" }
-        'Disabled'  { Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Disabled" }
+        'Enabled'   { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Enabled" }
+        'Disabled'  { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Disabled" }
         'Scheduled' {
-            Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Scheduled"
+            Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled"
             Set-AutoReplyScheduleTimes
         }
     }
@@ -155,27 +155,27 @@ function Set-AutoReplyState($State) {
 # Set-AutoReplyScheduleTimes: Calculate OOF start/end times based on shift and work days,
 # then apply them to the Exchange mailbox configuration.
 function Set-AutoReplyScheduleTimes {
-    if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { return }
-    if ($null -eq $global:WorkDays) { return }
+    if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) { return }
+    if ($null -eq $script:WorkDays) { return }
 
     $DaysToAdd = Get-NextWorkDayOffset
 
-    $StartTime = (Get-Date).Date.Add($global:StartOfShift.TimeOfDay).AddDays($DaysToAdd)
+    $StartTime = (Get-Date).Date.Add($script:StartOfShift.TimeOfDay).AddDays($DaysToAdd)
 
-    $EndTime = (Get-Date).Date.Add($global:EndOfShift.TimeOfDay)
+    $EndTime = (Get-Date).Date.Add($script:EndOfShift.TimeOfDay)
 
     if ($DaysToAdd -eq 0) { $EndTime = $EndTime.AddDays(-1) }
 
-    Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -StartTime $EndTime -EndTime $StartTime
+    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -StartTime $EndTime -EndTime $StartTime
     Save-AutoReplyConfigToFile
 }
 
 # Set-AutoReplyMessage: Apply an HTML message body as the auto-reply for Internal, External, or Both.
 function Set-AutoReplyMessage($Message, $MessageScope) {
     switch ($MessageScope) {
-        'Internal' { Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -InternalMessage $Message }
-        'External' { Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $Message }
-        default    { Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -ExternalMessage $Message -InternalMessage $Message }
+        'Internal' { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -InternalMessage $Message }
+        'External' { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -ExternalMessage $Message }
+        default    { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -ExternalMessage $Message -InternalMessage $Message }
     }
 }
 
@@ -183,14 +183,14 @@ function Set-AutoReplyMessage($Message, $MessageScope) {
 # Returns 0 if today is a work day and before shift start, 1 for tomorrow, or more
 # if the next work day is further out (e.g., over a weekend).
 function Get-NextWorkDayOffset {
-    if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { return 1 }
-    if (!$global:WorkDays) { return 1 }
+    if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) { return 1 }
+    if (!$script:WorkDays) { return 1 }
 
     $CurrentTime = [datetime](Get-Date)
 
-    if (!($CurrentTime.DayOfWeek -in $global:WorkDays)) {
+    if (!($CurrentTime.DayOfWeek -in $script:WorkDays)) {
         $DaysAhead = 0
-        while (!($CurrentTime.DayOfWeek -in $global:WorkDays)) {
+        while (!($CurrentTime.DayOfWeek -in $script:WorkDays)) {
             $DaysAhead += 1
             $CurrentTime = $CurrentTime.AddDays(1)
         }
@@ -199,7 +199,7 @@ function Get-NextWorkDayOffset {
     else {
         $NextDay = $CurrentTime.AddDays(1)
         $DaysAhead = 1
-        while (!($NextDay.DayOfWeek -in $global:WorkDays)) {
+        while (!($NextDay.DayOfWeek -in $script:WorkDays)) {
             $DaysAhead += 1
             $NextDay = $NextDay.AddDays(1)
         }
@@ -208,7 +208,7 @@ function Get-NextWorkDayOffset {
         }
 
         $CurrentTime = [datetime](Get-Date)
-        if ($CurrentTime -lt $global:StartOfShift) {
+        if ($CurrentTime -lt $script:StartOfShift) {
             return 0
         }
         else {
@@ -220,7 +220,7 @@ function Get-NextWorkDayOffset {
 # Connect-ExchangeOnlineSession: Ensure a live Exchange Online connection exists.
 # Prompts to install the EXO module if missing, reuses existing sessions if found.
 function Connect-ExchangeOnlineSession {
-    if ([string]::IsNullOrEmpty($global:UserAlias)) { Resolve-UserAlias }
+    if ([string]::IsNullOrEmpty($script:UserAlias)) { Resolve-UserAlias }
 
     # Check if ExchangeOnlineManagement module is available
     if (!(Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
@@ -244,7 +244,7 @@ function Connect-ExchangeOnlineSession {
             return $true
         }
     }
-    Connect-ExchangeOnline -UserPrincipalName $global:UserAlias
+    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias
     return $true
 }
 
@@ -327,10 +327,10 @@ function Export-MessageToFile($FilePath, $Content) {
 # Set-VacationAutoReply: Configure an extended/vacation OOF that runs from now
 # until the given return date at shift-start time.
 function Set-VacationAutoReply($ReturnDate) {
-    if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) { return }
+    if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) { return }
     $ParsedDate = [datetime]$ReturnDate
-    $EndTime = $ParsedDate + $global:StartOfShift.TimeOfDay
-    Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Scheduled" -StartTime $global:EndOfShift -EndTime $EndTime
+    $EndTime = $ParsedDate + $script:StartOfShift.TimeOfDay
+    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled" -StartTime $script:EndOfShift -EndTime $EndTime
     Save-AutoReplyConfigToFile
 }
 
@@ -354,7 +354,7 @@ function Register-DailyScheduledTask {
         $taskname = "AAOOF"
         $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "`"$scriptPath`" 1"
         $date = Get-Date -Date (Get-Date).Date
-        $TriggerTime = $global:StartOfShift.TimeOfDay
+        $TriggerTime = $script:StartOfShift.TimeOfDay
         $TriggerTime = $date.AddMinutes(15) + $TriggerTime
         $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
 
@@ -367,14 +367,14 @@ function Register-DailyScheduledTask {
 # Export-AppConfiguration: Persist all global settings to config.json.
 function Export-AppConfiguration {
     $cfg = @{
-        StartOfShift    = if ($null -ne $global:StartOfShift) { $global:StartOfShift.ToString("o") } else { $null }
-        EndOfShift      = if ($null -ne $global:EndOfShift) { $global:EndOfShift.ToString("o") } else { $null }
-        WorkDays        = $global:WorkDays
-        UserAlias       = $global:UserAlias
-        UserAliasSuffix = $global:UserAliasSuffix
-        FullName        = $global:FullName
-        Role            = $global:Role
-        OverrideAccount = $global:OverrideAccount
+        StartOfShift    = if ($null -ne $script:StartOfShift) { $script:StartOfShift.ToString("o") } else { $null }
+        EndOfShift      = if ($null -ne $script:EndOfShift) { $script:EndOfShift.ToString("o") } else { $null }
+        WorkDays        = $script:WorkDays
+        UserAlias       = $script:UserAlias
+        UserAliasSuffix = $script:UserAliasSuffix
+        FullName        = $script:FullName
+        Role            = $script:Role
+        OverrideAccount = $script:OverrideAccount
     }
     $cfg | ConvertTo-Json -Depth 5 | Set-Content $ConfigFile -Encoding utf8
 }
@@ -385,7 +385,7 @@ function Export-AppConfiguration {
 #   <date> — Set vacation/extended OOF until that return date.
 if ($InputParameter) {
     if ($InputParameter -eq '1') {
-        if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift -or $null -eq $global:WorkDays) {
+        if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift -or $null -eq $script:WorkDays) {
             Write-Host "Configuration not set. Please run the GUI first to configure." -ForegroundColor Red
             exit
         }
@@ -409,7 +409,7 @@ if ($InputParameter) {
         exit
     }
     if ($InputParameter -as [datetime]) {
-        if ($null -eq $global:StartOfShift -or $null -eq $global:EndOfShift) {
+        if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) {
             Write-Host "Configuration not set. Please run the GUI first to configure." -ForegroundColor Red
             exit
         }
@@ -537,11 +537,11 @@ function Ensure-ExchangeConnection {
 
     Update-StatusBar "Not connected — attempting to connect..."
     if (-not $chkOverrideAccount.IsChecked) {
-        $global:UserAliasSuffix = $txtSuffix.Text
+        $script:UserAliasSuffix = $txtSuffix.Text
         Resolve-UserAlias
-        $txtAccount.Text = $global:UserAlias
+        $txtAccount.Text = $script:UserAlias
     } else {
-        $global:UserAlias = $txtAccount.Text
+        $script:UserAlias = $txtAccount.Text
     }
     Connect-ExchangeOnlineSession
     $txtConnectionStatus.Text = "Connected"
@@ -561,32 +561,32 @@ function Ensure-ExchangeConnection {
 # setting sensible defaults where config values are missing.
 function Initialize-UIFromConfig {
     # Full Name
-    if (![string]::IsNullOrEmpty($global:FullName)) {
-        $txtFullName.Text = $global:FullName
+    if (![string]::IsNullOrEmpty($script:FullName)) {
+        $txtFullName.Text = $script:FullName
     }
     # Role
-    if (![string]::IsNullOrEmpty($global:Role)) {
-        $txtRole.Text = $global:Role
+    if (![string]::IsNullOrEmpty($script:Role)) {
+        $txtRole.Text = $script:Role
     }
     # Suffix
-    if (![string]::IsNullOrEmpty($global:UserAliasSuffix)) {
-        $txtSuffix.Text = $global:UserAliasSuffix
+    if (![string]::IsNullOrEmpty($script:UserAliasSuffix)) {
+        $txtSuffix.Text = $script:UserAliasSuffix
     }
     # Account override checkbox
-    $chkOverrideAccount.IsChecked = $global:OverrideAccount
-    $txtAccount.IsEnabled = $global:OverrideAccount
+    $chkOverrideAccount.IsChecked = $script:OverrideAccount
+    $txtAccount.IsEnabled = $script:OverrideAccount
     # Account
-    if (![string]::IsNullOrEmpty($global:UserAlias)) {
-        $txtAccount.Text = $global:UserAlias
+    if (![string]::IsNullOrEmpty($script:UserAlias)) {
+        $txtAccount.Text = $script:UserAlias
     } else {
         Resolve-UserAlias
-        $txtAccount.Text = $global:UserAlias
+        $txtAccount.Text = $script:UserAlias
     }
 
     # Shift times
-    if ($null -ne $global:StartOfShift) {
-        $h = (Get-Date $global:StartOfShift).Hour
-        $m = (Get-Date $global:StartOfShift).Minute
+    if ($null -ne $script:StartOfShift) {
+        $h = (Get-Date $script:StartOfShift).Hour
+        $m = (Get-Date $script:StartOfShift).Minute
         $ampm = if ($h -ge 12) { "PM" } else { "AM" }
         $displayH = if ($h -gt 12) { $h - 12 } elseif ($h -eq 0) { 12 } else { $h }
         $cmbStartHour.SelectedItem = $displayH.ToString()
@@ -597,9 +597,9 @@ function Initialize-UIFromConfig {
         $cmbStartHour.SelectedIndex = 8; $cmbStartMin.SelectedIndex = 0; $cmbStartAmPm.SelectedIndex = 0 # 9 AM
     }
 
-    if ($null -ne $global:EndOfShift) {
-        $h = (Get-Date $global:EndOfShift).Hour
-        $m = (Get-Date $global:EndOfShift).Minute
+    if ($null -ne $script:EndOfShift) {
+        $h = (Get-Date $script:EndOfShift).Hour
+        $m = (Get-Date $script:EndOfShift).Minute
         $ampm = if ($h -ge 12) { "PM" } else { "AM" }
         $displayH = if ($h -gt 12) { $h - 12 } elseif ($h -eq 0) { 12 } else { $h }
         $cmbEndHour.SelectedItem = $displayH.ToString()
@@ -611,14 +611,14 @@ function Initialize-UIFromConfig {
     }
 
     # Work days
-    if ($global:WorkDays) {
-        $chkMon.IsChecked = ('Monday' -in $global:WorkDays)
-        $chkTue.IsChecked = ('Tuesday' -in $global:WorkDays)
-        $chkWed.IsChecked = ('Wednesday' -in $global:WorkDays)
-        $chkThu.IsChecked = ('Thursday' -in $global:WorkDays)
-        $chkFri.IsChecked = ('Friday' -in $global:WorkDays)
-        $chkSat.IsChecked = ('Saturday' -in $global:WorkDays)
-        $chkSun.IsChecked = ('Sunday' -in $global:WorkDays)
+    if ($script:WorkDays) {
+        $chkMon.IsChecked = ('Monday' -in $script:WorkDays)
+        $chkTue.IsChecked = ('Tuesday' -in $script:WorkDays)
+        $chkWed.IsChecked = ('Wednesday' -in $script:WorkDays)
+        $chkThu.IsChecked = ('Thursday' -in $script:WorkDays)
+        $chkFri.IsChecked = ('Friday' -in $script:WorkDays)
+        $chkSat.IsChecked = ('Saturday' -in $script:WorkDays)
+        $chkSun.IsChecked = ('Sunday' -in $script:WorkDays)
     } else {
         # Default Mon-Fri
         $chkMon.IsChecked = $true; $chkTue.IsChecked = $true; $chkWed.IsChecked = $true
@@ -649,7 +649,7 @@ function Resolve-TemplatePlaceholders($text) {
     }
 
     # Replace [HOLIDAY NAME] with selected holiday or generic fallback
-    $holidayName = if (![string]::IsNullOrWhiteSpace($global:SelectedHolidayName)) { $global:SelectedHolidayName } else { 'a company holiday' }
+    $holidayName = if (![string]::IsNullOrWhiteSpace($script:SelectedHolidayName)) { $script:SelectedHolidayName } else { 'a company holiday' }
     $text = $text -replace '\[HOLIDAY NAME\]', $holidayName
 
     # Replace [ROLE] with the role from the text box, or generic fallback
@@ -663,7 +663,7 @@ function Resolve-TemplatePlaceholders($text) {
         if (![string]::IsNullOrWhiteSpace($txtFullName.Text)) {
             $displayName = $txtFullName.Text
         } else {
-            $aliasLocal = ($global:UserAlias -split '@')[0]
+            $aliasLocal = ($script:UserAlias -split '@')[0]
             if ($aliasLocal) {
                 if ($aliasLocal -match '\.' ) {
                     $nameParts = $aliasLocal -split '\.'
@@ -680,15 +680,15 @@ function Resolve-TemplatePlaceholders($text) {
 
         # Office details line
         $detailParts = @()
-        if ($chkIncludeOfficeHours.IsChecked -and $null -ne $global:StartOfShift -and $null -ne $global:EndOfShift) {
-            $detailParts += "$($global:StartOfShift.ToString('h:mm tt')) - $($global:EndOfShift.ToString('h:mm tt'))"
+        if ($chkIncludeOfficeHours.IsChecked -and $null -ne $script:StartOfShift -and $null -ne $script:EndOfShift) {
+            $detailParts += "$($script:StartOfShift.ToString('h:mm tt')) - $($script:EndOfShift.ToString('h:mm tt'))"
         }
         if ($chkIncludeTimezone.IsChecked) {
             $detailParts += [System.TimeZoneInfo]::Local.DisplayName
         }
-        if ($chkIncludeWorkDays.IsChecked -and $global:WorkDays) {
+        if ($chkIncludeWorkDays.IsChecked -and $script:WorkDays) {
             $weekOrder = @('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')
-            $sorted = $global:WorkDays | Sort-Object { $weekOrder.IndexOf($_) }
+            $sorted = $script:WorkDays | Sort-Object { $weekOrder.IndexOf($_) }
             $detailParts += ($sorted -join ', ')
         }
         if ($detailParts.Count -gt 0) {
@@ -696,8 +696,8 @@ function Resolve-TemplatePlaceholders($text) {
         }
 
         # Email
-        if (![string]::IsNullOrWhiteSpace($global:UserAlias)) {
-            $sigLines += "<p><a href='mailto:$($global:UserAlias)'>$($global:UserAlias)</a></p>"
+        if (![string]::IsNullOrWhiteSpace($script:UserAlias)) {
+            $sigLines += "<p><a href='mailto:$($script:UserAlias)'>$($script:UserAlias)</a></p>"
         }
 
         $signatureHtml = $sigLines -join "`n"
@@ -729,14 +729,14 @@ function Read-ShiftTimesFromUI {
     $StartAmPm = $cmbStartAmPm.SelectedItem
     if ($StartAmPm -eq "PM" -and $StartHour -ne 12) { $StartHour += 12 }
     if ($StartAmPm -eq "AM" -and $StartHour -eq 12) { $StartHour = 0 }
-    $global:StartOfShift = [datetime](Get-Date).Date.AddHours($StartHour).AddMinutes($StartMinute)
+    $script:StartOfShift = [datetime](Get-Date).Date.AddHours($StartHour).AddMinutes($StartMinute)
 
     $EndHour = [int]$cmbEndHour.SelectedItem
     $EndMinute = [int]$cmbEndMin.SelectedItem
     $EndAmPm = $cmbEndAmPm.SelectedItem
     if ($EndAmPm -eq "PM" -and $EndHour -ne 12) { $EndHour += 12 }
     if ($EndAmPm -eq "AM" -and $EndHour -eq 12) { $EndHour = 0 }
-    $global:EndOfShift = [datetime](Get-Date).Date.AddHours($EndHour).AddMinutes($EndMinute)
+    $script:EndOfShift = [datetime](Get-Date).Date.AddHours($EndHour).AddMinutes($EndMinute)
 }
 
 # ===================== Event Handlers =====================
@@ -747,11 +747,11 @@ $btnConnect.Add_Click({
     try {
         Update-StatusBar "Connecting to Exchange Online..."
         if (-not $chkOverrideAccount.IsChecked) {
-            $global:UserAliasSuffix = $txtSuffix.Text
+            $script:UserAliasSuffix = $txtSuffix.Text
             Resolve-UserAlias
-            $txtAccount.Text = $global:UserAlias
+            $txtAccount.Text = $script:UserAlias
         } else {
-            $global:UserAlias = $txtAccount.Text
+            $script:UserAlias = $txtAccount.Text
         }
         Connect-ExchangeOnlineSession
         $txtConnectionStatus.Text = "Connected"
@@ -778,7 +778,7 @@ $btnConnect.Add_Click({
         } catch { }
 
         Export-AppConfiguration
-        Update-StatusBar "Connected as $($global:UserAlias)"
+        Update-StatusBar "Connected as $($script:UserAlias)"
     }
     catch {
         $txtConnectionStatus.Text = "Connection Failed"
@@ -809,7 +809,7 @@ $btnEnableScheduled.Add_Click({
         Ensure-ExchangeConnection
         Update-StatusBar "Setting scheduled auto reply..."
         Read-ShiftTimesFromUI
-        $global:WorkDays = Read-WorkDaysFromUI
+        $script:WorkDays = Read-WorkDaysFromUI
         Set-AutoReplyState 'Scheduled'
         $arc = Get-AutoReplyConfiguration
         $txtARCState.Text = $arc.AutoReplyState
@@ -906,11 +906,11 @@ $btnViewCurrentMsg.Add_Click({
             $txtCurrentOOFStatus.Text = "Disconnected — reconnecting..."
             Update-StatusBar "Not connected — attempting to connect..."
             if (-not $chkOverrideAccount.IsChecked) {
-                $global:UserAliasSuffix = $txtSuffix.Text
+                $script:UserAliasSuffix = $txtSuffix.Text
                 Resolve-UserAlias
-                $txtAccount.Text = $global:UserAlias
+                $txtAccount.Text = $script:UserAlias
             } else {
-                $global:UserAlias = $txtAccount.Text
+                $script:UserAlias = $txtAccount.Text
             }
             Connect-ExchangeOnlineSession
             $txtConnectionStatus.Text = "Connected"
@@ -961,11 +961,11 @@ $btnRefreshCurrentOOF.Add_Click({
             Update-StatusBar "Not connected — attempting to connect..."
             try {
                 if (-not $chkOverrideAccount.IsChecked) {
-                    $global:UserAliasSuffix = $txtSuffix.Text
+                    $script:UserAliasSuffix = $txtSuffix.Text
                     Resolve-UserAlias
-                    $txtAccount.Text = $global:UserAlias
+                    $txtAccount.Text = $script:UserAlias
                 } else {
-                    $global:UserAlias = $txtAccount.Text
+                    $script:UserAlias = $txtAccount.Text
                 }
                 Connect-ExchangeOnlineSession
                 $txtConnectionStatus.Text = "Connected"
@@ -1011,10 +1011,10 @@ $tcMain.Add_SelectionChanged({
     if ($tcMain.SelectedIndex -eq 2) {
         # Sync config globals from UI before template rendering
         Read-ShiftTimesFromUI
-        $global:WorkDays = Read-WorkDaysFromUI
-        $global:FullName = $txtFullName.Text
-        $global:Role = $txtRole.Text
-        $global:UserAliasSuffix = $txtSuffix.Text
+        $script:WorkDays = Read-WorkDaysFromUI
+        $script:FullName = $txtFullName.Text
+        $script:Role = $txtRole.Text
+        $script:UserAliasSuffix = $txtSuffix.Text
         & $optionReloadHandler
         return
     }
@@ -1031,11 +1031,11 @@ $tcMain.Add_SelectionChanged({
             $txtCurrentOOFStatus.Text = "Disconnected — connecting..."
             Update-StatusBar "Not connected — attempting to connect..."
             if (-not $chkOverrideAccount.IsChecked) {
-                $global:UserAliasSuffix = $txtSuffix.Text
+                $script:UserAliasSuffix = $txtSuffix.Text
                 Resolve-UserAlias
-                $txtAccount.Text = $global:UserAlias
+                $txtAccount.Text = $script:UserAlias
             } else {
-                $global:UserAlias = $txtAccount.Text
+                $script:UserAlias = $txtAccount.Text
             }
             Connect-ExchangeOnlineSession
             $txtConnectionStatus.Text = "Connected"
@@ -1073,20 +1073,20 @@ $tcMain.Add_SelectionChanged({
 $btnSaveAllConfig = $Window.FindName("btnSaveAllConfig")
 $btnSaveAllConfig.Add_Click({
     # Profile
-    $global:FullName = $txtFullName.Text
-    $global:Role = $txtRole.Text
+    $script:FullName = $txtFullName.Text
+    $script:Role = $txtRole.Text
     # Suffix & account
-    $global:UserAliasSuffix = $txtSuffix.Text
+    $script:UserAliasSuffix = $txtSuffix.Text
     if (-not $chkOverrideAccount.IsChecked) {
         Resolve-UserAlias
-        $txtAccount.Text = $global:UserAlias
+        $txtAccount.Text = $script:UserAlias
     } else {
-        $global:UserAlias = $txtAccount.Text
+        $script:UserAlias = $txtAccount.Text
     }
     # Shift times
     Read-ShiftTimesFromUI
     # Work days
-    $global:WorkDays = Read-WorkDaysFromUI
+    $script:WorkDays = Read-WorkDaysFromUI
     Export-AppConfiguration
     Update-StatusBar "All settings saved"
     Show-InfoDialog "Saved" "All configuration settings have been saved."
@@ -1142,7 +1142,7 @@ $btnStateScheduled.Add_Click({
         Ensure-ExchangeConnection
         Update-StatusBar "Setting auto reply to Scheduled..."
         Read-ShiftTimesFromUI
-        $global:WorkDays = Read-WorkDaysFromUI
+        $script:WorkDays = Read-WorkDaysFromUI
         Set-AutoReplyState 'Scheduled'
         Update-StatusBar "Auto reply set to Scheduled"
         Show-InfoDialog "Done" "Auto Reply State set to Scheduled"
@@ -1295,35 +1295,35 @@ $dpReturnDate.Add_SelectedDateChanged($optionReloadHandler)
 
 # Save and reload on Full Name / Role changes
 $txtFullName.Add_TextChanged({
-    $global:FullName = $txtFullName.Text
+    $script:FullName = $txtFullName.Text
     Export-AppConfiguration
     & $optionReloadHandler
 })
 $txtRole.Add_TextChanged({
-    $global:Role = $txtRole.Text
+    $script:Role = $txtRole.Text
     Export-AppConfiguration
     & $optionReloadHandler
 })
 
 # Override Account checkbox: enable/disable account text box
 $chkOverrideAccount.Add_Checked({
-    $global:OverrideAccount = $true
+    $script:OverrideAccount = $true
     $txtAccount.IsEnabled = $true
     Export-AppConfiguration
 })
 $chkOverrideAccount.Add_Unchecked({
-    $global:OverrideAccount = $false
+    $script:OverrideAccount = $false
     $txtAccount.IsEnabled = $false
     # Revert to auto-detected alias
     Resolve-UserAlias
-    $txtAccount.Text = $global:UserAlias
+    $txtAccount.Text = $script:UserAlias
     Export-AppConfiguration
     & $optionReloadHandler
 })
 # Save edited account when user tabs out
 $txtAccount.Add_LostFocus({
     if ($chkOverrideAccount.IsChecked) {
-        $global:UserAlias = $txtAccount.Text
+        $script:UserAlias = $txtAccount.Text
         Export-AppConfiguration
         & $optionReloadHandler
     }
@@ -1484,13 +1484,13 @@ $cmbHoliday.SelectedIndex = 0
 # Holiday selection: set return date and holiday name when a holiday is chosen
 $cmbHoliday.Add_SelectionChanged({
     if ($cmbHoliday.SelectedIndex -le 0) {
-        $global:SelectedHolidayName = ""
+        $script:SelectedHolidayName = ""
         return
     }
     $holiday = $cmbHoliday.SelectedItem.Tag
     if ($null -ne $holiday) {
         $dpReturnDate.SelectedDate = $holiday.ReturnDate
-        $global:SelectedHolidayName = $holiday.Name
+        $script:SelectedHolidayName = $holiday.Name
         Update-StatusBar "Holiday: $($holiday.Name) — Return date set to $($holiday.ReturnDate.ToString('MMMM d, yyyy'))"
     }
 })
