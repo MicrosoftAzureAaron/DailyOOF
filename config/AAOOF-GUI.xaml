@@ -253,18 +253,29 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <TextBox x:Name="txtMessage" Grid.Row="1"
-                             AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
-                             VerticalScrollBarVisibility="Auto" FontSize="12"
-                             FontFamily="Consolas" Padding="8"
-                             BorderBrush="#D0D0D0" BorderThickness="1"/>
+                    <TabControl x:Name="tcMessageView" Grid.Row="1" FontSize="12">
+                        <TabItem Header="  Edit  " FontWeight="SemiBold">
+                            <TextBox x:Name="txtMessage"
+                                     AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" FontSize="12"
+                                     FontFamily="Consolas" Padding="8"
+                                     BorderBrush="#D0D0D0" BorderThickness="1"/>
+                        </TabItem>
+                        <TabItem Header="  Preview  " FontWeight="SemiBold">
+                            <WebBrowser x:Name="wbPreview"/>
+                        </TabItem>
+                    </TabControl>
 
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
-                        <Button x:Name="btnApplyInternal" Content="Apply as Internal Message" Style="{StaticResource PrimaryBtn}"/>
-                        <Button x:Name="btnApplyExternal" Content="Apply as External Message" Style="{StaticResource PrimaryBtn}"/>
-                        <Button x:Name="btnApplyBoth" Content="Apply as Both" Style="{StaticResource PrimaryBtn}"/>
-                        <Button x:Name="btnSaveTemplate" Content="Save to Template File" Style="{StaticResource SecondaryBtn}"/>
-                        <Button x:Name="btnSaveOnlineMsg" Content="Save Online Msg to File" Style="{StaticResource SecondaryBtn}"/>
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="btnApplyInternal" Content="Apply as Internal Message" Style="{StaticResource PrimaryBtn}"/>
+                            <Button x:Name="btnApplyExternal" Content="Apply as External Message" Style="{StaticResource PrimaryBtn}"/>
+                            <Button x:Name="btnApplyBoth" Content="Apply as Both" Style="{StaticResource PrimaryBtn}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="btnSaveTemplate" Content="Save to Template File" Style="{StaticResource SecondaryBtn}"/>
+                            <Button x:Name="btnSaveOnlineMsg" Content="Save Online Msg to File" Style="{StaticResource SecondaryBtn}"/>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </TabItem>

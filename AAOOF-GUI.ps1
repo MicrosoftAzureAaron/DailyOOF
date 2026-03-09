@@ -311,6 +311,8 @@ $btnApplyExternal = $Window.FindName("btnApplyExternal")
 $btnApplyBoth = $Window.FindName("btnApplyBoth")
 $btnSaveTemplate = $Window.FindName("btnSaveTemplate")
 $btnSaveOnlineMsg = $Window.FindName("btnSaveOnlineMsg")
+$tcMessageView = $Window.FindName("tcMessageView")
+$wbPreview = $Window.FindName("wbPreview")
 $txtStatusBar = $Window.FindName("txtStatusBar")
 
 # ===================== Helper: Update Status Bar =====================
@@ -397,6 +399,22 @@ function Get-TemplateFilePath($templateName) {
         "Holiday OOF"  { return Join-Path $ConfigDir "holiday_oof.html" }
         default        { return $null }
     }
+}
+
+function Resolve-TemplatePlaceholders($text) {
+    if ($null -ne $global:StartOfShift -and $null -ne $global:EndOfShift) {
+        $hours = "$($global:StartOfShift.ToString('h:mm tt')) - $($global:EndOfShift.ToString('h:mm tt'))"
+    } else {
+        $hours = "not configured"
+    }
+    if ($global:WorkDays) {
+        $days = ($global:WorkDays -join ', ')
+    } else {
+        $days = "not configured"
+    }
+    $text = $text -replace '\[OFFICE HOURS\]', $hours
+    $text = $text -replace '\[WORK DAYS\]', $days
+    return $text
 }
 
 function Read-WorkDaysFromUI {
@@ -653,7 +671,7 @@ $btnLoadTemplate.Add_Click({
     }
     $path = Get-TemplateFilePath $selected
     if ($path -and (Test-Path $path)) {
-        $txtMessage.Text = Get-Content $path -Raw
+        $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
         Update-Status "Template loaded: $selected"
     } else {
         Show-Error "Not Found" "Template file not found: $path"
@@ -756,13 +774,25 @@ $btnSaveOnlineMsg.Add_Click({
     }
 })
 
+# ===================== HTML Preview Tab Handler =====================
+$tcMessageView.Add_SelectionChanged({
+    if ($tcMessageView.SelectedIndex -eq 1) {
+        # Preview tab selected - render HTML
+        $html = $txtMessage.Text
+        if ([string]::IsNullOrWhiteSpace($html)) {
+            $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
+        }
+        $wbPreview.NavigateToString($html)
+    }
+})
+
 # ===================== Initialize UI =====================
 Import-UIFromConfig
 
 # Load default template into message box
 $defaultTemplate = Get-TemplateFilePath "Normal OOF"
 if (Test-Path $defaultTemplate) {
-    $txtMessage.Text = Get-Content $defaultTemplate -Raw
+    $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $defaultTemplate -Raw)
 }
 
 # ===================== Show the Window =====================
