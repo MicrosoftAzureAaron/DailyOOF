@@ -1083,6 +1083,7 @@ $btnLoadTemplate.Add_Click({
 
 # Re-resolve template when any option checkbox changes
 $optionReloadHandler = {
+    if ($null -eq $cmbTemplate.SelectedItem) { return }
     $selected = $cmbTemplate.SelectedItem.Content
     if ($selected -eq "Custom...") { return }
     $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
@@ -1101,6 +1102,9 @@ $chkIncludeWorkDays.Add_Checked($optionReloadHandler)
 $chkIncludeWorkDays.Add_Unchecked($optionReloadHandler)
 $chkIncludeTimezone.Add_Checked($optionReloadHandler)
 $chkIncludeTimezone.Add_Unchecked($optionReloadHandler)
+
+# Re-resolve template when return date changes (updates [RETURN DATE] placeholder)
+$dpReturnDate.Add_SelectedDateChanged($optionReloadHandler)
 
 # Save and reload on Full Name / Role changes
 $txtFullName.Add_TextChanged({
