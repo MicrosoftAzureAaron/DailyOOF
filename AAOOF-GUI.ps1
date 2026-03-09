@@ -388,14 +388,12 @@ $txtCurrentOOFStatus = $Window.FindName("txtCurrentOOFStatus")
 $txtFullName = $Window.FindName("txtFullName")
 $txtRole = $Window.FindName("txtRole")
 $txtSuffix = $Window.FindName("txtSuffix")
-$btnSaveSuffix = $Window.FindName("btnSaveSuffix")
 $cmbStartHour = $Window.FindName("cmbStartHour")
 $cmbStartMin = $Window.FindName("cmbStartMin")
 $cmbStartAmPm = $Window.FindName("cmbStartAmPm")
 $cmbEndHour = $Window.FindName("cmbEndHour")
 $cmbEndMin = $Window.FindName("cmbEndMin")
 $cmbEndAmPm = $Window.FindName("cmbEndAmPm")
-$btnSaveHours = $Window.FindName("btnSaveHours")
 $chkMon = $Window.FindName("chkMon")
 $chkTue = $Window.FindName("chkTue")
 $chkWed = $Window.FindName("chkWed")
@@ -403,7 +401,6 @@ $chkThu = $Window.FindName("chkThu")
 $chkFri = $Window.FindName("chkFri")
 $chkSat = $Window.FindName("chkSat")
 $chkSun = $Window.FindName("chkSun")
-$btnSaveDays = $Window.FindName("btnSaveDays")
 $btnPresetMF = $Window.FindName("btnPresetMF")
 $btnPresetSunWed = $Window.FindName("btnPresetSunWed")
 $btnPresetWedSat = $Window.FindName("btnPresetWedSat")
@@ -964,31 +961,27 @@ $tcMain.Add_SelectionChanged({
     }
 })
 
-# Save Suffix: Persist the alias domain suffix and recompute the account (unless overridden).
-$btnSaveSuffix.Add_Click({
+# Save All Settings: Read every config field from the UI and persist to config.json.
+$btnSaveAllConfig = $Window.FindName("btnSaveAllConfig")
+$btnSaveAllConfig.Add_Click({
+    # Profile
+    $global:FullName = $txtFullName.Text
+    $global:Role = $txtRole.Text
+    # Suffix & account
     $global:UserAliasSuffix = $txtSuffix.Text
     if (-not $chkOverrideAccount.IsChecked) {
         Resolve-UserAlias
         $txtAccount.Text = $global:UserAlias
+    } else {
+        $global:UserAlias = $txtAccount.Text
     }
-    Export-AppConfiguration
-    Update-StatusBar "Suffix saved: $($global:UserAliasSuffix)"
-})
-
-# Save Office Hours: Read the shift combo boxes and persist to config.
-$btnSaveHours.Add_Click({
+    # Shift times
     Read-ShiftTimesFromUI
-    Export-AppConfiguration
-    Update-StatusBar "Office hours saved: $($global:StartOfShift.ToString('h:mm tt')) - $($global:EndOfShift.ToString('h:mm tt'))"
-    Show-InfoDialog "Saved" "Office hours saved.`nStart: $($global:StartOfShift.ToString('h:mm tt'))`nEnd: $($global:EndOfShift.ToString('h:mm tt'))"
-})
-
-# Save Work Days: Read the checked day checkboxes and persist to config.
-$btnSaveDays.Add_Click({
+    # Work days
     $global:WorkDays = Read-WorkDaysFromUI
     Export-AppConfiguration
-    Update-StatusBar "Work days saved: $($global:WorkDays -join ', ')"
-    Show-InfoDialog "Saved" "Work days saved: $($global:WorkDays -join ', ')"
+    Update-StatusBar "All settings saved"
+    Show-InfoDialog "Saved" "All configuration settings have been saved."
 })
 
 # Work day presets: Quick-fill checkbox groups for common schedules.

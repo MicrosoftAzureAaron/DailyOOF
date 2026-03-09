@@ -181,7 +181,6 @@
                                     <TextBlock Text="Suffix:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="txtSuffix" Width="250" FontSize="13" Text="@microsoft.com" VerticalContentAlignment="Center" Padding="4"/>
                                 </StackPanel>
-                                <Button x:Name="btnSaveSuffix" Content="Save Suffix" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>
 
@@ -201,7 +200,6 @@
                                     <ComboBox x:Name="cmbEndMin" Width="60" FontSize="13" VerticalContentAlignment="Center"/>
                                     <ComboBox x:Name="cmbEndAmPm" Width="60" FontSize="13" VerticalContentAlignment="Center" Margin="4,0,0,0"/>
                                 </StackPanel>
-                                <Button x:Name="btnSaveHours" Content="Save Office Hours" Style="{StaticResource PrimaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>
 
@@ -217,7 +215,6 @@
                                     <CheckBox x:Name="chkSat" Content="Saturday" FontSize="13" Margin="0,0,16,4"/>
                                 </WrapPanel>
                                 <StackPanel Orientation="Horizontal">
-                                    <Button x:Name="btnSaveDays" Content="Save Work Days" Style="{StaticResource PrimaryBtn}"/>
                                     <Button x:Name="btnPresetMF" Content="Mon-Fri" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnPresetSunWed" Content="Sun-Wed" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnPresetWedSat" Content="Wed-Sat" Style="{StaticResource SecondaryBtn}"/>
@@ -244,6 +241,8 @@
                                 <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>
+
+                        <Button x:Name="btnSaveAllConfig" Content="Save All Settings" Style="{StaticResource PrimaryBtn}" FontSize="14" Padding="16,8" HorizontalAlignment="Center" Margin="0,12,0,8"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
