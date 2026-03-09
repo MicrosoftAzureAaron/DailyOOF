@@ -263,6 +263,12 @@ function Set-VacationAutoReply($ReturnDate) {
     Save-AutoReplyConfigToFile
 }
 
+# Disable-VacationAutoReply: Turn off the vacation/extended OOF by setting auto-reply to Disabled.
+function Disable-VacationAutoReply {
+    Set-MailboxAutoReplyConfiguration -Identity $global:UserAlias -AutoReplyState "Disabled"
+    Save-AutoReplyConfigToFile
+}
+
 # Register-DailyScheduledTask: Create a Windows Scheduled Task named 'AAOOF' that
 # runs this script daily with CLI parameter '1'. Requires the script to be running
 # as Administrator; shows a friendly error if not elevated.
@@ -368,6 +374,7 @@ $btnDisconnect = $Window.FindName("btnDisconnect")
 $btnEnableScheduled = $Window.FindName("btnEnableScheduled")
 $dpReturnDate = $Window.FindName("dpReturnDate")
 $btnSetVacation = $Window.FindName("btnSetVacation")
+$btnCancelVacation = $Window.FindName("btnCancelVacation")
 $txtARCState = $Window.FindName("txtARCState")
 $txtARCStart = $Window.FindName("txtARCStart")
 $txtARCEnd = $Window.FindName("txtARCEnd")
@@ -733,6 +740,24 @@ $btnSetVacation.Add_Click({
     catch {
         Show-ErrorDialog "Error" $_.Exception.Message
         Update-StatusBar "Failed to set vacation OOF"
+    }
+})
+
+# Cancel Vacation OOF: Disable the vacation/extended OOF.
+$btnCancelVacation.Add_Click({
+    try {
+        Update-StatusBar "Cancelling vacation OOF..."
+        Disable-VacationAutoReply
+        $arc = Get-AutoReplyConfiguration
+        $txtARCState.Text = $arc.AutoReplyState
+        $txtARCStart.Text = $arc.StartTime.ToString()
+        $txtARCEnd.Text = $arc.EndTime.ToString()
+        Update-StatusBar "Vacation OOF cancelled"
+        Show-InfoDialog "Success" "Vacation OOF has been disabled."
+    }
+    catch {
+        Show-ErrorDialog "Error" $_.Exception.Message
+        Update-StatusBar "Failed to cancel vacation OOF"
     }
 })
 
