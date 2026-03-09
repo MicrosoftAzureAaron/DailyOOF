@@ -18,7 +18,7 @@ The GUI has three tabs:
 #### Quick Actions
 | Action | Description |
 |---|---|
-| **Connect / Disconnect** | Authenticate to Exchange Online using your alias. On connect, the app fetches your current OOF status and OWA email signature. |
+| **Connect / Disconnect** | Authenticate to Exchange Online using your alias. On connect, the app fetches your current OOF status. |
 | **Enable Scheduled Auto Reply** | Sets OOF to *Scheduled* mode using your configured shift hours and work days. The start/end times are calculated automatically based on the current day. |
 | **Set Vacation OOF** | Pick a return date and the app sets a *Scheduled* OOF that disables automatically when you return. |
 | **Refresh Status** | Shows the current Auto Reply state, start time, and end time from Exchange Online. |
@@ -53,14 +53,13 @@ A **Template Options** panel lets you toggle which dynamic content is injected i
 
 | Option | Placeholder | Effect when unchecked |
 |---|---|---|
-| **Include Office Hours** | `[OFFICE HOURS]` | Removes your office hours from the footer |
-| **Include Work Days** | `[WORK DAYS]` | Removes your work days from the footer |
-| **Include Timezone** | `[TIMEZONE]` | Removes the timezone from the footer |
-| **Include Signature** | `[SIGNATURE]` | Removes your OWA email signature from the message |
+| **Include Office Hours** | `[OFFICE HOURS]` | Removes your office hours from the signature block |
+| **Include Work Days** | `[WORK DAYS]` | Removes your work days from the signature block |
+| **Include Timezone** | `[TIMEZONE]` | Removes the timezone from the signature block |
 
-> If all three footer options (Office Hours, Work Days, Timezone) are unchecked, the entire footer line is removed.
+> Toggling any option immediately re-renders the template in the editor and preview.
 
-> The signature is fetched automatically from Exchange Online when you connect. If no OWA signature is configured, the checkbox is unchecked automatically and a notice is shown in the status bar.
+> **Signature note:** The signature is auto-generated from your Windows username and email alias. The display name is derived by splitting your alias (e.g. `aarosanders` → `Aaro Sanders`). Because the split is a best guess, **double-check that your name appears correctly** in the preview before applying. If it's wrong, you can edit it directly in the Edit tab.
 
 ##### Edit & Preview
 - **Edit tab** — View and hand-edit the raw HTML source
@@ -134,4 +133,4 @@ You can edit the HTML template files directly or create your own. Supported plac
 | `[WORK DAYS]` | Your configured work days (e.g. `Monday, Tuesday, Wednesday, Thursday, Friday`) |
 | `[TIMEZONE]` | Your local timezone display name |
 | `[RETURN DATE]` | The return date selected in the Vacation date picker |
-| `[SIGNATURE]` | Your OWA email signature HTML (fetched from Exchange Online on connect) |
+| `[SIGNATURE]` | Auto-generated signature block: display name, office hours/timezone/work days, and email address |
