@@ -583,7 +583,9 @@ function Resolve-TemplatePlaceholders($text) {
             $detailParts += [System.TimeZoneInfo]::Local.DisplayName
         }
         if ($chkIncludeWorkDays.IsChecked -and $global:WorkDays) {
-            $detailParts += ($global:WorkDays -join ', ')
+            $weekOrder = @('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')
+            $sorted = $global:WorkDays | Sort-Object { $weekOrder.IndexOf($_) }
+            $detailParts += ($sorted -join ', ')
         }
         if ($detailParts.Count -gt 0) {
             $sigLines += "<p style='color: #555; font-size: 10pt;'>$($detailParts -join ' | ')</p>"
