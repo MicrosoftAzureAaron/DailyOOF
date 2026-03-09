@@ -22,6 +22,7 @@ The GUI has three tabs:
 | **Enable Scheduled Auto Reply** | Sets OOF to *Scheduled* mode using your configured shift hours and work days. The start/end times are calculated automatically based on the current day. |
 | **Set Vacation OOF** | Pick a return date and the app sets a *Scheduled* OOF that disables automatically when you return. |
 | **Refresh Status** | Shows the current Auto Reply state, start time, and end time from Exchange Online. |
+| **View Current Message** | Fetches the current OOF message from Exchange Online and loads it into the message editor. |
 
 ---
 
@@ -32,7 +33,7 @@ The GUI has three tabs:
 | **Office Hours** | Start and end times for your shift. Used for OOF scheduling and the `[OFFICE HOURS]` template placeholder. |
 | **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). |
 | **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
-| **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start (requires admin). |
+| **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start. If not running as admin, the app will prompt for elevation via UAC. |
 
 ---
 
@@ -53,6 +54,7 @@ A **Template Options** panel lets you toggle which dynamic content is injected i
 
 | Option | Placeholder | Effect when unchecked |
 |---|---|---|
+| **Include Signature** | `[SIGNATURE]` | Removes the auto-generated signature block (name, details, email) |
 | **Include Office Hours** | `[OFFICE HOURS]` | Removes your office hours from the signature block |
 | **Include Work Days** | `[WORK DAYS]` | Removes your work days from the signature block |
 | **Include Timezone** | `[TIMEZONE]` | Removes the timezone from the signature block |
@@ -80,8 +82,7 @@ A **Template Options** panel lets you toggle which dynamic content is injected i
 For automation and scheduled tasks:
 
 ```powershell
-# Daily scheduled auto-reply (uses saved config)
-.\AAOOF-GUI.ps1 1
+# Daily scheduled auto-reply (uses saved config)# Skips if a vacation/extended OOF is active.\AAOOF-GUI.ps1 1
 
 # Vacation mode until a specific date
 .\AAOOF-GUI.ps1 '2026/04/14'

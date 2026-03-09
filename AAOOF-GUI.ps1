@@ -351,6 +351,7 @@ $btnApplyExternal = $Window.FindName("btnApplyExternal")
 $btnApplyBoth = $Window.FindName("btnApplyBoth")
 $btnSaveTemplate = $Window.FindName("btnSaveTemplate")
 $btnSaveOnlineMsg = $Window.FindName("btnSaveOnlineMsg")
+$chkIncludeSignature = $Window.FindName("chkIncludeSignature")
 $chkIncludeOfficeHours = $Window.FindName("chkIncludeOfficeHours")
 $chkIncludeWorkDays = $Window.FindName("chkIncludeWorkDays")
 $chkIncludeTimezone = $Window.FindName("chkIncludeTimezone")
@@ -450,47 +451,49 @@ function Resolve-TemplatePlaceholders($text) {
         $text = $text -replace '\[RETURN DATE\]', $dpReturnDate.SelectedDate.ToString('MMMM d, yyyy')
     }
 
-    # Auto-generate signature block
-    $sigLines = @()
-    # Derive display name from alias (aarosanders@microsoft.com -> Aaron Sanders)
-    $aliasLocal = ($global:UserAlias -split '@')[0]
-    if ($aliasLocal) {
-        # Try common patterns: first.last, firstlast (split on dots or camelCase boundary)
-        if ($aliasLocal -match '\.' ) {
-            $nameParts = $aliasLocal -split '\.'
+    # Auto-generate signature block (or strip placeholder if unchecked)
+    if ($chkIncludeSignature.IsChecked) {
+        $sigLines = @()
+        # Derive display name from alias (aarosanders@microsoft.com -> Aaron Sanders)
+        $aliasLocal = ($global:UserAlias -split '@')[0]
+        if ($aliasLocal) {
+            if ($aliasLocal -match '\.' ) {
+                $nameParts = $aliasLocal -split '\.'
+            } else {
+                $nameParts = [regex]::Split($aliasLocal, '(?<=[a-z])(?=[A-Z])')
+            }
+            $displayName = ($nameParts | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_.ToLower()) }) -join ' '
         } else {
-            # Split at lowercase-to-uppercase boundary (e.g., aaronSanders)
-            $nameParts = [regex]::Split($aliasLocal, '(?<=[a-z])(?=[A-Z])')
+            $displayName = $env:USERNAME
         }
-        $displayName = ($nameParts | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_.ToLower()) }) -join ' '
+        $sigLines += "<p><b>Best Regards,</b><br/>"
+        $sigLines += "$displayName</p>"
+
+        # Office details line
+        $detailParts = @()
+        if ($chkIncludeOfficeHours.IsChecked -and $null -ne $global:StartOfShift -and $null -ne $global:EndOfShift) {
+            $detailParts += "$($global:StartOfShift.ToString('h:mm tt')) - $($global:EndOfShift.ToString('h:mm tt'))"
+        }
+        if ($chkIncludeTimezone.IsChecked) {
+            $detailParts += [System.TimeZoneInfo]::Local.DisplayName
+        }
+        if ($chkIncludeWorkDays.IsChecked -and $global:WorkDays) {
+            $detailParts += ($global:WorkDays -join ', ')
+        }
+        if ($detailParts.Count -gt 0) {
+            $sigLines += "<p style='color: #555; font-size: 10pt;'>$($detailParts -join ' | ')</p>"
+        }
+
+        # Email
+        if (![string]::IsNullOrWhiteSpace($global:UserAlias)) {
+            $sigLines += "<p><a href='mailto:$($global:UserAlias)'>$($global:UserAlias)</a></p>"
+        }
+
+        $signatureHtml = $sigLines -join "`n"
+        $text = $text -replace '\[SIGNATURE\]', $signatureHtml
     } else {
-        $displayName = $env:USERNAME
+        $text = $text -replace '(?m)^\s*\[SIGNATURE\]\s*\r?\n?', ''
     }
-    $sigLines += "<p><b>Best Regards,</b><br/>"
-    $sigLines += "$displayName</p>"
-
-    # Office details line
-    $detailParts = @()
-    if ($chkIncludeOfficeHours.IsChecked -and $null -ne $global:StartOfShift -and $null -ne $global:EndOfShift) {
-        $detailParts += "$($global:StartOfShift.ToString('h:mm tt')) - $($global:EndOfShift.ToString('h:mm tt'))"
-    }
-    if ($chkIncludeTimezone.IsChecked) {
-        $detailParts += [System.TimeZoneInfo]::Local.DisplayName
-    }
-    if ($chkIncludeWorkDays.IsChecked -and $global:WorkDays) {
-        $detailParts += ($global:WorkDays -join ', ')
-    }
-    if ($detailParts.Count -gt 0) {
-        $sigLines += "<p style='color: #555; font-size: 10pt;'>$($detailParts -join ' | ')</p>"
-    }
-
-    # Email
-    if (![string]::IsNullOrWhiteSpace($global:UserAlias)) {
-        $sigLines += "<p><a href='mailto:$($global:UserAlias)'>$($global:UserAlias)</a></p>"
-    }
-
-    $signatureHtml = $sigLines -join "`n"
-    $text = $text -replace '\[SIGNATURE\]', $signatureHtml
     return $text
 }
 
@@ -864,6 +867,8 @@ $optionReloadHandler = {
         $wbPreview.NavigateToString($txtMessage.Text)
     }
 }
+$chkIncludeSignature.Add_Checked($optionReloadHandler)
+$chkIncludeSignature.Add_Unchecked($optionReloadHandler)
 $chkIncludeOfficeHours.Add_Checked($optionReloadHandler)
 $chkIncludeOfficeHours.Add_Unchecked($optionReloadHandler)
 $chkIncludeWorkDays.Add_Checked($optionReloadHandler)

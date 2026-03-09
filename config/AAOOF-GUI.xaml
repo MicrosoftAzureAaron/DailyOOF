@@ -259,6 +259,7 @@
 
                     <GroupBox Grid.Row="1" Header="Template Options" Margin="0,0,0,8" Padding="8,4">
                         <WrapPanel>
+                            <CheckBox x:Name="chkIncludeSignature" Content="Include Signature" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
                             <CheckBox x:Name="chkIncludeOfficeHours" Content="Include Office Hours" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
                             <CheckBox x:Name="chkIncludeWorkDays" Content="Include Work Days" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
                             <CheckBox x:Name="chkIncludeTimezone" Content="Include Timezone" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
