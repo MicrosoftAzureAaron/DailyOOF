@@ -221,7 +221,24 @@ function Set-DailyScriptTask {
         $TriggerTime = $global:StartOfShift.TimeOfDay
         $TriggerTime = $date.AddMinutes(15) + $TriggerTime
         $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
-        Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -RunLevel Highest
+
+        try {
+            Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -RunLevel Highest -ErrorAction Stop
+        }
+        catch {
+            # Not running as admin — elevate and retry
+            $triggerTimeStr = $TriggerTime.ToString("o")
+            $elevatedCmd = @"
+\`$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '`"$scriptPath`" 1'
+\`$trigger = New-ScheduledTaskTrigger -Daily -At '$triggerTimeStr'
+Register-ScheduledTask -TaskName '$taskname' -Trigger \`$trigger -Action \`$action -RunLevel Highest -ErrorAction Stop
+"@
+            $encodedCmd = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($elevatedCmd))
+            $proc = Start-Process powershell.exe -ArgumentList "-NoProfile -EncodedCommand $encodedCmd" -Verb RunAs -Wait -PassThru
+            if ($proc.ExitCode -ne 0) {
+                throw "Scheduled task creation failed even after elevation."
+            }
+        }
         return $true
     }
     return $false
@@ -246,6 +263,18 @@ if ($InputParm) {
             exit
         }
         Get-EXOConnection
+
+        # Skip if a vacation/extended OOF is active (end time is more than 1 day out)
+        $arc = Get-ARC
+        if ($arc.AutoReplyState -eq 'Scheduled') {
+            $endTime = [datetime]$arc.EndTime
+            if ($endTime -gt (Get-Date).AddDays(1)) {
+                Write-Host "Vacation/extended OOF is active until $endTime — skipping daily update." -ForegroundColor Yellow
+                Set-EXODisconnect
+                exit
+            }
+        }
+
         Set-ARCState 'Scheduled'
         $arc = Get-ARC
         Write-Host "Auto Reply: $($arc.AutoReplyState) | Start: $($arc.StartTime) | End: $($arc.EndTime)"
