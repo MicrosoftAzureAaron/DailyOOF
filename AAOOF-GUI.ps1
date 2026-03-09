@@ -44,6 +44,9 @@ $global:EndOfShift = $null
 $global:WorkDays = $null
 $global:UserAlias = ""
 $global:UserAliasSuffix = "@microsoft.com"
+$global:FullName = ""
+$global:Role = "Azure Support Engineer"
+$global:OverrideAccount = $false
 
 function Import-ConfigFromFile {
     if (Test-Path $ConfigFile) {
@@ -53,6 +56,9 @@ function Import-ConfigFromFile {
         if ($cfg.WorkDays)        { $global:WorkDays = @($cfg.WorkDays) }
         if ($cfg.UserAlias)       { $global:UserAlias = $cfg.UserAlias }
         if ($cfg.UserAliasSuffix) { $global:UserAliasSuffix = $cfg.UserAliasSuffix }
+        if ($cfg.FullName)        { $global:FullName = $cfg.FullName }
+        if ($cfg.Role)            { $global:Role = $cfg.Role }
+        if ($null -ne $cfg.OverrideAccount) { $global:OverrideAccount = [bool]$cfg.OverrideAccount }
     }
 }
 
@@ -250,6 +256,9 @@ function Save-ConfigToFile {
         WorkDays        = $global:WorkDays
         UserAlias       = $global:UserAlias
         UserAliasSuffix = $global:UserAliasSuffix
+        FullName        = $global:FullName
+        Role            = $global:Role
+        OverrideAccount = $global:OverrideAccount
     }
     $cfg | ConvertTo-Json -Depth 5 | Set-Content $ConfigFile -Encoding utf8
 }
@@ -307,6 +316,7 @@ $Window = [Windows.Markup.XamlReader]::Load($reader)
 
 # Get all named controls
 $txtAccount = $Window.FindName("txtAccount")
+$chkOverrideAccount = $Window.FindName("chkOverrideAccount")
 $txtConnectionStatus = $Window.FindName("txtConnectionStatus")
 $btnConnect = $Window.FindName("btnConnect")
 $btnDisconnect = $Window.FindName("btnDisconnect")
@@ -318,6 +328,8 @@ $txtARCStart = $Window.FindName("txtARCStart")
 $txtARCEnd = $Window.FindName("txtARCEnd")
 $btnRefreshStatus = $Window.FindName("btnRefreshStatus")
 $btnViewCurrentMsg = $Window.FindName("btnViewCurrentMsg")
+$txtFullName = $Window.FindName("txtFullName")
+$txtRole = $Window.FindName("txtRole")
 $txtSuffix = $Window.FindName("txtSuffix")
 $btnSaveSuffix = $Window.FindName("btnSaveSuffix")
 $cmbStartHour = $Window.FindName("cmbStartHour")
@@ -380,10 +392,23 @@ function Show-Error($title, $msg) {
 
 # ===================== Load Saved Config into UI =====================
 function Import-UIFromConfig {
+    # Full Name
+    if (![string]::IsNullOrEmpty($global:FullName)) {
+        $txtFullName.Text = $global:FullName
+    }
+    # Role
+    if (![string]::IsNullOrEmpty($global:Role)) {
+        $txtRole.Text = $global:Role
+    } else {
+        $txtRole.Text = "Azure Support Engineer"
+    }
     # Suffix
     if (![string]::IsNullOrEmpty($global:UserAliasSuffix)) {
         $txtSuffix.Text = $global:UserAliasSuffix
     }
+    # Account override checkbox
+    $chkOverrideAccount.IsChecked = $global:OverrideAccount
+    $txtAccount.IsEnabled = $global:OverrideAccount
     # Account
     if (![string]::IsNullOrEmpty($global:UserAlias)) {
         $txtAccount.Text = $global:UserAlias
@@ -451,20 +476,28 @@ function Resolve-TemplatePlaceholders($text) {
         $text = $text -replace '\[RETURN DATE\]', $dpReturnDate.SelectedDate.ToString('MMMM d, yyyy')
     }
 
+    # Replace [ROLE] with the role from the text box
+    $role = if (![string]::IsNullOrWhiteSpace($txtRole.Text)) { $txtRole.Text } else { 'Azure Support Engineer' }
+    $text = $text -replace '\[ROLE\]', $role
+
     # Auto-generate signature block (or strip placeholder if unchecked)
     if ($chkIncludeSignature.IsChecked) {
         $sigLines = @()
-        # Derive display name from alias (aarosanders@microsoft.com -> Aaron Sanders)
-        $aliasLocal = ($global:UserAlias -split '@')[0]
-        if ($aliasLocal) {
-            if ($aliasLocal -match '\.' ) {
-                $nameParts = $aliasLocal -split '\.'
-            } else {
-                $nameParts = [regex]::Split($aliasLocal, '(?<=[a-z])(?=[A-Z])')
-            }
-            $displayName = ($nameParts | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_.ToLower()) }) -join ' '
+        # Use the Full Name text box, fall back to alias-derived name
+        if (![string]::IsNullOrWhiteSpace($txtFullName.Text)) {
+            $displayName = $txtFullName.Text
         } else {
-            $displayName = $env:USERNAME
+            $aliasLocal = ($global:UserAlias -split '@')[0]
+            if ($aliasLocal) {
+                if ($aliasLocal -match '\.' ) {
+                    $nameParts = $aliasLocal -split '\.'
+                } else {
+                    $nameParts = [regex]::Split($aliasLocal, '(?<=[a-z])(?=[A-Z])')
+                }
+                $displayName = ($nameParts | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_.ToLower()) }) -join ' '
+            } else {
+                $displayName = $env:USERNAME
+            }
         }
         $sigLines += "<p><b>Best Regards,</b><br/>"
         $sigLines += "$displayName</p>"
@@ -531,9 +564,13 @@ function Read-ShiftTimesFromUI {
 $btnConnect.Add_Click({
     try {
         Update-Status "Connecting to Exchange Online..."
-        $global:UserAliasSuffix = $txtSuffix.Text
-        Get-UserAlias
-        $txtAccount.Text = $global:UserAlias
+        if (-not $chkOverrideAccount.IsChecked) {
+            $global:UserAliasSuffix = $txtSuffix.Text
+            Get-UserAlias
+            $txtAccount.Text = $global:UserAlias
+        } else {
+            $global:UserAlias = $txtAccount.Text
+        }
         Get-EXOConnection
         $txtConnectionStatus.Text = "Connected"
         $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
@@ -668,8 +705,10 @@ $btnViewCurrentMsg.Add_Click({
 # Save Suffix
 $btnSaveSuffix.Add_Click({
     $global:UserAliasSuffix = $txtSuffix.Text
-    Get-UserAlias
-    $txtAccount.Text = $global:UserAlias
+    if (-not $chkOverrideAccount.IsChecked) {
+        Get-UserAlias
+        $txtAccount.Text = $global:UserAlias
+    }
     Save-ConfigToFile
     Update-Status "Suffix saved: $($global:UserAliasSuffix)"
 })
@@ -875,6 +914,42 @@ $chkIncludeWorkDays.Add_Checked($optionReloadHandler)
 $chkIncludeWorkDays.Add_Unchecked($optionReloadHandler)
 $chkIncludeTimezone.Add_Checked($optionReloadHandler)
 $chkIncludeTimezone.Add_Unchecked($optionReloadHandler)
+
+# Save and reload on Full Name / Role changes
+$txtFullName.Add_LostFocus({
+    $global:FullName = $txtFullName.Text
+    Save-ConfigToFile
+    & $optionReloadHandler
+})
+$txtRole.Add_LostFocus({
+    $global:Role = $txtRole.Text
+    Save-ConfigToFile
+    & $optionReloadHandler
+})
+
+# Override Account checkbox: enable/disable account text box
+$chkOverrideAccount.Add_Checked({
+    $global:OverrideAccount = $true
+    $txtAccount.IsEnabled = $true
+    Save-ConfigToFile
+})
+$chkOverrideAccount.Add_Unchecked({
+    $global:OverrideAccount = $false
+    $txtAccount.IsEnabled = $false
+    # Revert to auto-detected alias
+    Get-UserAlias
+    $txtAccount.Text = $global:UserAlias
+    Save-ConfigToFile
+    & $optionReloadHandler
+})
+# Save edited account when user tabs out
+$txtAccount.Add_LostFocus({
+    if ($chkOverrideAccount.IsChecked) {
+        $global:UserAlias = $txtAccount.Text
+        Save-ConfigToFile
+        & $optionReloadHandler
+    }
+})
 
 # Browse File
 $btnBrowseFile.Add_Click({

@@ -96,13 +96,21 @@
                     <StackPanel>
                         <GroupBox Header="Connection">
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <TextBlock Text="Account: " FontSize="13" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtAccount" Text="(not set)" FontSize="13" FontWeight="Bold" Foreground="#0078D4" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <CheckBox x:Name="chkOverrideAccount" Content="Override Account:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="txtAccount" Text="(not set)" Width="280" FontSize="13" FontWeight="Bold" Foreground="#0078D4" VerticalContentAlignment="Center" IsEnabled="False"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                     <TextBlock Text="Status: " FontSize="13" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="txtConnectionStatus" Text="Disconnected" FontSize="13" Foreground="#D83B01" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                    <TextBlock Text="Full Name: " FontSize="13" VerticalAlignment="Center" Width="80"/>
+                                    <TextBox x:Name="txtFullName" Width="220" FontSize="13" VerticalContentAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Role: " FontSize="13" VerticalAlignment="Center" Width="80"/>
+                                    <TextBox x:Name="txtRole" Width="220" FontSize="13" VerticalContentAlignment="Center"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <Button x:Name="btnConnect" Content="Connect to Exchange Online" Style="{StaticResource PrimaryBtn}"/>
