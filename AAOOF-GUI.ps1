@@ -455,10 +455,11 @@ function Resolve-TemplatePlaceholders($text) {
         $text = $text -replace '(?m)^\s*<p[^>]*>My regular office hours are\s*(<b>\s*</b>\s*)*\.?\s*</p>\s*\r?\n?', ''
     }
 
-    # Signature — include or strip
+    # Signature — include or strip (also remove "Best regards" when signature is excluded)
     if ($chkIncludeSignature.IsChecked -and ![string]::IsNullOrWhiteSpace($global:UserSignature)) {
         $text = $text -replace '\[SIGNATURE\]', $global:UserSignature
     } else {
+        $text = $text -replace '(?m)^\s*<p>\s*Best regards\s*</p>\s*\r?\n?', ''
         $text = $text -replace '(?m)^\s*\[SIGNATURE\]\s*\r?\n?', ''
     }
     return $text
@@ -773,6 +774,27 @@ $btnLoadTemplate.Add_Click({
         Update-Status "Template file not found"
     }
 })
+
+# Re-resolve template when any option checkbox changes
+$optionReloadHandler = {
+    $selected = $cmbTemplate.SelectedItem.Content
+    if ($selected -eq "Custom...") { return }
+    $path = Get-TemplateFilePath $selected
+    if ($path -and (Test-Path $path)) {
+        $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+        if ($tcMessageView.SelectedIndex -eq 1) {
+            $wbPreview.NavigateToString($txtMessage.Text)
+        }
+    }
+}
+$chkIncludeSignature.Add_Checked($optionReloadHandler)
+$chkIncludeSignature.Add_Unchecked($optionReloadHandler)
+$chkIncludeOfficeHours.Add_Checked($optionReloadHandler)
+$chkIncludeOfficeHours.Add_Unchecked($optionReloadHandler)
+$chkIncludeWorkDays.Add_Checked($optionReloadHandler)
+$chkIncludeWorkDays.Add_Unchecked($optionReloadHandler)
+$chkIncludeTimezone.Add_Checked($optionReloadHandler)
+$chkIncludeTimezone.Add_Unchecked($optionReloadHandler)
 
 # Browse File
 $btnBrowseFile.Add_Click({
