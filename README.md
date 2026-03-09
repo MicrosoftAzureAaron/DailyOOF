@@ -2,6 +2,32 @@
 
 A PowerShell WPF GUI application that automates Exchange Online Out of Office (OOF) message management. Built for Azure Support Engineers but usable by anyone with an Exchange Online mailbox.
 
+---
+
+## Screenshots
+
+### Quick Actions
+<!-- TODO: Add screenshot of the Quick Actions tab -->
+![Quick Actions Tab](screenshots/quick-actions.png)
+
+### Configuration
+<!-- TODO: Add screenshot of the Configuration tab -->
+![Configuration Tab](screenshots/configuration.png)
+
+### Message Templates — Edit
+<!-- TODO: Add screenshot of the Message Templates tab (Edit sub-tab) -->
+![Message Templates — Edit](screenshots/message-templates-edit.png)
+
+### Message Templates — Preview
+<!-- TODO: Add screenshot of the Message Templates tab (Preview sub-tab) -->
+![Message Templates — Preview](screenshots/message-templates-preview.png)
+
+### Current OOF
+<!-- TODO: Add screenshot of the Current OOF tab -->
+![Current OOF Tab](screenshots/current-oof.png)
+
+---
+
 ## Features
 
 ### GUI Mode
@@ -11,7 +37,7 @@ Launch the app with no arguments to open the full graphical interface:
 .\AAOOF-GUI.ps1
 ```
 
-The GUI has three tabs:
+The GUI has four tabs:
 
 ---
 
@@ -29,8 +55,11 @@ The GUI has three tabs:
 #### Configuration
 | Setting | Description |
 |---|---|
+| **Full Name** | Your display name for the auto-generated signature. Changes are saved and applied to templates immediately. |
+| **Role** | Your job title (default: `Azure Support Engineer`). Inserted into templates via the `[ROLE]` placeholder. |
 | **Email Suffix** | Your email domain suffix (default `@microsoft.com`). Combined with your Windows username to form the mailbox identity. |
-| **Office Hours** | Start and end times for your shift. Used for OOF scheduling and the `[OFFICE HOURS]` template placeholder. |
+| **Override Account** | Manually set your full email address instead of using auto-detection. |
+| **Office Hours** | Start and end times for your shift. Used for OOF scheduling and the signature's office-hours line. |
 | **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). |
 | **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
 | **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start. If not running as admin, the app will prompt for elevation via UAC. |
@@ -55,13 +84,13 @@ A **Template Options** panel lets you toggle which dynamic content is injected i
 | Option | Placeholder | Effect when unchecked |
 |---|---|---|
 | **Include Signature** | `[SIGNATURE]` | Removes the auto-generated signature block (name, details, email) |
-| **Include Office Hours** | `[OFFICE HOURS]` | Removes your office hours from the signature block |
-| **Include Work Days** | `[WORK DAYS]` | Removes your work days from the signature block |
-| **Include Timezone** | `[TIMEZONE]` | Removes the timezone from the signature block |
+| **Include Office Hours** | — | Removes your office hours from the signature block |
+| **Include Work Days** | — | Removes your work days from the signature block |
+| **Include Timezone** | — | Removes the timezone from the signature block |
 
 > Toggling any option immediately re-renders the template in the editor and preview.
 
-> **Signature note:** The signature is auto-generated from your Windows username and email alias. The display name is derived by splitting your alias (e.g. `aarosanders` → `Aaro Sanders`). Because the split is a best guess, **double-check that your name appears correctly** in the preview before applying. If it's wrong, you can edit it directly in the Edit tab.
+> **Signature note:** The signature is auto-generated from your Full Name field (or derived from your Windows username if blank). Because the auto-derived name is a best guess, **double-check that your name appears correctly** in the preview before applying, or enter your name in the Full Name field on the Configuration tab.
 
 ##### Edit & Preview
 - **Edit tab** — View and hand-edit the raw HTML source
@@ -78,11 +107,23 @@ A **Template Options** panel lets you toggle which dynamic content is injected i
 
 ---
 
+#### Current OOF
+View your live auto-reply message as it appears to senders, rendered in an embedded browser control.
+
+| Action | Description |
+|---|---|
+| **Refresh** | Re-fetches the current OOF message from Exchange Online and renders it. Auto-reconnects if the session has expired. |
+| **Status indicator** | Shows the current auto-reply state (Enabled / Disabled / Scheduled) and last-refreshed timestamp. |
+
+---
+
 ### CLI Mode
 For automation and scheduled tasks:
 
 ```powershell
-# Daily scheduled auto-reply (uses saved config)# Skips if a vacation/extended OOF is active.\AAOOF-GUI.ps1 1
+# Daily scheduled auto-reply (uses saved config)
+# Skips if a vacation/extended OOF is active.
+.\AAOOF-GUI.ps1 1
 
 # Vacation mode until a specific date
 .\AAOOF-GUI.ps1 '2026/04/14'
@@ -93,8 +134,8 @@ For automation and scheduled tasks:
 ## Getting Started
 
 ### Prerequisites
-- **PowerShell 5.1+** (Windows PowerShell)
-- **Exchange Online Management** module (auto-installed on first connect if missing)
+- **PowerShell 5.1+** (Windows PowerShell) or **PowerShell 7+**
+- **Exchange Online Management** module (prompted to install on first connect if missing)
 - An Exchange Online mailbox
 
 ### Installation
@@ -115,14 +156,15 @@ All configuration is stored in the `config/` folder:
 
 | File | Purpose |
 |---|---|
-| `config.json` | User settings: shift times, work days, alias, suffix (gitignored) |
-| `AAOOF-GUI.xaml` | WPF UI layout |
+| `config.json` | User settings: shift times, work days, alias, name, role, suffix (gitignored) |
+| `AAOOF-GUI.xaml` | WPF UI layout (auto-downloaded if missing) |
 | `normal_oof.html` | Normal OOF template |
 | `vacation_oof.html` | Vacation OOF template |
 | `sick_oof.html` | Sick OOF template |
 | `holiday_oof.html` | Holiday OOF template |
 | `message.html` | Last-applied message (gitignored) |
 | `message.html.bak` | Auto-backup of previous message (gitignored) |
+| `AutoReplyConfig.json` | Cached Exchange auto-reply config (gitignored) |
 
 ### Custom Templates
 
@@ -130,8 +172,6 @@ You can edit the HTML template files directly or create your own. Supported plac
 
 | Placeholder | Replaced with |
 |---|---|
-| `[OFFICE HOURS]` | Your configured shift start – end times (e.g. `8:00 AM - 5:00 PM`) |
-| `[WORK DAYS]` | Your configured work days (e.g. `Monday, Tuesday, Wednesday, Thursday, Friday`) |
-| `[TIMEZONE]` | Your local timezone display name |
+| `[ROLE]` | Your configured role / job title |
 | `[RETURN DATE]` | The return date selected in the Vacation date picker |
-| `[SIGNATURE]` | Auto-generated signature block: display name, office hours/timezone/work days, and email address |
+| `[SIGNATURE]` | Auto-generated signature block: greeting, display name, office hours/timezone/work days, and email link |
