@@ -189,13 +189,13 @@
                         <GroupBox Header="Work Days">
                             <StackPanel>
                                 <WrapPanel Margin="0,0,0,8">
+                                    <CheckBox x:Name="chkSun" Content="Sunday" FontSize="13" Margin="0,0,16,4"/>
                                     <CheckBox x:Name="chkMon" Content="Monday" FontSize="13" Margin="0,0,16,4"/>
                                     <CheckBox x:Name="chkTue" Content="Tuesday" FontSize="13" Margin="0,0,16,4"/>
                                     <CheckBox x:Name="chkWed" Content="Wednesday" FontSize="13" Margin="0,0,16,4"/>
                                     <CheckBox x:Name="chkThu" Content="Thursday" FontSize="13" Margin="0,0,16,4"/>
                                     <CheckBox x:Name="chkFri" Content="Friday" FontSize="13" Margin="0,0,16,4"/>
                                     <CheckBox x:Name="chkSat" Content="Saturday" FontSize="13" Margin="0,0,16,4"/>
-                                    <CheckBox x:Name="chkSun" Content="Sunday" FontSize="13" Margin="0,0,16,4"/>
                                 </WrapPanel>
                                 <StackPanel Orientation="Horizontal">
                                     <Button x:Name="btnSaveDays" Content="Save Work Days" Style="{StaticResource PrimaryBtn}"/>
@@ -232,6 +232,7 @@
                 <Grid Margin="15">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
@@ -253,7 +254,16 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <TabControl x:Name="tcMessageView" Grid.Row="1" FontSize="12">
+                    <GroupBox Grid.Row="1" Header="Template Options" Margin="0,0,0,8" Padding="8,4">
+                        <WrapPanel>
+                            <CheckBox x:Name="chkIncludeSignature" Content="Include Signature" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                            <CheckBox x:Name="chkIncludeOfficeHours" Content="Include Office Hours" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                            <CheckBox x:Name="chkIncludeWorkDays" Content="Include Work Days" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                            <CheckBox x:Name="chkIncludeTimezone" Content="Include Timezone" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                        </WrapPanel>
+                    </GroupBox>
+
+                    <TabControl x:Name="tcMessageView" Grid.Row="2" FontSize="12">
                         <TabItem Header="  Edit  " FontWeight="SemiBold">
                             <TextBox x:Name="txtMessage"
                                      AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
@@ -266,7 +276,7 @@
                         </TabItem>
                     </TabControl>
 
-                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                    <StackPanel Grid.Row="3" Margin="0,10,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="btnApplyInternal" Content="Apply as Internal Message" Style="{StaticResource PrimaryBtn}"/>
                             <Button x:Name="btnApplyExternal" Content="Apply as External Message" Style="{StaticResource PrimaryBtn}"/>

@@ -1,65 +1,137 @@
-﻿# First Run
-Git Clone this repo to a folder and run the Script
-- Example c:\tools\DailyOOF  
-  
-` mkdir c:\tools\`  
-` cd c:\tools\`  
-` git clone https://github.com/MicrosoftAzureAaron/DailyOOF`  
-` cd DailyOOF`  
-` .\aaoof.ps1`  
+﻿# Daily OOF — Out of Office Automation for Exchange Online
 
-The first time you run the script it will ask for your input and save the values to your script file
+A PowerShell WPF GUI application that automates Exchange Online Out of Office (OOF) message management. Built for Azure Support Engineers but usable by anyone with an Exchange Online mailbox.
 
-- $global:StartOfShift = $null
-- $global:EndOfShift = $null
-- $global:WorkDays = $null
+## Features
 
-After configuring the above during the first run, you can run the script with CLI commands to automate the oof configuration.  
+### GUI Mode
+Launch the app with no arguments to open the full graphical interface:
 
-I suggest you run once the script once a day after the start of your shift. Or use option 6 from an admin terminal to create a scheduled task to run the script with option 1, 15 minutes after the start of your shift. You need to have one the script once with no options and set the start time, end time, and days of the week you work, which are saved to the script file in the above global variables<br><br>
-` .\aaoof.ps1 6`<br>
+```powershell
+.\AAOOF-GUI.ps1
+```
 
-# CLI examples
+The GUI has three tabs:
 
-Run with 1 for default options based on stored values, run once a day to set your oof message times automatically
+---
 
-`.\aaoof.ps1 1`
+#### Quick Actions
+| Action | Description |
+|---|---|
+| **Connect / Disconnect** | Authenticate to Exchange Online using your alias. On connect, the app fetches your current OOF status and OWA email signature. |
+| **Enable Scheduled Auto Reply** | Sets OOF to *Scheduled* mode using your configured shift hours and work days. The start/end times are calculated automatically based on the current day. |
+| **Set Vacation OOF** | Pick a return date and the app sets a *Scheduled* OOF that disables automatically when you return. |
+| **Refresh Status** | Shows the current Auto Reply state, start time, and end time from Exchange Online. |
 
-Run with a Date for vacation mode, run once and leave for vacation OOF will turn off when you get back
+---
 
-`.\aaoof.ps1 '4044/04/04'`
+#### Configuration
+| Setting | Description |
+|---|---|
+| **Email Suffix** | Your email domain suffix (default `@microsoft.com`). Combined with your Windows username to form the mailbox identity. |
+| **Office Hours** | Start and end times for your shift. Used for OOF scheduling and the `[OFFICE HOURS]` template placeholder. |
+| **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). |
+| **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
+| **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start (requires admin). |
 
-Run with nothing for menu
+---
 
-`.\aaoof.ps1`
-<br>
-# Example Menu
-================ Email Out of Office Automation ================  
-Current account is  
-1: Press '1' Enable Scheduled Auto Reply and Quit  
-2: Press '2' To set an end date for a extended out of office message  
-<br>
-================ Configure the Script Defaults ================  
-3: Press '3' To set your office hours and save to script   
-4: Press '4' To set your work days and save to script  
-<br>
-================ Configure the Auto Reply Settings ================  
-5: Press '5' To set the Auto Reply state to Enable:Disable:Scheduled  
-6: Press '6' To set a Schedule Task to run the 'AAOOF.ps1 1' 15 minutes after the start of your shift daily  
-<br>
-================ Configure the Auto Reply Message ================  
-9: Press '9' Save the current Auto Reply Message to File  
-0: Press '0' Load an Auto Reply Message to File  
-<br>
-Q: Press 'Q' to quit.<br>
-<br><br><br>
-# TO ADD:
+#### Message Templates
+Choose from four built-in HTML templates or load your own:
 
-- remove unused functions
-- save message to html file for local loading
-- load message from file function
-- Pre saved messages - load from html file
-  - normal oof
-  - vacation oof
-  - sick oof
-  - holiday oof
+| Template | Description |
+|---|---|
+| **Normal OOF** | Standard out-of-office message (blue header) |
+| **Vacation OOF** | Vacation message with `[RETURN DATE]` placeholder (green header) |
+| **Sick OOF** | Unexpected absence / illness message (red header) |
+| **Holiday OOF** | Company holiday message with `[RETURN DATE]` placeholder (amber header) |
+
+Templates auto-load when you change the dropdown selection. Your current message is backed up to `message.html.bak` before being replaced.
+
+##### Template Options
+A **Template Options** panel lets you toggle which dynamic content is injected into templates when loaded:
+
+| Option | Placeholder | Effect when unchecked |
+|---|---|---|
+| **Include Office Hours** | `[OFFICE HOURS]` | Removes your office hours from the footer |
+| **Include Work Days** | `[WORK DAYS]` | Removes your work days from the footer |
+| **Include Timezone** | `[TIMEZONE]` | Removes the timezone from the footer |
+| **Include Signature** | `[SIGNATURE]` | Removes your OWA email signature from the message |
+
+> If all three footer options (Office Hours, Work Days, Timezone) are unchecked, the entire footer line is removed.
+
+> The signature is fetched automatically from Exchange Online when you connect. If no OWA signature is configured, the checkbox is unchecked automatically and a notice is shown in the status bar.
+
+##### Edit & Preview
+- **Edit tab** — View and hand-edit the raw HTML source
+- **Preview tab** — Rendered HTML preview using a built-in browser control
+
+##### Apply & Save
+| Button | Description |
+|---|---|
+| **Apply as Internal Message** | Sets the message as the internal OOF reply |
+| **Apply as External Message** | Sets the message as the external OOF reply |
+| **Apply as Both** | Sets the message for both internal and external |
+| **Save to Template File** | Overwrites the selected template file with the current editor content |
+| **Save Online Msg to File** | Downloads the current live OOF message from Exchange Online and saves it locally |
+
+---
+
+### CLI Mode
+For automation and scheduled tasks:
+
+```powershell
+# Daily scheduled auto-reply (uses saved config)
+.\AAOOF-GUI.ps1 1
+
+# Vacation mode until a specific date
+.\AAOOF-GUI.ps1 '2026/04/14'
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+- **PowerShell 5.1+** (Windows PowerShell)
+- **Exchange Online Management** module (auto-installed on first connect if missing)
+- An Exchange Online mailbox
+
+### Installation
+
+```powershell
+mkdir c:\tools
+cd c:\tools
+git clone https://github.com/MicrosoftAzureAaron/DailyOOF
+cd DailyOOF
+.\AAOOF-GUI.ps1
+```
+
+On first run the app downloads any missing config files (XAML, templates) from the repository automatically.
+
+### Configuration Files
+
+All configuration is stored in the `config/` folder:
+
+| File | Purpose |
+|---|---|
+| `config.json` | User settings: shift times, work days, alias, suffix (gitignored) |
+| `AAOOF-GUI.xaml` | WPF UI layout |
+| `normal_oof.html` | Normal OOF template |
+| `vacation_oof.html` | Vacation OOF template |
+| `sick_oof.html` | Sick OOF template |
+| `holiday_oof.html` | Holiday OOF template |
+| `message.html` | Last-applied message (gitignored) |
+| `message.html.bak` | Auto-backup of previous message (gitignored) |
+
+### Custom Templates
+
+You can edit the HTML template files directly or create your own. Supported placeholders:
+
+| Placeholder | Replaced with |
+|---|---|
+| `[OFFICE HOURS]` | Your configured shift start – end times (e.g. `8:00 AM - 5:00 PM`) |
+| `[WORK DAYS]` | Your configured work days (e.g. `Monday, Tuesday, Wednesday, Thursday, Friday`) |
+| `[TIMEZONE]` | Your local timezone display name |
+| `[RETURN DATE]` | The return date selected in the Vacation date picker |
+| `[SIGNATURE]` | Your OWA email signature HTML (fetched from Exchange Online on connect) |

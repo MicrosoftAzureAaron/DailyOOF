@@ -44,6 +44,7 @@ $global:EndOfShift = $null
 $global:WorkDays = $null
 $global:UserAlias = ""
 $global:UserAliasSuffix = "@microsoft.com"
+$global:UserSignature = ""
 
 function Import-ConfigFromFile {
     if (Test-Path $ConfigFile) {
@@ -171,7 +172,17 @@ function Get-EXOConnection {
 
     # Check if ExchangeOnlineManagement module is available
     if (!(Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
-        Install-Module -Name ExchangeOnlineManagement -Force -Scope CurrentUser
+        $result = [System.Windows.MessageBox]::Show(
+            "The ExchangeOnlineManagement module is required but not installed.`n`nWould you like to install it now?",
+            "Module Not Found",
+            'YesNo',
+            'Warning'
+        )
+        if ($result -eq 'Yes') {
+            Install-Module -Name ExchangeOnlineManagement -Force -Scope CurrentUser
+        } else {
+            throw "ExchangeOnlineManagement module is required to connect."
+        }
     }
 
     $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
@@ -311,6 +322,10 @@ $btnApplyExternal = $Window.FindName("btnApplyExternal")
 $btnApplyBoth = $Window.FindName("btnApplyBoth")
 $btnSaveTemplate = $Window.FindName("btnSaveTemplate")
 $btnSaveOnlineMsg = $Window.FindName("btnSaveOnlineMsg")
+$chkIncludeSignature = $Window.FindName("chkIncludeSignature")
+$chkIncludeOfficeHours = $Window.FindName("chkIncludeOfficeHours")
+$chkIncludeWorkDays = $Window.FindName("chkIncludeWorkDays")
+$chkIncludeTimezone = $Window.FindName("chkIncludeTimezone")
 $tcMessageView = $Window.FindName("tcMessageView")
 $wbPreview = $Window.FindName("wbPreview")
 $txtStatusBar = $Window.FindName("txtStatusBar")
@@ -412,8 +427,40 @@ function Resolve-TemplatePlaceholders($text) {
     } else {
         $days = "not configured"
     }
-    $text = $text -replace '\[OFFICE HOURS\]', $hours
-    $text = $text -replace '\[WORK DAYS\]', $days
+    $tz = [System.TimeZoneInfo]::Local.DisplayName
+
+    # Office hours — include or strip the entire footer line containing all three tokens
+    if ($chkIncludeOfficeHours.IsChecked) {
+        $text = $text -replace '\[OFFICE HOURS\]', $hours
+    } else {
+        $text = $text -replace '\[OFFICE HOURS\]', ''
+    }
+
+    # Work days
+    if ($chkIncludeWorkDays.IsChecked) {
+        $text = $text -replace '\[WORK DAYS\]', $days
+    } else {
+        $text = $text -replace '\[WORK DAYS\]', ''
+    }
+
+    # Timezone
+    if ($chkIncludeTimezone.IsChecked) {
+        $text = $text -replace '\[TIMEZONE\]', $tz
+    } else {
+        $text = $text -replace '\[TIMEZONE\]', ''
+    }
+
+    # If all three footer options are disabled, remove the entire footer line
+    if (!$chkIncludeOfficeHours.IsChecked -and !$chkIncludeWorkDays.IsChecked -and !$chkIncludeTimezone.IsChecked) {
+        $text = $text -replace '(?m)^\s*<p[^>]*>My regular office hours are\s*(<b>\s*</b>\s*)*\.?\s*</p>\s*\r?\n?', ''
+    }
+
+    # Signature — include or strip
+    if ($chkIncludeSignature.IsChecked -and ![string]::IsNullOrWhiteSpace($global:UserSignature)) {
+        $text = $text -replace '\[SIGNATURE\]', $global:UserSignature
+    } else {
+        $text = $text -replace '(?m)^\s*\[SIGNATURE\]\s*\r?\n?', ''
+    }
     return $text
 }
 
@@ -471,6 +518,22 @@ $btnConnect.Add_Click({
                 Save-MessageToFile $savedMsgFile $arc.ExternalMessage
             }
         } catch { }
+
+        # Fetch user's OWA email signature for template placeholder
+        try {
+            $msgConfig = Get-MailboxMessageConfiguration -Identity $global:UserAlias
+            if (![string]::IsNullOrWhiteSpace($msgConfig.SignatureHtml)) {
+                $global:UserSignature = $msgConfig.SignatureHtml
+            } else {
+                $global:UserSignature = ""
+                $chkIncludeSignature.IsChecked = $false
+                Update-Status "Connected as $($global:UserAlias) — No OWA signature found"
+            }
+        } catch {
+            $global:UserSignature = ""
+            $chkIncludeSignature.IsChecked = $false
+            Update-Status "Connected as $($global:UserAlias) — Could not retrieve signature"
+        }
 
         Save-ConfigToFile
         Update-Status "Connected as $($global:UserAlias)"
@@ -661,17 +724,49 @@ $btnCreateTask.Add_Click({
     }
 })
 
-# Load Template
-$btnLoadTemplate.Add_Click({
+# Auto-load template when dropdown selection changes
+$cmbTemplate.Add_SelectionChanged({
     $selected = $cmbTemplate.SelectedItem.Content
     if ($selected -eq "Custom...") {
-        # Will be handled by Browse button
         Update-Status "Use 'Browse File...' to load a custom template"
         return
     }
     $path = Get-TemplateFilePath $selected
     if ($path -and (Test-Path $path)) {
+        # Save current message to backup before overwriting
+        if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
+            $backupFile = Join-Path $ConfigDir "message.html.bak"
+            Save-MessageToFile $backupFile $txtMessage.Text
+        }
         $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+        # Refresh preview if on Preview tab
+        if ($tcMessageView.SelectedIndex -eq 1) {
+            $wbPreview.NavigateToString($txtMessage.Text)
+        }
+        Update-Status "Template loaded: $selected"
+    } else {
+        Show-Error "Not Found" "Template file not found: $path"
+        Update-Status "Template file not found"
+    }
+})
+
+# Load Template button (also loads selected template)
+$btnLoadTemplate.Add_Click({
+    $selected = $cmbTemplate.SelectedItem.Content
+    if ($selected -eq "Custom...") {
+        Update-Status "Use 'Browse File...' to load a custom template"
+        return
+    }
+    $path = Get-TemplateFilePath $selected
+    if ($path -and (Test-Path $path)) {
+        if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
+            $backupFile = Join-Path $ConfigDir "message.html.bak"
+            Save-MessageToFile $backupFile $txtMessage.Text
+        }
+        $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+        if ($tcMessageView.SelectedIndex -eq 1) {
+            $wbPreview.NavigateToString($txtMessage.Text)
+        }
         Update-Status "Template loaded: $selected"
     } else {
         Show-Error "Not Found" "Template file not found: $path"
