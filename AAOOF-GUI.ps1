@@ -264,9 +264,15 @@ function Set-VacationAutoReply($ReturnDate) {
 }
 
 # Register-DailyScheduledTask: Create a Windows Scheduled Task named 'AAOOF' that
-# runs this script daily with CLI parameter '1'. Retries with admin elevation if the
-# initial registration fails, capturing any error to a temp log file for display.
+# runs this script daily with CLI parameter '1'. Requires the script to be running
+# as Administrator; shows a friendly error if not elevated.
 function Register-DailyScheduledTask {
+    # Check for admin privileges before attempting
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        throw "This action requires Administrator privileges.`n`nPlease close the app and re-run the script as Administrator, then try again."
+    }
+
     if (!(Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue)) {
         $scriptPath = Join-Path $ScriptDir "AAOOF-GUI.ps1"
         $taskname = "AAOOF"
@@ -276,35 +282,7 @@ function Register-DailyScheduledTask {
         $TriggerTime = $date.AddMinutes(15) + $TriggerTime
         $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
 
-        try {
-            Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -RunLevel Highest -ErrorAction Stop
-        }
-        catch {
-            # Not running as admin — elevate and retry, capturing errors to a log file
-            $triggerTimeStr = $TriggerTime.ToString("o")
-            $errorLog = Join-Path $env:TEMP "AAOOF_TaskError.log"
-            $elevatedCmd = @"
-try {
-    \`$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '`"$scriptPath`" 1'
-    \`$trigger = New-ScheduledTaskTrigger -Daily -At '$triggerTimeStr'
-    Register-ScheduledTask -TaskName '$taskname' -Trigger \`$trigger -Action \`$action -RunLevel Highest -ErrorAction Stop
-    if (Test-Path '$errorLog') { Remove-Item '$errorLog' -Force }
-} catch {
-    \`$_.Exception.Message | Out-File -FilePath '$errorLog' -Encoding utf8
-    exit 1
-}
-"@
-            $encodedCmd = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($elevatedCmd))
-            $proc = Start-Process powershell.exe -ArgumentList "-NoProfile -EncodedCommand $encodedCmd" -Verb RunAs -Wait -PassThru
-            if ($proc.ExitCode -ne 0) {
-                $errMsg = "Scheduled task creation failed even after elevation."
-                if (Test-Path $errorLog) {
-                    $errMsg += "`n`nAdmin window error:`n" + (Get-Content $errorLog -Raw)
-                    Remove-Item $errorLog -Force -ErrorAction SilentlyContinue
-                }
-                throw $errMsg
-            }
-        }
+        Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -RunLevel Highest -ErrorAction Stop
         return $true
     }
     return $false
@@ -948,8 +926,8 @@ $btnCreateTask.Add_Click({
         }
     }
     catch {
-        Show-ErrorDialog "Error" "Failed to create task. Run as Administrator.`n$($_.Exception.Message)"
-        Update-StatusBar "Task creation failed - need admin"
+        Show-ErrorDialog "Error" "Failed to create task.`n`n$($_.Exception.Message)"
+        Update-StatusBar "Task creation failed"
     }
 })
 

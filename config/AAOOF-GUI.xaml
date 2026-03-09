@@ -230,8 +230,10 @@
                         <GroupBox Header="Scheduled Task">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
-                                    Text="Create a Windows scheduled task to run this script with option 1 (daily auto-reply) 15 minutes after your shift starts. Requires admin privileges."/>
-                                <Button x:Name="btnCreateTask" Content="Create Scheduled Task (Admin Required)" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
+                                    Text="Create a Windows scheduled task to run this script with option 1 (daily auto-reply) 15 minutes after your shift starts."/>
+                                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#C00" FontStyle="Italic" Margin="0,0,0,6"
+                                    Text="Note: You must run this script as Administrator before clicking this button."/>
+                                <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

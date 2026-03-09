@@ -62,7 +62,7 @@ The GUI has four tabs:
 | **Office Hours** | Start and end times for your shift. Used for OOF scheduling and the signature's office-hours line. |
 | **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). |
 | **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
-| **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start. If not running as admin, the app will prompt for elevation via UAC. |
+| **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start. **Note:** Run the script as Administrator before clicking this button. |
 
 ---
 
