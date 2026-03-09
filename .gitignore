@@ -1,5 +1,8 @@
 #dont upload users auto reply configuration to github
-AutoReplyConfig.json
+config/AutoReplyConfig.json
+config/config.json
+config/message.html
+config/message.html.bak
 ARCMessage.txt
 ARCMessage.txt.bak
 message.html
