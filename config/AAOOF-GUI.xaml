@@ -162,6 +162,7 @@
             <TabItem Header="  Configuration  " FontSize="13" FontWeight="SemiBold">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
                     <StackPanel>
+                        <Button x:Name="btnSaveAllConfig" Content="Save All Settings" Style="{StaticResource PrimaryBtn}" FontSize="14" Padding="16,8" HorizontalAlignment="Center" Margin="0,4,0,12"/>
                         <GroupBox Header="Profile">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -241,8 +242,6 @@
                                 <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>
-
-                        <Button x:Name="btnSaveAllConfig" Content="Save All Settings" Style="{StaticResource PrimaryBtn}" FontSize="14" Padding="16,8" HorizontalAlignment="Center" Margin="0,12,0,8"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
