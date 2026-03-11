@@ -360,8 +360,8 @@ function Disable-VacationAutoReply {
     Set-AutoReplyState 'Disabled'
 }
 
-# Register-DailyScheduledTask: Create a Windows Scheduled Task named 'AAOOF' that
-# runs this script daily with CLI parameter '1'. Requires the script to be running
+# Register-DailyScheduledTask: Create or update a Windows Scheduled Task named 'AAOOF'
+# that runs this script daily with CLI parameter '1'. Requires the script to be running
 # as Administrator; shows a friendly error if not elevated.
 function Register-DailyScheduledTask {
     # Check for admin privileges before attempting
@@ -370,19 +370,38 @@ function Register-DailyScheduledTask {
         throw "This action requires Administrator privileges.`n`nPlease close the app and re-run the script as Administrator, then try again."
     }
 
-    if (!(Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue)) {
-        $scriptPath = Join-Path $ScriptDir "AAOOF-GUI.ps1"
-        $taskname = "AAOOF"
-        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "`"$scriptPath`" 1"
-        $date = Get-Date -Date (Get-Date).Date
-        $TriggerTime = $script:StartOfShift.TimeOfDay
-        $TriggerTime = $date.AddMinutes(15) + $TriggerTime
-        $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
-
-        Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -RunLevel Highest -ErrorAction Stop
-        return $true
+    $scriptPath = Join-Path $ScriptDir "AAOOF-GUI.ps1"
+    if (-not (Test-Path $scriptPath)) {
+        throw "Script not found at '$scriptPath'. Ensure the script exists before registering the task."
     }
-    return $false
+
+    # Resolve the PowerShell executable reliably across PS5, PS7, ISE, VS Code, etc.
+    if ($PSVersionTable.PSEdition -eq 'Core') {
+        # PowerShell 7+: use pwsh.exe from its known install location
+        $psExe = Join-Path $PSHOME "pwsh.exe"
+    } else {
+        # Windows PowerShell 5.1
+        $psExe = Join-Path $PSHOME "powershell.exe"
+    }
+    if (-not (Test-Path $psExe)) {
+        throw "PowerShell executable not found at '$psExe'. Cannot register scheduled task."
+    }
+
+    $taskname = "AAOOF"
+    $action = New-ScheduledTaskAction -Execute $psExe -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" 1" -WorkingDirectory $ScriptDir
+    $date = Get-Date -Date (Get-Date).Date
+    $TriggerTime = $script:StartOfShift.TimeOfDay
+    $TriggerTime = $date.AddMinutes(15) + $TriggerTime
+    $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
+
+    $existing = Get-ScheduledTask -TaskName $taskname -ErrorAction SilentlyContinue
+    if ($existing) {
+        # Update the existing task so stale configurations are corrected
+        Set-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -ErrorAction Stop | Out-Null
+    } else {
+        Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -RunLevel Highest -ErrorAction Stop | Out-Null
+    }
+    return $true
 }
 
 # Export-AppConfiguration: Persist all global settings to config.json.
@@ -1230,11 +1249,8 @@ $btnCreateTask.Add_Click({
         Read-ShiftTimesFromUI
         $result = Register-DailyScheduledTask
         if ($result) {
-            Show-InfoDialog "Success" "Scheduled task 'AAOOF' created successfully."
-            Update-StatusBar "Scheduled task created"
-        } else {
-            Show-InfoDialog "Info" "Scheduled task 'AAOOF' already exists."
-            Update-StatusBar "Task already exists"
+            Show-InfoDialog "Success" "Scheduled task 'AAOOF' created/updated successfully."
+            Update-StatusBar "Scheduled task ready"
         }
     }
     catch {
