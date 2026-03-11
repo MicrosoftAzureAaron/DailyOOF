@@ -580,9 +580,9 @@ function Show-ErrorDialog($Title, $Message) {
     [System.Windows.MessageBox]::Show($Message, $Title, 'OK', 'Error')
 }
 
-# Ensure-ExchangeConnection: Check for an active Exchange Online session and auto-connect
+# Assert-ExchangeConnection: Check for an active Exchange Online session and auto-connect
 # if none exists. Updates the connection status UI. Returns $true if connected, $false on failure.
-function Ensure-ExchangeConnection {
+function Assert-ExchangeConnection {
     $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
     $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
     if ($connected) { return $true }
@@ -899,7 +899,7 @@ $btnDisconnect.Add_Click({
 # Enable Scheduled Auto Reply: Read shift/work-day settings and apply Scheduled mode.
 $btnEnableScheduled.Add_Click({
     try {
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Setting scheduled auto reply..."
         Read-ShiftTimesFromUI
         $script:WorkDays = Read-WorkDaysFromUI
@@ -924,7 +924,7 @@ $btnSetVacation.Add_Click({
             Show-ErrorDialog "Missing Date" "Please select a return date."
             return
         }
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Setting vacation OOF..."
         Read-ShiftTimesFromUI
         $returnDate = $dpReturnDate.SelectedDate.ToString("yyyy/MM/dd")
@@ -952,7 +952,7 @@ $btnSetVacation.Add_Click({
 # Cancel Vacation OOF: Disable the vacation/extended OOF.
 $btnCancelVacation.Add_Click({
     try {
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Cancelling vacation OOF..."
         Disable-VacationAutoReply
         $arc = Get-AutoReplyConfiguration
@@ -971,7 +971,7 @@ $btnCancelVacation.Add_Click({
 # Refresh Status: Pull the current auto-reply state and schedule from Exchange.
 $btnRefreshStatus.Add_Click({
     try {
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Refreshing status..."
         $arc = Get-AutoReplyConfiguration
         $txtARCState.Text = $arc.AutoReplyState
@@ -1210,7 +1210,7 @@ $btnPresetWedSat.Add_Click({
 # Auto Reply State buttons: Directly set the auto-reply mode on Exchange.
 $btnStateEnabled.Add_Click({
     try {
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Setting auto reply to Enabled..."
         Set-AutoReplyState 'Enabled'
         Update-StatusBar "Auto reply set to Enabled"
@@ -1221,7 +1221,7 @@ $btnStateEnabled.Add_Click({
 
 $btnStateDisabled.Add_Click({
     try {
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Setting auto reply to Disabled..."
         Set-AutoReplyState 'Disabled'
         Update-StatusBar "Auto reply set to Disabled"
@@ -1232,7 +1232,7 @@ $btnStateDisabled.Add_Click({
 
 $btnStateScheduled.Add_Click({
     try {
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Setting auto reply to Scheduled..."
         Read-ShiftTimesFromUI
         $script:WorkDays = Read-WorkDaysFromUI
@@ -1421,7 +1421,7 @@ $txtAccount.Add_LostFocus({
 
 # ===================== HTML Formatting Toolbar Handlers =====================
 # Helper: Wrap the selected text in the editor with an HTML tag, or insert at cursor.
-function Insert-HtmlTag($openTag, $closeTag) {
+function Add-HtmlTag($openTag, $closeTag) {
     $selStart = $txtMessage.SelectionStart
     $selLen = $txtMessage.SelectionLength
     if ($selLen -gt 0) {
@@ -1439,19 +1439,19 @@ function Insert-HtmlTag($openTag, $closeTag) {
 }
 
 # Helper: Insert a snippet at the cursor position.
-function Insert-HtmlSnippet($snippet) {
+function Add-HtmlSnippet($snippet) {
     $selStart = $txtMessage.SelectionStart
     $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
     $txtMessage.SelectionStart = $selStart + $snippet.Length
     $txtMessage.Focus()
 }
 
-$btnFmtBold.Add_Click({ Insert-HtmlTag '<b>' '</b>' })
-$btnFmtItalic.Add_Click({ Insert-HtmlTag '<i>' '</i>' })
-$btnFmtUnderline.Add_Click({ Insert-HtmlTag '<u>' '</u>' })
-$btnFmtH3.Add_Click({ Insert-HtmlTag '<h3>' '</h3>' })
-$btnFmtP.Add_Click({ Insert-HtmlTag '<p>' '</p>' })
-$btnFmtBr.Add_Click({ Insert-HtmlSnippet '<br/>' })
+$btnFmtBold.Add_Click({ Add-HtmlTag '<b>' '</b>' })
+$btnFmtItalic.Add_Click({ Add-HtmlTag '<i>' '</i>' })
+$btnFmtUnderline.Add_Click({ Add-HtmlTag '<u>' '</u>' })
+$btnFmtH3.Add_Click({ Add-HtmlTag '<h3>' '</h3>' })
+$btnFmtP.Add_Click({ Add-HtmlTag '<p>' '</p>' })
+$btnFmtBr.Add_Click({ Add-HtmlSnippet '<br/>' })
 
 $btnFmtLink.Add_Click({
     $selStart = $txtMessage.SelectionStart
@@ -1558,7 +1558,7 @@ $btnApplyInternal.Add_Click({
             $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
             if ($result -ne 'Yes') { return }
         }
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Applying internal message..."
         Set-AutoReplyMessage $txtMessage.Text 'Internal'
         $script:EXOMessageSynced = $true
@@ -1580,7 +1580,7 @@ $btnApplyExternal.Add_Click({
             $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
             if ($result -ne 'Yes') { return }
         }
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Applying external message..."
         Set-AutoReplyMessage $txtMessage.Text 'External'
         $script:EXOMessageSynced = $true
@@ -1602,7 +1602,7 @@ $btnApplyBoth.Add_Click({
             $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
             if ($result -ne 'Yes') { return }
         }
-        Ensure-ExchangeConnection
+        Assert-ExchangeConnection
         Update-StatusBar "Applying message to both internal and external..."
         Set-AutoReplyMessage $txtMessage.Text 'Both'
         $script:EXOMessageSynced = $true
