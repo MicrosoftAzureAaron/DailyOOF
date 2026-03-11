@@ -49,6 +49,8 @@ $DefaultConfigFiles = @(
     "holiday_oof.html"
 )
 
+$downloadFailures = @()
+
 foreach ($fileName in $DefaultConfigFiles) {
     $localPath = Join-Path $ConfigDir $fileName
     if (!(Test-Path $localPath)) {
@@ -59,8 +61,24 @@ foreach ($fileName in $DefaultConfigFiles) {
         }
         catch {
             Write-Host "Warning: Could not download $fileName from $url" -ForegroundColor Yellow
+            $downloadFailures += $fileName
         }
     }
+}
+
+if ($downloadFailures.Count -gt 0) {
+    $failedList = $downloadFailures -join "`n  - "
+    $msg = "The following config files could not be downloaded:`n  - $failedList`n`n" +
+           "You can clone the full repository instead:`n`n" +
+           "git clone https://github.com/MicrosoftAzureAaron/DailyOOF.git`n`n" +
+           "Then run the script from the cloned folder."
+    Write-Host $msg -ForegroundColor Yellow
+    [System.Windows.MessageBox]::Show(
+        $msg,
+        "AAOOF - Download Failed",
+        [System.Windows.MessageBoxButton]::OK,
+        [System.Windows.MessageBoxImage]::Warning
+    ) | Out-Null
 }
 
 # ===================== Configuration (loaded from config.json) =====================
@@ -466,6 +484,12 @@ if ($InputParameter) {
 # Parse the external XAML layout file and build the WPF window.
 if (!(Test-Path $XamlFile)) {
     Write-Host "FATAL: XAML file not found at $XamlFile" -ForegroundColor Red
+    [System.Windows.MessageBox]::Show(
+        "The UI layout file was not found and could not be downloaded:`n`n$XamlFile`n`nPlease check your internet connection and try again, or manually place the AAOOF-GUI.xaml file in the config folder.",
+        "AAOOF - Missing UI File",
+        [System.Windows.MessageBoxButton]::OK,
+        [System.Windows.MessageBoxImage]::Error
+    ) | Out-Null
     exit 1
 }
 [xml]$XAML = Get-Content $XamlFile -Raw
