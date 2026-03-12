@@ -363,13 +363,49 @@ function Export-MessageToFile($FilePath, $Content) {
     $Content | Out-File -FilePath $FilePath -Encoding utf8
 }
 
-# Set-VacationAutoReply: Configure an extended/vacation OOF that runs from now
-# until the given return date at shift-start time.
+# Get-LastWorkDayEndOfShift: Find the end-of-shift time on the most recent work day.
+# If today is a work day and we haven't passed end-of-shift yet, use today.
+# Otherwise, walk backwards to find the last work day.
+# This ensures vacation OOF starts from when the user actually left the office.
+function Get-LastWorkDayEndOfShift {
+    if ($null -eq $script:EndOfShift -or $null -eq $script:WorkDays) { return $script:EndOfShift }
+
+    $Now = Get-Date
+    $TodayEndOfShift = (Get-Date).Date.Add($script:EndOfShift.TimeOfDay)
+
+    # If today is a work day and we haven't passed end-of-shift, use today
+    if ($Now.DayOfWeek -in $script:WorkDays -and $Now -le $TodayEndOfShift) {
+        return $TodayEndOfShift
+    }
+
+    # If today is a work day but we've already passed end-of-shift, use today's end-of-shift
+    if ($Now.DayOfWeek -in $script:WorkDays) {
+        return $TodayEndOfShift
+    }
+
+    # Today is not a work day — walk backwards to find the last work day
+    $CheckDate = $Now.AddDays(-1)
+    for ($i = 0; $i -lt 7; $i++) {
+        if ($CheckDate.DayOfWeek -in $script:WorkDays) {
+            return $CheckDate.Date.Add($script:EndOfShift.TimeOfDay)
+        }
+        $CheckDate = $CheckDate.AddDays(-1)
+    }
+
+    # Fallback (shouldn't happen if WorkDays has at least one day)
+    return $TodayEndOfShift
+}
+
+# Set-VacationAutoReply: Configure an extended/vacation OOF that runs from the
+# last work day's end-of-shift until the given return date at shift-start time.
+# This ensures the OOF starts from when the user was last in the office, not
+# from the current day which may be a non-work day.
 function Set-VacationAutoReply($ReturnDate) {
     if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) { return }
     $ParsedDate = [datetime]$ReturnDate
     $EndTime = $ParsedDate + $script:StartOfShift.TimeOfDay
-    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled" -StartTime $script:EndOfShift -EndTime $EndTime
+    $VacationStartTime = Get-LastWorkDayEndOfShift
+    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled" -StartTime $VacationStartTime -EndTime $EndTime
     Save-AutoReplyConfigToFile
 }
 
@@ -379,8 +415,9 @@ function Disable-VacationAutoReply {
 }
 
 # Register-DailyScheduledTask: Create or update a Windows Scheduled Task named 'AAOOF'
-# that runs this script daily with CLI parameter '1'. Requires the script to be running
-# as Administrator; shows a friendly error if not elevated.
+# that runs this script daily with CLI parameter '1'. Requires the script AAOOF script to be running
+# as Administrator to create a task; shows a friendly error if not elevated. 
+# Daily task does not require admin privileges to run, only to create/update the task registration.
 function Register-DailyScheduledTask {
     # Check for admin privileges before attempting
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
