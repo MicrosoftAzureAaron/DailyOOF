@@ -87,18 +87,11 @@ if ($downloadFailures.Count -gt 0) {
 # Returns $true if an update is available, $false otherwise.
 function Test-ScriptUpdate {
     try {
-        $remoteContent = (Invoke-WebRequest -Uri $ScriptUpdateUrl -UseBasicParsing -TimeoutSec 10).Content
-        $localContent  = Get-Content $PSCommandPath -Raw
-        $remoteHash = [System.BitConverter]::ToString(
-            [System.Security.Cryptography.SHA256]::Create().ComputeHash(
-                [System.Text.Encoding]::UTF8.GetBytes($remoteContent)
-            )
-        )
-        $localHash = [System.BitConverter]::ToString(
-            [System.Security.Cryptography.SHA256]::Create().ComputeHash(
-                [System.Text.Encoding]::UTF8.GetBytes($localContent)
-            )
-        )
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10
+        $remoteHash = (Get-FileHash -Path $tempFile -Algorithm SHA256).Hash
+        $localHash  = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         return ($remoteHash -ne $localHash)
     }
     catch {
@@ -111,23 +104,17 @@ function Test-ScriptUpdate {
 # copy, and prompt the user to restart. Returns $true if updated, $false otherwise.
 function Invoke-ScriptSelfUpdate {
     try {
-        $remoteContent = (Invoke-WebRequest -Uri $ScriptUpdateUrl -UseBasicParsing -TimeoutSec 15).Content
-        $localContent  = Get-Content $PSCommandPath -Raw
-        $remoteHash = [System.BitConverter]::ToString(
-            [System.Security.Cryptography.SHA256]::Create().ComputeHash(
-                [System.Text.Encoding]::UTF8.GetBytes($remoteContent)
-            )
-        )
-        $localHash = [System.BitConverter]::ToString(
-            [System.Security.Cryptography.SHA256]::Create().ComputeHash(
-                [System.Text.Encoding]::UTF8.GetBytes($localContent)
-            )
-        )
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 15
+        $remoteHash = (Get-FileHash -Path $tempFile -Algorithm SHA256).Hash
+        $localHash  = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash
         if ($remoteHash -eq $localHash) {
+            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
             return $false  # Already up to date
         }
-        # Write the new script content over the current file
-        [System.IO.File]::WriteAllText($PSCommandPath, $remoteContent, [System.Text.Encoding]::UTF8)
+        # Replace the local script with the downloaded version
+        Copy-Item -Path $tempFile -Destination $PSCommandPath -Force
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         return $true
     }
     catch {
@@ -548,7 +535,12 @@ if ($InputParameter) {
     # Silently self-update the script before running headless operations
     try {
         $updated = Invoke-ScriptSelfUpdate
-        if ($updated) { Write-Host "Script updated to latest version from GitHub." -ForegroundColor Green }
+        if ($updated) {
+            Write-Host "Script updated — re-launching with new version..." -ForegroundColor Green
+            # Re-run the updated script with the same parameter, then exit this instance
+            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $InputParameter" -NoNewWindow -Wait
+            exit
+        }
     } catch {
         Write-Host "Auto-update skipped: $($_.Exception.Message)" -ForegroundColor Yellow
     }
@@ -1417,16 +1409,10 @@ $btnCheckForUpdates.Add_Click({
         Update-StatusBar "Checking for updates..."
         $updated = Invoke-ScriptSelfUpdate
         if ($updated) {
-            Update-StatusBar "Update downloaded — restart to apply"
-            $result = [System.Windows.MessageBox]::Show(
-                "A new version has been downloaded and applied.`n`nWould you like to close the application now so you can restart it?",
-                "Update Available",
-                'YesNo',
-                'Information'
-            )
-            if ($result -eq 'Yes') {
-                $Window.Close()
-            }
+            Update-StatusBar "Update downloaded — restarting..."
+            # Launch the updated script in a new process, then close this instance
+            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+            $Window.Close()
         } else {
             Update-StatusBar "Already up to date"
             Show-InfoDialog "No Update" "You are already running the latest version."
