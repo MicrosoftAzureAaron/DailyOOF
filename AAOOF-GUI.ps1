@@ -41,6 +41,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # On first run, download XAML layout and HTML templates from the GitHub repository
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
+$ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -79,6 +80,59 @@ if ($downloadFailures.Count -gt 0) {
         [System.Windows.MessageBoxButton]::OK,
         [System.Windows.MessageBoxImage]::Warning
     ) | Out-Null
+}
+
+# ===================== Self-Update Check =====================
+# Compare the local script against the latest version on GitHub.
+# Returns $true if an update is available, $false otherwise.
+function Test-ScriptUpdate {
+    try {
+        $remoteContent = (Invoke-WebRequest -Uri $ScriptUpdateUrl -UseBasicParsing -TimeoutSec 10).Content
+        $localContent  = Get-Content $PSCommandPath -Raw
+        $remoteHash = [System.BitConverter]::ToString(
+            [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+                [System.Text.Encoding]::UTF8.GetBytes($remoteContent)
+            )
+        )
+        $localHash = [System.BitConverter]::ToString(
+            [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+                [System.Text.Encoding]::UTF8.GetBytes($localContent)
+            )
+        )
+        return ($remoteHash -ne $localHash)
+    }
+    catch {
+        Write-Host "Update check failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# Invoke-ScriptSelfUpdate: Download the latest script from GitHub, replace the local
+# copy, and prompt the user to restart. Returns $true if updated, $false otherwise.
+function Invoke-ScriptSelfUpdate {
+    try {
+        $remoteContent = (Invoke-WebRequest -Uri $ScriptUpdateUrl -UseBasicParsing -TimeoutSec 15).Content
+        $localContent  = Get-Content $PSCommandPath -Raw
+        $remoteHash = [System.BitConverter]::ToString(
+            [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+                [System.Text.Encoding]::UTF8.GetBytes($remoteContent)
+            )
+        )
+        $localHash = [System.BitConverter]::ToString(
+            [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+                [System.Text.Encoding]::UTF8.GetBytes($localContent)
+            )
+        )
+        if ($remoteHash -eq $localHash) {
+            return $false  # Already up to date
+        }
+        # Write the new script content over the current file
+        [System.IO.File]::WriteAllText($PSCommandPath, $remoteContent, [System.Text.Encoding]::UTF8)
+        return $true
+    }
+    catch {
+        throw "Failed to download update: $($_.Exception.Message)"
+    }
 }
 
 # ===================== Configuration (loaded from config.json) =====================
@@ -491,6 +545,14 @@ function Export-AppConfiguration {
 #   '1'   — Daily scheduled OOF update. Checks for active vacation before overwriting.
 #   <date> — Set vacation/extended OOF until that return date.
 if ($InputParameter) {
+    # Silently self-update the script before running headless operations
+    try {
+        $updated = Invoke-ScriptSelfUpdate
+        if ($updated) { Write-Host "Script updated to latest version from GitHub." -ForegroundColor Green }
+    } catch {
+        Write-Host "Auto-update skipped: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
     if ($InputParameter -eq '1') {
         if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift -or $null -eq $script:WorkDays) {
             Write-Host "Configuration not set. Please run the GUI first to configure." -ForegroundColor Red
@@ -593,6 +655,7 @@ $btnStateEnabled = $Window.FindName("btnStateEnabled")
 $btnStateDisabled = $Window.FindName("btnStateDisabled")
 $btnStateScheduled = $Window.FindName("btnStateScheduled")
 $btnCreateTask = $Window.FindName("btnCreateTask")
+$btnCheckForUpdates = $Window.FindName("btnCheckForUpdates")
 
 # --- Message Templates tab controls ---
 $cmbTemplate = $Window.FindName("cmbTemplate")
@@ -1332,6 +1395,33 @@ $btnCreateTask.Add_Click({
     }
 })
 
+# Check for Updates: Download the latest script from GitHub if a newer version is available.
+$btnCheckForUpdates.Add_Click({
+    try {
+        Update-StatusBar "Checking for updates..."
+        $updated = Invoke-ScriptSelfUpdate
+        if ($updated) {
+            Update-StatusBar "Update downloaded — restart to apply"
+            $result = [System.Windows.MessageBox]::Show(
+                "A new version has been downloaded and applied.`n`nWould you like to close the application now so you can restart it?",
+                "Update Available",
+                'YesNo',
+                'Information'
+            )
+            if ($result -eq 'Yes') {
+                $Window.Close()
+            }
+        } else {
+            Update-StatusBar "Already up to date"
+            Show-InfoDialog "No Update" "You are already running the latest version."
+        }
+    }
+    catch {
+        Show-ErrorDialog "Update Error" $_.Exception.Message
+        Update-StatusBar "Update check failed"
+    }
+})
+
 # Populate dynamic items: When the template dropdown opens, scan the config directory
 # for backup files, saved messages, and custom_*.html files and insert them dynamically.
 $cmbTemplate.Add_DropDownOpened({
@@ -1882,6 +1972,13 @@ $Window.Add_KeyDown({
 # Display the WPF window (blocks execution until closed).
 # On close, disconnect Exchange Online to release the session.
 # Warn if there are unapplied message changes while connected.
+
+# Silent startup update check — notify via status bar if a newer version exists
+try {
+    if (Test-ScriptUpdate) {
+        Update-StatusBar "A new version is available — go to Configuration > Check for Updates"
+    }
+} catch { }
 $Window.Add_Closing({
     if ($script:IsConnectedToEXO -and -not $script:EXOMessageSynced) {
         $result = [System.Windows.MessageBox]::Show(

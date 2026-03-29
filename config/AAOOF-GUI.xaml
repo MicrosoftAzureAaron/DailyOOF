@@ -238,6 +238,14 @@
                             </StackPanel>
                         </GroupBox>
 
+                        <GroupBox Header="Updates">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
+                                    Text="Check GitHub for a newer version of this script and automatically download it."/>
+                                <Button x:Name="btnCheckForUpdates" Content="Check for Updates" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </GroupBox>
+
                         <GroupBox Header="Scheduled Task">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
