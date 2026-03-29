@@ -163,29 +163,41 @@ function Set-AutoReplyState($State) {
         'Enabled'   { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Enabled" }
         'Disabled'  { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Disabled" }
         'Scheduled' {
-            Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled"
-            Set-AutoReplyScheduleTimes
+            # Calculate times first, then set state + times in a single atomic call
+            # to avoid a race where Exchange activates scheduling with stale times.
+            $schedTimes = Get-AutoReplyScheduleTimes
+            if ($null -eq $schedTimes) {
+                throw "Cannot enable scheduled auto reply: shift times or work days are not configured."
+            }
+            if ($schedTimes.StartTime -ge $schedTimes.EndTime) {
+                throw "Cannot enable scheduled auto reply: calculated OOF start ($($schedTimes.StartTime)) is not before end ($($schedTimes.EndTime)). Check your shift times and work days."
+            }
+            Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias `
+                -AutoReplyState "Scheduled" `
+                -StartTime $schedTimes.StartTime `
+                -EndTime $schedTimes.EndTime
         }
     }
     Save-AutoReplyConfigToFile
 }
 
-# Set-AutoReplyScheduleTimes: Calculate OOF start/end times based on shift and work days,
-# then apply them to the Exchange mailbox configuration.
-function Set-AutoReplyScheduleTimes {
-    if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) { return }
-    if ($null -eq $script:WorkDays) { return }
+# Get-AutoReplyScheduleTimes: Calculate OOF start/end times based on shift and work days.
+# Returns a hashtable with StartTime (OOF begins = end of shift) and EndTime (OOF ends = next shift start),
+# or $null if configuration is incomplete.
+function Get-AutoReplyScheduleTimes {
+    if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) { return $null }
+    if ($null -eq $script:WorkDays) { return $null }
 
     $DaysToAdd = Get-NextWorkDayOffset
 
-    $StartTime = (Get-Date).Date.Add($script:StartOfShift.TimeOfDay).AddDays($DaysToAdd)
+    # EndTime of OOF = start of next work day shift
+    $OofEndTime = (Get-Date).Date.Add($script:StartOfShift.TimeOfDay).AddDays($DaysToAdd)
 
-    $EndTime = (Get-Date).Date.Add($script:EndOfShift.TimeOfDay)
+    # StartTime of OOF = end of shift (today, or yesterday if before shift start)
+    $OofStartTime = (Get-Date).Date.Add($script:EndOfShift.TimeOfDay)
+    if ($DaysToAdd -eq 0) { $OofStartTime = $OofStartTime.AddDays(-1) }
 
-    if ($DaysToAdd -eq 0) { $EndTime = $EndTime.AddDays(-1) }
-
-    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -StartTime $EndTime -EndTime $StartTime
-    Save-AutoReplyConfigToFile
+    return @{ StartTime = $OofStartTime; EndTime = $OofEndTime }
 }
 
 # Set-AutoReplyMessage: Apply an HTML message body as the auto-reply for Internal, External, or Both.
@@ -226,7 +238,7 @@ function Get-NextWorkDayOffset {
         }
 
         $CurrentTime = [datetime](Get-Date)
-        if ($CurrentTime -lt $script:StartOfShift) {
+        if ($CurrentTime.TimeOfDay -lt $script:StartOfShift.TimeOfDay) {
             return 0
         }
         else {
