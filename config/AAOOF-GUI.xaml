@@ -249,8 +249,14 @@
 
                         <GroupBox Header="Updates">
                             <StackPanel>
-                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
-                                    Text="Check GitHub for a newer version of this script and automatically download it."/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Current Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="txtLocalVersion" Text="..." FontSize="13" FontWeight="SemiBold" Foreground="#0078D4" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Latest Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                    <TextBlock x:Name="txtRemoteVersion" Text="(not checked)" FontSize="13" Foreground="#888" VerticalAlignment="Center"/>
+                                </StackPanel>
                                 <Button x:Name="btnCheckForUpdates" Content="Check for Updates" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>

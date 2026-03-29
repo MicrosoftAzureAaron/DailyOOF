@@ -42,6 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
+$script:ScriptVersion = "1.1.0"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -83,6 +84,20 @@ if ($downloadFailures.Count -gt 0) {
 }
 
 # ===================== Self-Update Check =====================
+# Get-RemoteScriptVersion: Download the remote script to a temp file and extract its
+# $script:ScriptVersion value. Returns the version string or 'unknown'.
+function Get-RemoteScriptVersion {
+    try {
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10
+        $line = Select-String -Path $tempFile -Pattern '^\$script:ScriptVersion\s*=\s*"(.+)"' | Select-Object -First 1
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        if ($line) { return $line.Matches[0].Groups[1].Value }
+        return 'unknown'
+    }
+    catch { return 'unknown' }
+}
+
 # Compare the local script against the latest version on GitHub.
 # Returns $true if an update is available, $false otherwise.
 function Test-ScriptUpdate {
@@ -110,9 +125,8 @@ function Invoke-ScriptSelfUpdate {
         $localHash  = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash
         if ($remoteHash -eq $localHash) {
             Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-            return $false  # Already up to date
+            return $false
         }
-        # Replace the local script with the downloaded version
         Copy-Item -Path $tempFile -Destination $PSCommandPath -Force
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         return $true
@@ -306,6 +320,11 @@ function Connect-ExchangeOnlineSession {
         } else {
             throw "ExchangeOnlineManagement module is required to connect."
         }
+    }
+
+    # Ensure the module is loaded before calling any of its commands
+    if (!(Get-Module -Name ExchangeOnlineManagement)) {
+        Import-Module ExchangeOnlineManagement -ErrorAction Stop
     }
 
     $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
@@ -537,8 +556,8 @@ if ($InputParameter) {
         $updated = Invoke-ScriptSelfUpdate
         if ($updated) {
             Write-Host "Script updated — re-launching with new version..." -ForegroundColor Green
-            # Re-run the updated script with the same parameter, then exit this instance
-            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $InputParameter" -NoNewWindow -Wait
+            $psExe = Join-Path $PSHOME (if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' })
+            Start-Process -FilePath $psExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $InputParameter" -NoNewWindow -Wait
             exit
         }
     } catch {
@@ -648,6 +667,8 @@ $btnStateDisabled = $Window.FindName("btnStateDisabled")
 $btnStateScheduled = $Window.FindName("btnStateScheduled")
 $btnCreateTask = $Window.FindName("btnCreateTask")
 $btnCheckForUpdates = $Window.FindName("btnCheckForUpdates")
+$txtLocalVersion = $Window.FindName("txtLocalVersion")
+$txtRemoteVersion = $Window.FindName("txtRemoteVersion")
 
 # --- Message Templates tab controls ---
 $cmbTemplate = $Window.FindName("cmbTemplate")
@@ -1407,11 +1428,19 @@ $btnCreateTask.Add_Click({
 $btnCheckForUpdates.Add_Click({
     try {
         Update-StatusBar "Checking for updates..."
+        # Show remote version
+        $remoteVer = Get-RemoteScriptVersion
+        $txtRemoteVersion.Text = $remoteVer
+        if ($remoteVer -eq $script:ScriptVersion) {
+            $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
+        } else {
+            $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
+        }
         $updated = Invoke-ScriptSelfUpdate
         if ($updated) {
             Update-StatusBar "Update downloaded — restarting..."
-            # Launch the updated script in a new process, then close this instance
-            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+            $psExe = Join-Path $PSHOME (if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' })
+            Start-Process -FilePath $psExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
             $Window.Close()
         } else {
             Update-StatusBar "Already up to date"
@@ -1975,9 +2004,15 @@ $Window.Add_KeyDown({
 # Warn if there are unapplied message changes while connected.
 
 # Silent startup update check — notify via status bar if a newer version exists
+$txtLocalVersion.Text = $script:ScriptVersion
 try {
-    if (Test-ScriptUpdate) {
-        Update-StatusBar "A new version is available — go to Configuration > Check for Updates"
+    $remoteVer = Get-RemoteScriptVersion
+    $txtRemoteVersion.Text = $remoteVer
+    if ($remoteVer -ne $script:ScriptVersion -and $remoteVer -ne 'unknown') {
+        $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
+        Update-StatusBar "Update available: v$remoteVer — go to Configuration > Check for Updates"
+    } else {
+        $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
     }
 } catch { }
 $Window.Add_Closing({
