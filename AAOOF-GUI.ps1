@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Daily Out of Office (OOF) Automation Tool with WPF GUI.
 
@@ -1298,28 +1298,45 @@ $tcMain.Add_SelectionChanged({
     }
 })
 
-# Save All Settings: Read every config field from the UI and persist to config.json.
-$btnSaveAllConfig = $Window.FindName("btnSaveAllConfig")
-$btnSaveAllConfig.Add_Click({
-    # Profile
+# Debounced auto-save: When any config control changes, restart a 1.5-second timer.
+# When the timer fires (user stopped making changes), read all UI fields and save.
+$script:ConfigSaveTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:ConfigSaveTimer.Interval = [TimeSpan]::FromMilliseconds(1500)
+$script:ConfigSaveTimer.Add_Tick({
+    $script:ConfigSaveTimer.Stop()
+    # Read all config fields from UI and persist
     $script:FullName = $txtFullName.Text
     $script:Role = $txtRole.Text
-    # Suffix & account
     $script:UserAliasSuffix = $txtSuffix.Text
-    if (-not $chkOverrideAccount.IsChecked) {
-        Resolve-UserAlias
-        $txtAccount.Text = $script:UserAlias
-    } else {
+    if ($chkOverrideAccount.IsChecked) {
         $script:UserAlias = $txtAccount.Text
     }
-    # Shift times
     Read-ShiftTimesFromUI
-    # Work days
     $script:WorkDays = Read-WorkDaysFromUI
     Export-AppConfiguration
-    Update-StatusBar "All settings saved"
-    Show-InfoDialog "Saved" "All configuration settings have been saved."
+    Update-StatusBar "Settings saved"
 })
+
+function Request-DebouncedConfigSave {
+    $script:ConfigSaveTimer.Stop()
+    $script:ConfigSaveTimer.Start()
+}
+
+# Wire config controls to trigger debounced auto-save
+$txtSuffix.Add_TextChanged({ Request-DebouncedConfigSave })
+$cmbStartHour.Add_SelectionChanged({ Request-DebouncedConfigSave })
+$cmbStartMin.Add_SelectionChanged({ Request-DebouncedConfigSave })
+$cmbStartAmPm.Add_SelectionChanged({ Request-DebouncedConfigSave })
+$cmbEndHour.Add_SelectionChanged({ Request-DebouncedConfigSave })
+$cmbEndMin.Add_SelectionChanged({ Request-DebouncedConfigSave })
+$cmbEndAmPm.Add_SelectionChanged({ Request-DebouncedConfigSave })
+$chkSun.Add_Checked({ Request-DebouncedConfigSave }); $chkSun.Add_Unchecked({ Request-DebouncedConfigSave })
+$chkMon.Add_Checked({ Request-DebouncedConfigSave }); $chkMon.Add_Unchecked({ Request-DebouncedConfigSave })
+$chkTue.Add_Checked({ Request-DebouncedConfigSave }); $chkTue.Add_Unchecked({ Request-DebouncedConfigSave })
+$chkWed.Add_Checked({ Request-DebouncedConfigSave }); $chkWed.Add_Unchecked({ Request-DebouncedConfigSave })
+$chkThu.Add_Checked({ Request-DebouncedConfigSave }); $chkThu.Add_Unchecked({ Request-DebouncedConfigSave })
+$chkFri.Add_Checked({ Request-DebouncedConfigSave }); $chkFri.Add_Unchecked({ Request-DebouncedConfigSave })
+$chkSat.Add_Checked({ Request-DebouncedConfigSave }); $chkSat.Add_Unchecked({ Request-DebouncedConfigSave })
 
 # Work day presets: Quick-fill checkbox groups for common schedules.
 # Preset Mon-Fri (standard 5x8)
@@ -1549,12 +1566,12 @@ $dpReturnDate.Add_SelectedDateChanged($optionReloadHandler)
 # Save and reload on Full Name / Role changes
 $txtFullName.Add_TextChanged({
     $script:FullName = $txtFullName.Text
-    Export-AppConfiguration
+    Request-DebouncedConfigSave
     & $optionReloadHandler
 })
 $txtRole.Add_TextChanged({
     $script:Role = $txtRole.Text
-    Export-AppConfiguration
+    Request-DebouncedConfigSave
     & $optionReloadHandler
 })
 
@@ -1562,7 +1579,7 @@ $txtRole.Add_TextChanged({
 $chkOverrideAccount.Add_Checked({
     $script:OverrideAccount = $true
     $txtAccount.IsEnabled = $true
-    Export-AppConfiguration
+    Request-DebouncedConfigSave
 })
 $chkOverrideAccount.Add_Unchecked({
     $script:OverrideAccount = $false
@@ -1570,14 +1587,14 @@ $chkOverrideAccount.Add_Unchecked({
     # Revert to auto-detected alias
     Resolve-UserAlias
     $txtAccount.Text = $script:UserAlias
-    Export-AppConfiguration
+    Request-DebouncedConfigSave
     & $optionReloadHandler
 })
 # Save edited account when user tabs out
 $txtAccount.Add_LostFocus({
     if ($chkOverrideAccount.IsChecked) {
         $script:UserAlias = $txtAccount.Text
-        Export-AppConfiguration
+        Request-DebouncedConfigSave
         & $optionReloadHandler
     }
 })

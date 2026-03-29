@@ -167,7 +167,6 @@
             <TabItem Header="  Configuration  " FontSize="13" FontWeight="SemiBold">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
                     <StackPanel>
-                        <Button x:Name="btnSaveAllConfig" Content="Save All Settings" Style="{StaticResource PrimaryBtn}" FontSize="14" Padding="16,8" HorizontalAlignment="Center" Margin="0,4,0,12"/>
                         <GroupBox Header="Profile">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -238,14 +237,6 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Updates">
-                            <StackPanel>
-                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
-                                    Text="Check GitHub for a newer version of this script and automatically download it."/>
-                                <Button x:Name="btnCheckForUpdates" Content="Check for Updates" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
-                            </StackPanel>
-                        </GroupBox>
-
                         <GroupBox Header="Scheduled Task">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
@@ -253,6 +244,14 @@
                                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#C00" FontStyle="Italic" Margin="0,0,0,6"
                                     Text="Note: You must run this script as Administrator before clicking this button."/>
                                 <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Updates">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
+                                    Text="Check GitHub for a newer version of this script and automatically download it."/>
+                                <Button x:Name="btnCheckForUpdates" Content="Check for Updates" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
