@@ -136,6 +136,25 @@ function Invoke-ScriptSelfUpdate {
     }
 }
 
+# Update-ConfigFile: Download a specific config file from GitHub and save it locally.
+# Returns $true if successful, $false otherwise.
+function Update-ConfigFile($FileName) {
+    try {
+        $url = "$RepoBaseUrl/$FileName"
+        $localPath = Join-Path $ConfigDir $FileName
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        Invoke-WebRequest -Uri $url -OutFile $tempFile -UseBasicParsing -TimeoutSec 10
+        Copy-Item -Path $tempFile -Destination $localPath -Force
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        Write-Host "Updated config file: $FileName" -ForegroundColor Green
+        return $true
+    }
+    catch {
+        Write-Host "Failed to update $FileName : $($_.Exception.Message)" -ForegroundColor Yellow
+        return $false
+    }
+}
+
 # ===================== Configuration (loaded from config.json) =====================
 # Global variables hold the user's settings. Defaults are set here and then
 # overwritten by Import-AppConfiguration if a config.json file exists.
@@ -622,7 +641,9 @@ if ($InputParameter) {
     try {
         $updated = Invoke-ScriptSelfUpdate
         if ($updated) {
-            Write-Host "Script updated — re-launching with new version..." -ForegroundColor Green
+            Write-Host "Script updated — downloading latest config files..." -ForegroundColor Green
+            Update-ConfigFile "AAOOF-GUI.xaml"
+            Write-Host "Re-launching with new version..." -ForegroundColor Green
             if ($PSVersionTable.PSEdition -eq 'Core') {
                 $psExe = Join-Path $PSHOME 'pwsh.exe'
             } else {
@@ -1497,7 +1518,9 @@ $btnCheckForUpdates.Add_Click({
         }
         $updated = Invoke-ScriptSelfUpdate
         if ($updated) {
-            Update-StatusBar "Update downloaded — restarting..."
+            Update-StatusBar "Update downloaded — downloading latest config files..."
+            Update-ConfigFile "AAOOF-GUI.xaml"
+            Update-StatusBar "Update complete — restarting..."
             $psExe = Join-Path $PSHOME (if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' })
             Start-Process -FilePath $psExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
             $Window.Close()
