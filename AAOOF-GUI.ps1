@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.4.3"
+$script:ScriptVersion = "1.4.4"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -222,6 +222,15 @@ $script:IsConnectedToEXO = $false
 $script:EXOMessageSynced = $true
 
 # Import-AppConfiguration: Read config.json and populate global variables.
+function Normalize-UserAliasSuffix($suffix) {
+    if ([string]::IsNullOrEmpty($suffix)) { return $suffix }
+    $normalized = $suffix.Trim()
+    if ($normalized.StartsWith('@')) { $normalized = $normalized.Substring(1) }
+    $normalized = $normalized.ToLower()
+    if ($normalized -match '\.?microsoft\.com$') { return '@microsoft.com' }
+    return "@$normalized"
+}
+
 function Import-AppConfiguration {
     if (Test-Path $ConfigFile) {
         $cfg = Get-Content $ConfigFile -Raw | ConvertFrom-Json
@@ -229,7 +238,7 @@ function Import-AppConfiguration {
         if ($cfg.EndOfShift)      { $script:EndOfShift = [datetime]$cfg.EndOfShift }
         if ($cfg.WorkDays)        { $script:WorkDays = @($cfg.WorkDays) }
         if ($cfg.UserAlias)       { $script:UserAlias = $cfg.UserAlias }
-        if ($cfg.UserAliasSuffix) { $script:UserAliasSuffix = $cfg.UserAliasSuffix }
+        if ($cfg.UserAliasSuffix) { $script:UserAliasSuffix = Normalize-UserAliasSuffix($cfg.UserAliasSuffix) }
         if ($cfg.FullName)        { $script:FullName = $cfg.FullName }
         if ($cfg.Role)            { $script:Role = $cfg.Role }
         if ($null -ne $cfg.OverrideAccount) { $script:OverrideAccount = [bool]$cfg.OverrideAccount }
@@ -941,7 +950,7 @@ function Initialize-UIFromConfig {
     $chkOverrideAccount.IsChecked = $script:OverrideAccount
     $txtAccount.IsEnabled = $script:OverrideAccount
     # Account
-    if (![string]::IsNullOrEmpty($script:UserAlias)) {
+    if ($script:OverrideAccount) {
         $txtAccount.Text = $script:UserAlias
     } else {
         Resolve-UserAlias
