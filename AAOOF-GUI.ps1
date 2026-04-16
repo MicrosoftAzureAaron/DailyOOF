@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.3.2"
+$script:ScriptVersion = "1.4.0"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -650,12 +650,22 @@ function Register-DailyScheduledTask {
     $TriggerTime = $date.AddMinutes(15) + $TriggerTime
     $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
 
+    $settings = New-ScheduledTaskSettingsSet `
+        -StartWhenAvailable `
+        -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries `
+        -RestartCount 1 `
+        -RestartInterval (New-TimeSpan -Minutes 1) `
+        -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+        -AllowHardTerminate `
+        -MultipleInstances StopExisting
+
     $existing = Get-ScheduledTask -TaskName $taskname -ErrorAction SilentlyContinue
     if ($existing) {
         # Update the existing task so stale configurations are corrected
-        Set-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -ErrorAction Stop | Out-Null
+        Set-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -Settings $settings -ErrorAction Stop | Out-Null
     } else {
-        Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -RunLevel Highest -ErrorAction Stop | Out-Null
+        Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -Settings $settings -RunLevel Highest -ErrorAction Stop | Out-Null
     }
     return $true
 }
