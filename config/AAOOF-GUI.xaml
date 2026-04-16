@@ -180,15 +180,6 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Email Suffix">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <TextBlock Text="Suffix:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBox x:Name="txtSuffix" Width="250" FontSize="13" Text="@microsoft.com" VerticalContentAlignment="Center" Padding="4"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </GroupBox>
-
                         <GroupBox Header="Office Hours">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">

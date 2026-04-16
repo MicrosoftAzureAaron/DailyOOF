@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.1.0"
+$script:ScriptVersion = "1.2.0"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -711,7 +711,6 @@ $txtCurrentOOFStatus = $Window.FindName("txtCurrentOOFStatus")
 # --- Configuration tab controls ---
 $txtFullName = $Window.FindName("txtFullName")
 $txtRole = $Window.FindName("txtRole")
-$txtSuffix = $Window.FindName("txtSuffix")
 $cmbStartHour = $Window.FindName("cmbStartHour")
 $cmbStartMin = $Window.FindName("cmbStartMin")
 $cmbStartAmPm = $Window.FindName("cmbStartAmPm")
@@ -804,7 +803,6 @@ function Assert-ExchangeConnection {
 
     Update-StatusBar "Not connected — attempting to connect..."
     if (-not $chkOverrideAccount.IsChecked) {
-        $script:UserAliasSuffix = $txtSuffix.Text
         Resolve-UserAlias
         $txtAccount.Text = $script:UserAlias
     } else {
@@ -834,10 +832,6 @@ function Initialize-UIFromConfig {
     # Role
     if (![string]::IsNullOrEmpty($script:Role)) {
         $txtRole.Text = $script:Role
-    }
-    # Suffix
-    if (![string]::IsNullOrEmpty($script:UserAliasSuffix)) {
-        $txtSuffix.Text = $script:UserAliasSuffix
     }
     # Account override checkbox
     $chkOverrideAccount.IsChecked = $script:OverrideAccount
@@ -1055,7 +1049,6 @@ $btnConnect.Add_Click({
     try {
         Update-StatusBar "Connecting to Exchange Online..."
         if (-not $chkOverrideAccount.IsChecked) {
-            $script:UserAliasSuffix = $txtSuffix.Text
             Resolve-UserAlias
             $txtAccount.Text = $script:UserAlias
         } else {
@@ -1214,7 +1207,6 @@ $btnViewCurrentMsg.Add_Click({
             $txtCurrentOOFStatus.Text = "Disconnected — reconnecting..."
             Update-StatusBar "Not connected — attempting to connect..."
             if (-not $chkOverrideAccount.IsChecked) {
-                $script:UserAliasSuffix = $txtSuffix.Text
                 Resolve-UserAlias
                 $txtAccount.Text = $script:UserAlias
             } else {
@@ -1269,7 +1261,6 @@ $btnRefreshCurrentOOF.Add_Click({
             Update-StatusBar "Not connected — attempting to connect..."
             try {
                 if (-not $chkOverrideAccount.IsChecked) {
-                    $script:UserAliasSuffix = $txtSuffix.Text
                     Resolve-UserAlias
                     $txtAccount.Text = $script:UserAlias
                 } else {
@@ -1322,7 +1313,6 @@ $tcMain.Add_SelectionChanged({
         $script:WorkDays = Read-WorkDaysFromUI
         $script:FullName = $txtFullName.Text
         $script:Role = $txtRole.Text
-        $script:UserAliasSuffix = $txtSuffix.Text
         & $optionReloadHandler
         return
     }
@@ -1339,7 +1329,6 @@ $tcMain.Add_SelectionChanged({
             $txtCurrentOOFStatus.Text = "Disconnected — connecting..."
             Update-StatusBar "Not connected — attempting to connect..."
             if (-not $chkOverrideAccount.IsChecked) {
-                $script:UserAliasSuffix = $txtSuffix.Text
                 Resolve-UserAlias
                 $txtAccount.Text = $script:UserAlias
             } else {
@@ -1385,7 +1374,6 @@ $script:ConfigSaveTimer.Add_Tick({
     $script:ConfigSaveTimer.Stop()
     $script:FullName = $txtFullName.Text
     $script:Role = $txtRole.Text
-    $script:UserAliasSuffix = $txtSuffix.Text
     if ($chkOverrideAccount.IsChecked) {
         $script:UserAlias = $txtAccount.Text
     }
@@ -1401,7 +1389,7 @@ function Request-DebouncedConfigSave {
 }
 
 # Wire config controls to trigger debounced auto-save
-$txtSuffix.Add_TextChanged({ Request-DebouncedConfigSave })
+
 $cmbStartHour.Add_SelectionChanged({ Request-DebouncedConfigSave })
 $cmbStartMin.Add_SelectionChanged({ Request-DebouncedConfigSave })
 $cmbStartAmPm.Add_SelectionChanged({ Request-DebouncedConfigSave })
