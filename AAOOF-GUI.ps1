@@ -313,9 +313,15 @@ if (!$InputParameter) {
 # Resolve-UserAlias: Build the user's email alias from the Windows login name + suffix.
 function Resolve-UserAlias {
     if ([string]::IsNullOrEmpty($script:UserAliasSuffix)) {
-        # Try to derive suffix from the machine's DNS domain
+        # Try to derive suffix from the machine's DNS domain.
+        # Normalize Microsoft corporate domains to @microsoft.com for internal users.
         if ($env:USERDNSDOMAIN) {
-            $script:UserAliasSuffix = "@$($env:USERDNSDOMAIN.ToLower())"
+            $dnsDomain = $env:USERDNSDOMAIN.ToLower()
+            if ($dnsDomain -match '\.?microsoft\.com$') {
+                $script:UserAliasSuffix = '@microsoft.com'
+            } else {
+                $script:UserAliasSuffix = "@$dnsDomain"
+            }
         }
     }
     $ComputerSystem = Get-CimInstance -ClassName Win32_ComputerSystem
