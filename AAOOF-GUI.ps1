@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.2.0"
+$script:ScriptVersion = "1.3.0"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -595,9 +595,14 @@ function Register-DailyScheduledTask {
 
 # Export-AppConfiguration: Persist all global settings to config.json.
 function Export-AppConfiguration {
+    $startOfShiftStr = $null
+    $endOfShiftStr = $null
+    if ($null -ne $script:StartOfShift) { $startOfShiftStr = $script:StartOfShift.ToString("o") }
+    if ($null -ne $script:EndOfShift) { $endOfShiftStr = $script:EndOfShift.ToString("o") }
+    
     $cfg = @{
-        StartOfShift    = if ($null -ne $script:StartOfShift) { $script:StartOfShift.ToString("o") } else { $null }
-        EndOfShift      = if ($null -ne $script:EndOfShift) { $script:EndOfShift.ToString("o") } else { $null }
+        StartOfShift    = $startOfShiftStr
+        EndOfShift      = $endOfShiftStr
         WorkDays        = $script:WorkDays
         UserAlias       = $script:UserAlias
         UserAliasSuffix = $script:UserAliasSuffix
