@@ -171,6 +171,75 @@ function Import-AppConfiguration {
 # Load config immediately on script start
 Import-AppConfiguration
 
+# Check if running as administrator
+function Test-IsAdmin {
+    try {
+        $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
+        return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
+}
+
+# Get install command for ExchangeOnlineManagement module
+function Get-InstallCommand {
+    if (Test-IsAdmin) {
+        return "Install-Module -Name ExchangeOnlineManagement -Force"
+    } else {
+        return "Install-Module -Name ExchangeOnlineManagement -Force -Scope CurrentUser"
+    }
+}
+
+# Check if ExchangeOnlineManagement module is installed, throw error if not
+function Test-ExchangeOnlineModule {
+    if (!(Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+        $installCmd = Get-InstallCommand
+        try {
+            Update-StatusBar "Installing ExchangeOnlineManagement module..."
+        } catch { }
+
+        try {
+            if (Test-IsAdmin) {
+                Install-Module -Name ExchangeOnlineManagement -Force -AllowClobber -ErrorAction Stop
+            } else {
+                Install-Module -Name ExchangeOnlineManagement -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
+            }
+        }
+        catch {
+            $msg = "The ExchangeOnlineManagement module is required but could not be installed automatically.`n`n" +
+                   "Install it manually by running:`n`n" +
+                   "$installCmd`n`n" +
+                   "Then restart the application.`n`n" +
+                   "Install error: $($_.Exception.Message)"
+            throw $msg
+        }
+
+        if (!(Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+            $msg = "The ExchangeOnlineManagement module is required but still not available after installation.`n`n" +
+                   "Try installing manually:`n`n" +
+                   "$installCmd`
+Then restart the application."
+            throw $msg
+        }
+    }
+}
+
+# For GUI mode, check module on launch
+if (!$InputParameter) {
+    try {
+        Test-ExchangeOnlineModule
+    } catch {
+        [System.Windows.MessageBox]::Show(
+            $_.Exception.Message,
+            "Module Not Found",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Error
+        ) | Out-Null
+        exit
+    }
+}
+
 # ===================== Core Functions =====================
 
 # Resolve-UserAlias: Build the user's email alias from the Windows login name + suffix.
@@ -303,24 +372,12 @@ function Get-NextWorkDayOffset {
 }
 
 # Connect-ExchangeOnlineSession: Ensure a live Exchange Online connection exists.
-# Prompts to install the EXO module if missing, reuses existing sessions if found.
+# Throws error if EXO module is missing, reuses existing sessions if found.
 function Connect-ExchangeOnlineSession {
     if ([string]::IsNullOrEmpty($script:UserAlias)) { Resolve-UserAlias }
 
     # Check if ExchangeOnlineManagement module is available
-    if (!(Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
-        $result = [System.Windows.MessageBox]::Show(
-            "The ExchangeOnlineManagement module is required but not installed.`n`nWould you like to install it now?",
-            "Module Not Found",
-            'YesNo',
-            'Warning'
-        )
-        if ($result -eq 'Yes') {
-            Install-Module -Name ExchangeOnlineManagement -Force -Scope CurrentUser
-        } else {
-            throw "ExchangeOnlineManagement module is required to connect."
-        }
-    }
+    Test-ExchangeOnlineModule
 
     # Ensure the module is loaded before calling any of its commands
     if (!(Get-Module -Name ExchangeOnlineManagement)) {
@@ -334,7 +391,12 @@ function Connect-ExchangeOnlineSession {
             return $true
         }
     }
-    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias
+
+    # Flush UI before blocking on auth so status messages are visible
+    if ($null -ne $Window) {
+        $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+    }
+    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias -ShowBanner:$false -CommandName Get-MailboxAutoReplyConfiguration,Set-MailboxAutoReplyConfiguration
     return $true
 }
 
