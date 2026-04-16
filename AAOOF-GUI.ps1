@@ -19,7 +19,13 @@
     Templates: config/*.html (auto-downloaded from GitHub if missing).
     XAML     : config/AAOOF-GUI.xaml (UI layout, auto-downloaded if missing).
 #>
-param([string]$InputParameter)
+param(
+    [string]$InputParameter,
+    [switch]$DisableTemplateAutoDownload,
+    [switch]$DisableAutoUpdate,
+    [switch]$DisableAutoUpdateRestart,
+    [switch]$UseRootConfig
+)
 
 # ===================== WPF GUI Setup =====================
 # Load .NET assemblies required for WPF windows, controls, and file dialogs.
@@ -31,7 +37,13 @@ Add-Type -AssemblyName System.Windows.Forms
 # Resolve paths for the script directory, config folder, config file, and XAML layout.
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigDir = Join-Path $ScriptDir "config"
-$ConfigFile = Join-Path $ConfigDir "config.json"
+if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | Out-Null }
+
+if ($UseRootConfig) {
+    $ConfigFile = Join-Path $ScriptDir "config.json"
+} else {
+    $ConfigFile = Join-Path $ConfigDir "config.json"
+}
 $XamlFile = Join-Path $ConfigDir "AAOOF-GUI.xaml"
 
 # Ensure config directory exists
@@ -52,10 +64,15 @@ $DefaultConfigFiles = @(
 )
 
 $downloadFailures = @()
+$downloadSkipped = @()
 
 foreach ($fileName in $DefaultConfigFiles) {
     $localPath = Join-Path $ConfigDir $fileName
     if (!(Test-Path $localPath)) {
+        if (-not $script:EnableTemplateAutoDownload) {
+            $downloadSkipped += $fileName
+            continue
+        }
         $url = "$RepoBaseUrl/$fileName"
         try {
             Invoke-WebRequest -Uri $url -OutFile $localPath -UseBasicParsing
@@ -66,6 +83,13 @@ foreach ($fileName in $DefaultConfigFiles) {
             $downloadFailures += $fileName
         }
     }
+}
+
+if ($downloadSkipped.Count -gt 0) {
+    $skippedList = $downloadSkipped -join "`n  - "
+    $msg = "Template auto-download is disabled. The following files were not downloaded:`n  - $skippedList`n`n" +
+           "If you want templates or XAML restored, enable auto-download in config.json or run with -DisableTemplateAutoDownload removed."
+    Write-Host $msg -ForegroundColor Yellow
 }
 
 if ($downloadFailures.Count -gt 0) {
@@ -137,8 +161,8 @@ function Invoke-ScriptSelfUpdate {
 }
 
 # Invoke-ScriptSelfUpdateExternal: Start a separate PowerShell process to download the
-# new script and XAML, then relaunch the updated script after this process exits.
-function Invoke-ScriptSelfUpdateExternal([string]$InputParam = "") {
+# new script and XAML, then optionally relaunch the updated script after this process exits.
+function Invoke-ScriptSelfUpdateExternal([string]$InputParam = "", [switch]$RestartAfterUpdate) {
     if ($PSVersionTable.PSEdition -eq 'Core') {
         $psExe = Join-Path $PSHOME 'pwsh.exe'
     } else {
@@ -250,6 +274,10 @@ $script:FullName       = ""                           # Display name for auto-ge
 $script:Role           = ""                           # Job title inserted into templates via [ROLE]
 $script:OverrideAccount = $false                      # True if user manually overrides the account email
 $script:SelectedHolidayName = ""                      # Name of the selected holiday for [HOLIDAY NAME] placeholder
+$script:EnableTemplateAutoDownload = $true             # Automatically download missing templates/XAML on startup
+$script:EnableAutoUpdateCheck = $true                   # Background check for script updates when GUI starts
+$script:EnableAutoUpdateRestart = $false                # Restart the GUI automatically after applying an update
+$script:UseRootConfig = $false                          # Store config.json alongside the script instead of in config/ folder
 
 # Script-level tracking for EXO sync state
 $script:IsConnectedToEXO = $false
@@ -276,11 +304,41 @@ function Import-AppConfiguration {
         if ($cfg.FullName)        { $script:FullName = $cfg.FullName }
         if ($cfg.Role)            { $script:Role = $cfg.Role }
         if ($null -ne $cfg.OverrideAccount) { $script:OverrideAccount = [bool]$cfg.OverrideAccount }
+        if ($null -ne $cfg.EnableTemplateAutoDownload) { $script:EnableTemplateAutoDownload = [bool]$cfg.EnableTemplateAutoDownload }
+        if ($null -ne $cfg.EnableAutoUpdateCheck) { $script:EnableAutoUpdateCheck = [bool]$cfg.EnableAutoUpdateCheck }
+        if ($null -ne $cfg.EnableAutoUpdateRestart) { $script:EnableAutoUpdateRestart = [bool]$cfg.EnableAutoUpdateRestart }
+        if ($null -ne $cfg.UseRootConfig) { $script:UseRootConfig = [bool]$cfg.UseRootConfig }
     }
 }
 
 # Load config immediately on script start
 Import-AppConfiguration
+
+# Apply startup switches and persist them if requested
+$startupSwitchesApplied = $false
+if ($DisableTemplateAutoDownload) {
+    $script:EnableTemplateAutoDownload = $false
+    $startupSwitchesApplied = $true
+    Write-Host "Template auto-download disabled by startup parameter and will be saved to config file." -ForegroundColor Yellow
+}
+if ($DisableAutoUpdate) {
+    $script:EnableAutoUpdateCheck = $false
+    $startupSwitchesApplied = $true
+    Write-Host "Auto-update checks disabled by startup parameter and will be saved to config file." -ForegroundColor Yellow
+}
+if ($DisableAutoUpdateRestart) {
+    $script:EnableAutoUpdateRestart = $false
+    $startupSwitchesApplied = $true
+    Write-Host "Auto-update restart disabled by startup parameter and will be saved to config file." -ForegroundColor Yellow
+}
+if ($UseRootConfig) {
+    $script:UseRootConfig = $true
+    $startupSwitchesApplied = $true
+    Write-Host "Using root config file location due to startup parameter." -ForegroundColor Yellow
+}
+if ($startupSwitchesApplied) {
+    Export-AppConfiguration
+}
 
 # Check if running as administrator
 function Test-IsAdmin {
