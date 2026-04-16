@@ -618,7 +618,11 @@ if ($InputParameter) {
         $updated = Invoke-ScriptSelfUpdate
         if ($updated) {
             Write-Host "Script updated — re-launching with new version..." -ForegroundColor Green
-            $psExe = Join-Path $PSHOME (if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' })
+            if ($PSVersionTable.PSEdition -eq 'Core') {
+                $psExe = Join-Path $PSHOME 'pwsh.exe'
+            } else {
+                $psExe = Join-Path $PSHOME 'powershell.exe'
+            }
             Start-Process -FilePath $psExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $InputParameter" -NoNewWindow -Wait
             exit
         }
@@ -2092,7 +2096,60 @@ $Window.Add_Closing({
 })
 $Window.Add_Closed({
     try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch { }
+    # Clean up background update check job and timer
+    if ($updateCheckTimer) {
+        $updateCheckTimer.Stop()
+    }
+    if ($updateCheckJob -and $updateCheckJob.State -eq 'Running') {
+        $updateCheckJob | Stop-Job -Force -ErrorAction SilentlyContinue
+    }
 })
+
+# ===================== Background Update Check =====================
+# Check for script updates once when the GUI starts.
+# If an update is available, highlight the Check for Updates button.
+$updateCheckJob = Start-Job -ScriptBlock {
+    param($UpdateUrl, $LocalPath)
+    try {
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        $remoteHash = (Get-FileHash -Path $tempFile -Algorithm SHA256 -ErrorAction Stop).Hash
+        $localHash  = (Get-FileHash -Path $LocalPath -Algorithm SHA256 -ErrorAction Stop).Hash
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        
+        # If hashes differ, an update is available
+        if ($remoteHash -ne $localHash) {
+            Write-Output "UPDATE_AVAILABLE"
+        }
+    }
+    catch {
+        # Silently skip on error
+    }
+} -ArgumentList $ScriptUpdateUrl, $PSCommandPath
+
+# Track whether an update has been signaled
+$script:UpdateSignaled = $false
+
+# Set up a timer to check for background job completion once
+$updateCheckTimer = New-Object System.Windows.Threading.DispatcherTimer
+$updateCheckTimer.Interval = [TimeSpan]::FromMilliseconds(500)  # Check every 500ms until job completes
+$updateCheckTimer_Tick = {
+    if (-not $script:UpdateSignaled -and $updateCheckJob.State -ne 'Running') {
+        $updateCheckTimer.Stop()
+        $jobOutput = $updateCheckJob | Receive-Job -ErrorAction SilentlyContinue
+        if ($jobOutput -contains "UPDATE_AVAILABLE") {
+            $script:UpdateSignaled = $true
+            # Highlight and focus the Check for Updates button
+            $btnCheckForUpdates.Background = [System.Windows.Media.Brushes]::LightYellow
+            $btnCheckForUpdates.Foreground = [System.Windows.Media.Brushes]::Red
+            $btnCheckForUpdates.Content = "📥 Update Available!"
+            $btnCheckForUpdates.Focus()
+        }
+    }
+}
+$updateCheckTimer.Add_Tick($updateCheckTimer_Tick)
+$updateCheckTimer.Start()
+
 $Window.ShowDialog() | Out-Null
 
 # Final cleanup: ensure Exchange session is released even if the Closed event didn't fire.
