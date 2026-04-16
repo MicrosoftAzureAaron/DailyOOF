@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.3.1"
+$script:ScriptVersion = "1.3.2"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -148,7 +148,7 @@ function Invoke-ScriptSelfUpdateExternal([string]$InputParam = "") {
         throw "PowerShell executable not found at '$psExe'. Cannot perform external update."
     }
 
-    $inputArg = if ([string]::IsNullOrEmpty($InputParam)) { '' } else { " $InputParam" }
+    $inputArg = if ([string]::IsNullOrEmpty($InputParam)) { '' } else { $InputParam }
     $scriptPath = $PSCommandPath
     $xamlUrl = "$RepoBaseUrl/AAOOF-GUI.xaml"
     $xamlPath = $XamlFile
@@ -174,12 +174,13 @@ try {
     Invoke-WebRequest -Uri `$xamlUrl -OutFile `$xamlPath -UseBasicParsing -TimeoutSec 10
 } catch {
 }
-`$argList = "-NoProfile -ExecutionPolicy Bypass -File `"`$targetScript`"`$inputArg"
-Start-Process -FilePath "$psExe" -ArgumentList `$argList -NoNewWindow
+`$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", `$targetScript)
+if (-not [string]::IsNullOrEmpty(`$inputArg)) { `$argList += `$inputArg }
+Start-Process -FilePath "$psExe" -ArgumentList `$argList -WorkingDirectory (Split-Path -Parent `$targetScript) -WindowStyle Normal
 "@
 
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childScript))
-    Start-Process -FilePath $psExe -ArgumentList "-NoProfile -EncodedCommand $encoded" -WindowStyle Hidden
+    Start-Process -FilePath $psExe -ArgumentList @("-NoProfile", "-EncodedCommand", $encoded) -WindowStyle Hidden
     return $true
 }
 
