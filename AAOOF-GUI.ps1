@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.4.5"
+$script:ScriptVersion = "1.4.6"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -202,6 +202,40 @@ function Update-ConfigFile($FileName) {
         Write-Host "Failed to update $FileName : $($_.Exception.Message)" -ForegroundColor Yellow
         return $false
     }
+}
+
+function Get-MissingHeadlessFiles {
+    $missing = @()
+    if (-not (Test-Path $ConfigFile)) {
+        $missing += "Configuration file missing: $ConfigFile"
+    }
+    foreach ($fileName in $DefaultConfigFiles) {
+        $localPath = Join-Path $ConfigDir $fileName
+        if (-not (Test-Path $localPath)) {
+            $missing += "Template file missing: $fileName"
+        }
+    }
+    return $missing
+}
+
+function Report-MissingHeadlessFiles {
+    $missing = Get-MissingHeadlessFiles
+    if ($missing.Count -gt 0) {
+        Write-Host "Required files are missing for headless/scheduled mode:" -ForegroundColor Yellow
+        foreach ($item in $missing) {
+            Write-Host "  - $item" -ForegroundColor Yellow
+        }
+        Write-Host "Run the GUI once to restore missing files and save your configuration." -ForegroundColor Yellow
+    }
+}
+
+function Ensure-HeadlessConfigAvailable {
+    if (-not (Test-Path $ConfigFile)) {
+        Write-Host "Configuration file not found: $ConfigFile" -ForegroundColor Red
+        Write-Host "Please run the GUI once and save your settings before using scheduled or headless mode." -ForegroundColor Red
+        return $false
+    }
+    return $true
 }
 
 # ===================== Configuration (loaded from config.json) =====================
@@ -710,6 +744,8 @@ function Export-AppConfiguration {
 #   '1'   — Daily scheduled OOF update. Checks for active vacation before overwriting.
 #   <date> — Set vacation/extended OOF until that return date.
 if ($InputParameter) {
+    Report-MissingHeadlessFiles
+
     # Silently self-update the script before running headless operations
     try {
         $updated = Invoke-ScriptSelfUpdateExternal $InputParameter
@@ -722,8 +758,9 @@ if ($InputParameter) {
     }
 
     if ($InputParameter -eq '1') {
+        if (-not (Ensure-HeadlessConfigAvailable)) { exit }
         if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift -or $null -eq $script:WorkDays) {
-            Write-Host "Configuration not set. Please run the GUI first to configure." -ForegroundColor Red
+            Write-Host "Configuration incomplete. Please run the GUI, configure Start/End shift and Work Days, then save." -ForegroundColor Red
             exit
         }
         Connect-ExchangeOnlineSession
@@ -746,8 +783,9 @@ if ($InputParameter) {
         exit
     }
     if ($InputParameter -as [datetime]) {
+        if (-not (Ensure-HeadlessConfigAvailable)) { exit }
         if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) {
-            Write-Host "Configuration not set. Please run the GUI first to configure." -ForegroundColor Red
+            Write-Host "Configuration incomplete. Please run the GUI, configure Start/End shift, then save." -ForegroundColor Red
             exit
         }
         Connect-ExchangeOnlineSession
