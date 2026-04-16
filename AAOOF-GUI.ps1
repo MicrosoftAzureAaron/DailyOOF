@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.3.0"
+$script:ScriptVersion = "1.3.1"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -134,6 +134,53 @@ function Invoke-ScriptSelfUpdate {
     catch {
         throw "Failed to download update: $($_.Exception.Message)"
     }
+}
+
+# Invoke-ScriptSelfUpdateExternal: Start a separate PowerShell process to download the
+# new script and XAML, then relaunch the updated script after this process exits.
+function Invoke-ScriptSelfUpdateExternal([string]$InputParam = "") {
+    if ($PSVersionTable.PSEdition -eq 'Core') {
+        $psExe = Join-Path $PSHOME 'pwsh.exe'
+    } else {
+        $psExe = Join-Path $PSHOME 'powershell.exe'
+    }
+    if (-not (Test-Path $psExe)) {
+        throw "PowerShell executable not found at '$psExe'. Cannot perform external update."
+    }
+
+    $inputArg = if ([string]::IsNullOrEmpty($InputParam)) { '' } else { " $InputParam" }
+    $scriptPath = $PSCommandPath
+    $xamlUrl = "$RepoBaseUrl/AAOOF-GUI.xaml"
+    $xamlPath = $XamlFile
+
+    $childScript = @"
+`$targetScript = "$scriptPath"
+`$scriptUrl = "$ScriptUpdateUrl"
+`$xamlUrl = "$xamlUrl"
+`$xamlPath = "$xamlPath"
+`$inputArg = "$inputArg"
+`$tempFile = [System.IO.Path]::GetTempFileName()
+Invoke-WebRequest -Uri `$scriptUrl -OutFile `$tempFile -UseBasicParsing -TimeoutSec 15
+while (`$true) {
+    try {
+        Copy-Item -Path `$tempFile -Destination `$targetScript -Force
+        break
+    } catch {
+        Start-Sleep -Seconds 1
+    }
+}
+Remove-Item -Path `$tempFile -Force -ErrorAction SilentlyContinue
+try {
+    Invoke-WebRequest -Uri `$xamlUrl -OutFile `$xamlPath -UseBasicParsing -TimeoutSec 10
+} catch {
+}
+`$argList = "-NoProfile -ExecutionPolicy Bypass -File `"`$targetScript`"`$inputArg"
+Start-Process -FilePath "$psExe" -ArgumentList `$argList -NoNewWindow
+"@
+
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childScript))
+    Start-Process -FilePath $psExe -ArgumentList "-NoProfile -EncodedCommand $encoded" -WindowStyle Hidden
+    return $true
 }
 
 # Update-ConfigFile: Download a specific config file from GitHub and save it locally.
@@ -639,17 +686,9 @@ function Export-AppConfiguration {
 if ($InputParameter) {
     # Silently self-update the script before running headless operations
     try {
-        $updated = Invoke-ScriptSelfUpdate
+        $updated = Invoke-ScriptSelfUpdateExternal $InputParameter
         if ($updated) {
-            Write-Host "Script updated — downloading latest config files..." -ForegroundColor Green
-            Update-ConfigFile "AAOOF-GUI.xaml"
-            Write-Host "Re-launching with new version..." -ForegroundColor Green
-            if ($PSVersionTable.PSEdition -eq 'Core') {
-                $psExe = Join-Path $PSHOME 'pwsh.exe'
-            } else {
-                $psExe = Join-Path $PSHOME 'powershell.exe'
-            }
-            Start-Process -FilePath $psExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $InputParameter" -NoNewWindow -Wait
+            Write-Host "Script update launched in a separate process." -ForegroundColor Green
             exit
         }
     } catch {
@@ -1516,13 +1555,9 @@ $btnCheckForUpdates.Add_Click({
         } else {
             $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
         }
-        $updated = Invoke-ScriptSelfUpdate
+        $updated = Invoke-ScriptSelfUpdateExternal
         if ($updated) {
-            Update-StatusBar "Update downloaded — downloading latest config files..."
-            Update-ConfigFile "AAOOF-GUI.xaml"
-            Update-StatusBar "Update complete — restarting..."
-            $psExe = Join-Path $PSHOME (if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' })
-            Start-Process -FilePath $psExe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+            Update-StatusBar "Update launched in a separate process..."
             $Window.Close()
         } else {
             Update-StatusBar "Already up to date"
