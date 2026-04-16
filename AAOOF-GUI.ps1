@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.4.4"
+$script:ScriptVersion = "1.4.5"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1479,21 +1479,23 @@ $tcMain.Add_SelectionChanged({
     }
 })
 
-# Debounced auto-save: When any config control changes, restart a 1.5-second timer.
+# Debounced auto-save: When any config control changes, restart a 0.5-second timer.
 # When the timer fires (user stopped making changes), read all UI fields and save.
 $script:ConfigSaveTimer = New-Object System.Windows.Threading.DispatcherTimer
-$script:ConfigSaveTimer.Interval = [TimeSpan]::FromMilliseconds(1500)
+$script:ConfigSaveTimer.Interval = [TimeSpan]::FromMilliseconds(500)
 $script:ConfigSaveTimer.Add_Tick({
     $script:ConfigSaveTimer.Stop()
     $script:FullName = $txtFullName.Text
     $script:Role = $txtRole.Text
     if ($chkOverrideAccount.IsChecked) {
         $script:UserAlias = $txtAccount.Text
+    } else {
+        Resolve-UserAlias
     }
     Read-ShiftTimesFromUI
     $script:WorkDays = Read-WorkDaysFromUI
     Export-AppConfiguration
-    Update-StatusBar "Settings saved"
+    Update-StatusBar "💾 Settings saved"
 })
 
 function Request-DebouncedConfigSave {
@@ -1770,6 +1772,14 @@ $chkOverrideAccount.Add_Unchecked({
     Request-DebouncedConfigSave
     & $optionReloadHandler
 })
+# Save edited account while typing, then persist after a brief pause
+$txtAccount.Add_TextChanged({
+    if ($chkOverrideAccount.IsChecked) {
+        $script:UserAlias = $txtAccount.Text
+        Request-DebouncedConfigSave
+    }
+})
+
 # Save edited account when user tabs out
 $txtAccount.Add_LostFocus({
     if ($chkOverrideAccount.IsChecked) {
