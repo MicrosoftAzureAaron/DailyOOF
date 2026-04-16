@@ -42,7 +42,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.4.0"
+$script:ScriptVersion = "1.4.1"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -176,7 +176,8 @@ try {
 }
 `$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", `$targetScript)
 if (-not [string]::IsNullOrEmpty(`$inputArg)) { `$argList += `$inputArg }
-Start-Process -FilePath "$psExe" -ArgumentList `$argList -WorkingDirectory (Split-Path -Parent `$targetScript) -WindowStyle Normal
+# The external updater only replaces the local script and XAML.
+# Actual restart is left to the user after the message window closes.
 "@
 
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childScript))
@@ -657,8 +658,7 @@ function Register-DailyScheduledTask {
         -RestartCount 1 `
         -RestartInterval (New-TimeSpan -Minutes 1) `
         -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
-        -AllowHardTerminate `
-        -MultipleInstances StopExisting
+        -MultipleInstances Queue
 
     $existing = Get-ScheduledTask -TaskName $taskname -ErrorAction SilentlyContinue
     if ($existing) {
@@ -863,6 +863,28 @@ function Update-StatusBar($Message) {
 # Show-InfoDialog: Display an informational popup.
 function Show-InfoDialog($Title, $Message) {
     [System.Windows.MessageBox]::Show($Message, $Title, 'OK', 'Information')
+}
+
+# Show-TemporaryInfoDialog: Display an auto-closing informational popup.
+function Show-TemporaryInfoDialog($Title, $Message, [int]$Seconds = 5) {
+    $dialog = New-Object System.Windows.Window
+    $dialog.Title = $Title
+    $dialog.WindowStyle = 'ToolWindow'
+    $dialog.ResizeMode = 'NoResize'
+    $dialog.SizeToContent = 'WidthAndHeight'
+    $dialog.Topmost = $true
+    $dialog.WindowStartupLocation = 'CenterScreen'
+    $dialog.Content = New-Object System.Windows.Controls.TextBlock -Property @{ Text = $Message; Margin = 16; TextWrapping = 'Wrap'; Width = 360 }
+
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromSeconds($Seconds)
+    $timer.Add_Tick({
+        $timer.Stop()
+        $dialog.Close()
+    })
+    $timer.Start()
+
+    $dialog.ShowDialog() | Out-Null
 }
 
 # Show-ErrorDialog: Display an error popup.
@@ -1563,16 +1585,18 @@ $btnCheckForUpdates.Add_Click({
         $txtRemoteVersion.Text = $remoteVer
         if ($remoteVer -eq $script:ScriptVersion) {
             $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
+            Update-StatusBar "Already up to date"
+            Show-InfoDialog "No Update" "You are already running the latest version."
+            return
         } else {
             $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
         }
+
         $updated = Invoke-ScriptSelfUpdateExternal
         if ($updated) {
-            Update-StatusBar "Update launched in a separate process..."
+            Update-StatusBar "Update downloaded successfully. Please restart after this window closes."
+            Show-TemporaryInfoDialog "Update Complete" "The application has been updated successfully. Please restart the script after this window closes." 5
             $Window.Close()
-        } else {
-            Update-StatusBar "Already up to date"
-            Show-InfoDialog "No Update" "You are already running the latest version."
         }
     }
     catch {
