@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.5.7" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.5.8" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -810,7 +810,7 @@ if ($InputParameter) {
             Write-Host "Configuration incomplete. Please run the GUI, configure Start/End shift and Work Days, then save." -ForegroundColor Red
             exit
         }
-        Connect-ExchangeOnlineSession
+        Connect-ExchangeOnlineSession | Out-Null
 
         # Skip if a vacation/extended OOF is active (end time is more than 1 day out)
         $arc = Get-AutoReplyConfiguration
@@ -834,7 +834,7 @@ if ($InputParameter) {
             Write-Host "Configuration incomplete. Please run the GUI, configure Start/End shift, then save." -ForegroundColor Red
             exit
         }
-        Connect-ExchangeOnlineSession
+        Connect-ExchangeOnlineSession | Out-Null
         Set-VacationAutoReply $InputParameter
         $arc = Get-AutoReplyConfiguration
         Write-Host "Auto Reply: $($arc.AutoReplyState) | Start: $($arc.StartTime) | End: $($arc.EndTime)"
@@ -843,9 +843,15 @@ if ($InputParameter) {
 
     # Self-update after OOF settings have been applied so updates never block the reply
     try {
-        $updated = Invoke-ScriptSelfUpdateExternal $InputParameter
-        if ($updated) {
-            Write-Host "Script update launched in a separate process." -ForegroundColor Green
+        $remoteVer = Get-RemoteScriptVersion
+        if ($remoteVer -ne 'unknown' -and $remoteVer -ne $script:ScriptVersion) {
+            Write-Host "Update available: v$($script:ScriptVersion) -> v$remoteVer" -ForegroundColor Cyan
+            $updated = Invoke-ScriptSelfUpdateExternal $InputParameter
+            if ($updated) {
+                Write-Host "Script update launched in a separate process." -ForegroundColor Green
+            }
+        } else {
+            Write-Host "Script is up to date (v$($script:ScriptVersion))." -ForegroundColor Green
         }
     } catch {
         Write-Host "Auto-update skipped: $($_.Exception.Message)" -ForegroundColor Yellow
