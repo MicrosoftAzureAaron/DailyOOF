@@ -24,6 +24,7 @@ Patch goals:
 
 - `1.7.1`: Fix task state edge cases and improve task result messaging.
 - `1.7.2`: Add enable/disable/delete controls if needed after live feedback.
+- `1.7.3`: Detect scheduled task script-path mismatches and add one-click repair.
 
 ### 1.8.x Template and Contact Improvements
 

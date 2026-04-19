@@ -72,9 +72,9 @@ The GUI has five tabs:
 #### Automation
 | Setting | Description |
 |---|---|
-| **Scheduled Task** | Create or update the Windows Task Scheduler job used for daily automation. The UI shows task state, next run, last run, last result, target script path, and a summary status line. |
+| **Scheduled Task** | Create or update the Windows Task Scheduler job used for daily automation. The UI shows task state, next run, last run, last result, target script path, and a summary status line. If the task points to the wrong script path, the summary calls it out. |
 | **Task Offset** | Sets how many minutes after your shift start the daily scheduled task should run. |
-| **Task Controls** | Run task now, refresh task status, open Task Scheduler, and enable/disable the task directly from the Automation tab. |
+| **Task Controls** | Run task now, refresh task status, open Task Scheduler, repair task path, and enable/disable the task directly from the Automation tab. |
 
 ---
 

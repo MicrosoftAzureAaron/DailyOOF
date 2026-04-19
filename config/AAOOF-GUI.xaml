@@ -298,9 +298,10 @@
                                     </StackPanel>
                                 </Border>
                                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#C00" FontStyle="Italic" Margin="0,0,0,6"
-                                    Text="Note: You must run this script as Administrator before clicking Create/Update Scheduled Task."/>
+                                    Text="Note: You must run this script as Administrator before clicking Create/Update Scheduled Task or Repair Task Path."/>
                                 <WrapPanel>
                                     <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}"/>
+                                    <Button x:Name="btnRepairTaskPath" Content="Repair Task Path" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnEnableTask" Content="Enable Task" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnDisableTask" Content="Disable Task" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnRefreshTaskStatus" Content="Refresh Task Status" Style="{StaticResource SecondaryBtn}"/>

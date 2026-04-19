@@ -55,7 +55,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.7.2" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.7.3" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -769,12 +769,59 @@ function Disable-VacationAutoReply {
     Set-AutoReplyState 'Disabled'
 }
 
+# Test-IsCurrentSessionElevated: Return $true when the current PowerShell session is running as Administrator.
+function Test-IsCurrentSessionElevated {
+    return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# Get-PreferredTaskScriptPath: Pick the best available script path for task registration and repair.
+function Get-PreferredTaskScriptPath {
+    $candidateScriptPaths = @(
+        (Join-Path $env:USERPROFILE "AAOOF-GUI.ps1"),
+        $PSCommandPath,
+        (Join-Path $ScriptDir "AAOOF-GUI.ps1")
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+    return $candidateScriptPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
+# Test-SamePath: Compare two file-system paths without requiring exact string formatting.
+function Test-SamePath($PathA, $PathB) {
+    if ([string]::IsNullOrWhiteSpace($PathA) -or [string]::IsNullOrWhiteSpace($PathB)) {
+        return $false
+    }
+
+    try {
+        $normalizedPathA = [System.IO.Path]::GetFullPath($PathA).TrimEnd('\\')
+        $normalizedPathB = [System.IO.Path]::GetFullPath($PathB).TrimEnd('\\')
+        return [string]::Equals($normalizedPathA, $normalizedPathB, [System.StringComparison]::OrdinalIgnoreCase)
+    }
+    catch {
+        return [string]::Equals($PathA, $PathB, [System.StringComparison]::OrdinalIgnoreCase)
+    }
+}
+
+# Get-PowerShellExecutablePath: Resolve the current PowerShell host executable path.
+function Get-PowerShellExecutablePath {
+    if ($PSVersionTable.PSEdition -eq 'Core') {
+        $psExe = Join-Path $PSHOME "pwsh.exe"
+    }
+    else {
+        $psExe = Join-Path $PSHOME "powershell.exe"
+    }
+
+    if (-not (Test-Path $psExe)) {
+        throw "PowerShell executable not found at '$psExe'. Cannot register scheduled task."
+    }
+    return $psExe
+}
+
 # Register-DailyScheduledTask: Create or update the 'AAOOF' scheduled task.
 # The task runs this script daily in CLI mode with parameter '1'.
 # Admin rights are required to create/update registration, but not required for task execution.
 function Register-DailyScheduledTask {
     # Check elevation before attempting to register or update the task.
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    $isAdmin = Test-IsCurrentSessionElevated
     if (-not $isAdmin) {
         throw "This action requires Administrator privileges.`n`nPlease close the app and re-run the script as Administrator, then try again."
     }
@@ -786,31 +833,20 @@ function Register-DailyScheduledTask {
         throw "Select at least one work day before creating the scheduled task."
     }
 
-    $candidateScriptPaths = @(
-        (Join-Path $env:USERPROFILE "AAOOF-GUI.ps1"),
-        $PSCommandPath,
-        (Join-Path $ScriptDir "AAOOF-GUI.ps1")
-    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-
-    $scriptPath = $candidateScriptPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+    $scriptPath = Get-PreferredTaskScriptPath
     if (-not (Test-Path $scriptPath)) {
+        $candidateScriptPaths = @(
+            (Join-Path $env:USERPROFILE "AAOOF-GUI.ps1"),
+            $PSCommandPath,
+            (Join-Path $ScriptDir "AAOOF-GUI.ps1")
+        ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
         throw "Script not found at any expected location. Checked:`n - $($candidateScriptPaths -join "`n - ")"
     }
 
     $scriptWorkingDir = Split-Path -Parent $scriptPath
 
     # Resolve the PowerShell executable reliably across PS5, PS7, ISE, VS Code, etc.
-    if ($PSVersionTable.PSEdition -eq 'Core') {
-        # PowerShell 7+: use pwsh.exe from its known install location
-        $psExe = Join-Path $PSHOME "pwsh.exe"
-    }
-    else {
-        # Windows PowerShell 5.1
-        $psExe = Join-Path $PSHOME "powershell.exe"
-    }
-    if (-not (Test-Path $psExe)) {
-        throw "PowerShell executable not found at '$psExe'. Cannot register scheduled task."
-    }
+    $psExe = Get-PowerShellExecutablePath
 
     $taskname = "AAOOF"
     $action = New-ScheduledTaskAction -Execute $psExe -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" 1" -WorkingDirectory $scriptWorkingDir
@@ -837,6 +873,29 @@ function Register-DailyScheduledTask {
         Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -Settings $settings -RunLevel Highest -ErrorAction Stop | Out-Null
     }
     return $scriptPath
+}
+
+# Repair-DailyScheduledTaskScriptPath: Update the task action so it points to the preferred live script path.
+function Repair-DailyScheduledTaskScriptPath {
+    if (-not (Test-IsCurrentSessionElevated)) {
+        throw "This action requires Administrator privileges.`n`nPlease close the app and re-run the script as Administrator, then try again."
+    }
+
+    $task = Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue
+    if ($null -eq $task) {
+        throw "Scheduled task 'AAOOF' has not been created yet."
+    }
+
+    $preferredScriptPath = Get-PreferredTaskScriptPath
+    if (-not (Test-Path $preferredScriptPath)) {
+        throw "Could not locate a valid script path to repair the task action."
+    }
+
+    $psExe = Get-PowerShellExecutablePath
+    $scriptWorkingDir = Split-Path -Parent $preferredScriptPath
+    $action = New-ScheduledTaskAction -Execute $psExe -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$preferredScriptPath`" 1" -WorkingDirectory $scriptWorkingDir
+    Set-ScheduledTask -TaskName "AAOOF" -Action $action -ErrorAction Stop | Out-Null
+    return $preferredScriptPath
 }
 
 # Get-ScheduledTaskResultText: Convert common task result codes into readable status text.
@@ -868,6 +927,7 @@ function Get-ScheduledTaskScriptPath($Task) {
 # Get-DailyScheduledTaskStatus: Return a UI-friendly status object for the AAOOF task.
 function Get-DailyScheduledTaskStatus {
     $task = Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue
+    $preferredScriptPath = Get-PreferredTaskScriptPath
     if ($null -eq $task) {
         return [PSCustomObject]@{
             Exists = $false
@@ -882,12 +942,15 @@ function Get-DailyScheduledTaskStatus {
             CanRunNow = $false
             CanEnable = $false
             CanDisable = $false
+            CanRepairPath = $false
         }
     }
 
     $taskInfo = Get-ScheduledTaskInfo -TaskName "AAOOF" -ErrorAction SilentlyContinue
     $state = [string]$task.State
     $lastResult = if ($taskInfo) { Get-ScheduledTaskResultText $taskInfo.LastTaskResult } else { "-" }
+    $taskScriptPath = Get-ScheduledTaskScriptPath $task
+    $isPathMismatch = (-not [string]::IsNullOrWhiteSpace($preferredScriptPath)) -and (-not (Test-SamePath $taskScriptPath $preferredScriptPath))
     $summary = "Task is ready for daily automation."
     $summaryBrush = [System.Windows.Media.Brushes]::DarkGreen
 
@@ -903,6 +966,10 @@ function Get-DailyScheduledTaskStatus {
         $summary = "Last result was $lastResult. Review Task Scheduler if runs are failing."
         $summaryBrush = [System.Windows.Media.Brushes]::DarkOrange
     }
+    if ($isPathMismatch) {
+        $summary = "Task points to a different script path. Click Repair Task Path to align with the preferred live script."
+        $summaryBrush = [System.Windows.Media.Brushes]::DarkOrange
+    }
 
     return [PSCustomObject]@{
         Exists = $true
@@ -910,13 +977,14 @@ function Get-DailyScheduledTaskStatus {
         NextRunTime = if ($taskInfo -and $taskInfo.NextRunTime -and $taskInfo.NextRunTime.Year -gt 1900) { $taskInfo.NextRunTime.ToString("g") } else { "-" }
         LastRunTime = if ($taskInfo -and $taskInfo.LastRunTime -and $taskInfo.LastRunTime.Year -gt 1900) { $taskInfo.LastRunTime.ToString("g") } else { "-" }
         LastResult = $lastResult
-        ScriptPath = (Get-ScheduledTaskScriptPath $task)
+        ScriptPath = $taskScriptPath
         Summary = $summary
         SummaryBrush = $summaryBrush
         CreateButtonLabel = "Update Scheduled Task"
         CanRunNow = ($state -ne "Running" -and $state -ne "Disabled")
         CanEnable = ($state -eq "Disabled")
         CanDisable = ($state -ne "Disabled")
+        CanRepairPath = $isPathMismatch
     }
 }
 
@@ -943,6 +1011,7 @@ function Update-ScheduledTaskStatusUI {
     $btnRunTaskNow.IsEnabled = [bool]$taskStatus.CanRunNow
     $btnEnableTask.IsEnabled = [bool]$taskStatus.CanEnable
     $btnDisableTask.IsEnabled = [bool]$taskStatus.CanDisable
+    $btnRepairTaskPath.IsEnabled = [bool]$taskStatus.CanRepairPath
 }
 
 # Export-AppConfiguration: Persist all global settings to config.json.
@@ -1093,6 +1162,7 @@ $btnStateEnabled = $Window.FindName("btnStateEnabled")
 $btnStateDisabled = $Window.FindName("btnStateDisabled")
 $btnStateScheduled = $Window.FindName("btnStateScheduled")
 $btnCreateTask = $Window.FindName("btnCreateTask")
+$btnRepairTaskPath = $Window.FindName("btnRepairTaskPath")
 $btnEnableTask = $Window.FindName("btnEnableTask")
 $btnDisableTask = $Window.FindName("btnDisableTask")
 $btnRefreshTaskStatus = $Window.FindName("btnRefreshTaskStatus")
@@ -1934,6 +2004,20 @@ $btnRunTaskNow.Add_Click({
         catch {
             Show-ErrorDialog "Task Error" "Could not start scheduled task.`n`n$($_.Exception.Message)"
             Update-StatusBar "Task start failed"
+        }
+    })
+
+# Repair Task Path: Repoint task action to the preferred live script path.
+$btnRepairTaskPath.Add_Click({
+        try {
+            $repairedPath = Repair-DailyScheduledTaskScriptPath
+            Update-ScheduledTaskStatusUI
+            Update-StatusBar "Scheduled task path repaired"
+            Show-InfoDialog "Task Path Repaired" "Scheduled task 'AAOOF' now points to:`n$repairedPath"
+        }
+        catch {
+            Show-ErrorDialog "Task Error" "Could not repair scheduled task path.`n`n$($_.Exception.Message)"
+            Update-StatusBar "Task path repair failed"
         }
     })
 
