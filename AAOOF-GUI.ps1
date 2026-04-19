@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.21" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.22" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -2805,7 +2805,7 @@ $cmbTemplate.Add_SelectionChanged({
             $script:IsLoadingTemplate = $false
             # Refresh preview if on Preview tab
             if ($tcMessageView.SelectedIndex -eq 1) {
-                $wbPreview.NavigateToString((Resolve-TemplatePlaceholders $txtMessage.Text))
+                Render-TemplatePreview
             }
             Update-StatusBar "Template loaded: $selected"
         }
@@ -2833,7 +2833,7 @@ $btnLoadTemplate.Add_Click({
             $txtMessage.Text = Get-Content $path -Raw
             $script:IsLoadingTemplate = $false
             if ($tcMessageView.SelectedIndex -eq 1) {
-                $wbPreview.NavigateToString((Resolve-TemplatePlaceholders $txtMessage.Text))
+                Render-TemplatePreview
             }
             Update-StatusBar "Template loaded: $selected"
         }
@@ -2855,7 +2855,7 @@ $optionReloadHandler = {
         $txtMessage.Text = Get-Content $path -Raw
         $script:IsLoadingTemplate = $false
         if ($tcMessageView.SelectedIndex -eq 1) {
-            $wbPreview.NavigateToString((Resolve-TemplatePlaceholders $txtMessage.Text))
+            Render-TemplatePreview
         }
     }
 }
@@ -2940,6 +2940,19 @@ $txtAccount.Add_LostFocus({
 # Flag to suppress auto-save when text is set programmatically (e.g. on config change).
 $script:IsLoadingTemplate = $false
 
+# Render-TemplatePreview: resolve placeholders and render into the preview browser.
+# Uses the dispatcher so the first Preview tab activation renders after layout settles.
+function Render-TemplatePreview {
+    $html = Resolve-TemplatePlaceholders $txtMessage.Text
+    if ([string]::IsNullOrWhiteSpace($html)) {
+        $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
+    }
+
+    $Window.Dispatcher.BeginInvoke([action]{
+            $wbPreview.NavigateToString($html)
+        }, [System.Windows.Threading.DispatcherPriority]::Background) | Out-Null
+}
+
 # Debounced timer for template auto-save and preview refresh.
 # Updates preview in real-time and saves the current template after user stops editing.
 $script:TemplateEditTimer = New-Object System.Windows.Threading.DispatcherTimer
@@ -2950,13 +2963,8 @@ $script:TemplateEditTimer.Add_Tick({
         try { $timer.Stop() } catch { }
     }
     
-    # Update preview in real-time — resolve placeholders before rendering
     if ($tcMessageView.SelectedIndex -eq 1) {
-        $html = Resolve-TemplatePlaceholders $txtMessage.Text
-        if ([string]::IsNullOrWhiteSpace($html)) {
-            $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
-        }
-        $wbPreview.NavigateToString($html)
+        Render-TemplatePreview
     }
     
     # Auto-save the current template
@@ -3241,12 +3249,8 @@ $btnBackupMessage.Add_Click({
 # in the embedded WebBrowser control for a live WYSIWYG preview.
 $tcMessageView.Add_SelectionChanged({
         if ($tcMessageView.SelectedIndex -eq 1) {
-            # Preview tab selected — resolve placeholders before rendering
-            $html = Resolve-TemplatePlaceholders $txtMessage.Text
-            if ([string]::IsNullOrWhiteSpace($html)) {
-                $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
-            }
-            $wbPreview.NavigateToString($html)
+            # Preview tab selected — render after the tab and browser finish layout.
+            Render-TemplatePreview
         }
     })
 
