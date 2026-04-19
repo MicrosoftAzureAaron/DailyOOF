@@ -20,6 +20,22 @@
 
     Aliases: -v, -version
 
+.PARAMETER CurrentSettingsInfo
+    Show the current saved settings and the live Exchange Online OOF message, then exit.
+    This mode does not open the GUI.
+
+.PARAMETER DisableTemplateAutoDownload
+    Disable automatic download of missing XAML/templates and persist that setting.
+
+.PARAMETER DisableAutoUpdate
+    Disable automatic update checks and persist that setting.
+
+.PARAMETER DisableAutoUpdateRestart
+    Disable automatic restart after self-update and persist that setting.
+
+.PARAMETER UseRootConfig
+    Store and read config.json next to the script instead of in the config folder.
+
 .NOTES
     Requires : ExchangeOnlineManagement module (prompted to install if missing).
     Config   : config/config.json (auto-created, .gitignored).
@@ -27,12 +43,29 @@
     XAML     : config/AAOOF-GUI.xaml (UI layout, auto-downloaded if missing).
 #>
 param(
+    # Headless operation selector:
+    #   '1'            = run the daily scheduled OOF update
+    #   <date string>  = set vacation OOF until the specified return date
     [string]$InputParameter,
+
+    # Print local and GitHub script versions, then exit without opening the GUI.
     [Alias('v', 'version')]
     [switch]$VersionInfo,
+
+    # Print saved settings plus the live current OOF messages, then exit.
+    [Alias('settings', 'current-settings')]
+    [switch]$CurrentSettingsInfo,
+
+    # Persist a setting to stop auto-downloading missing templates and XAML.
     [switch]$DisableTemplateAutoDownload,
+
+    # Persist a setting to stop automatic script update checks.
     [switch]$DisableAutoUpdate,
+
+    # Persist a setting to stop automatic restart after a successful self-update.
     [switch]$DisableAutoUpdateRestart,
+
+    # Store config.json beside the script instead of inside the config folder.
     [switch]$UseRootConfig
 )
 
@@ -64,7 +97,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.24" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.25" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -369,6 +402,13 @@ if ($VersionInfo) {
     else {
         Write-Host "GitHub version: v$remoteVer"
     }
+    exit 0
+}
+
+# CLI settings/message output mode: print saved settings and current OOF messages, then exit.
+if ($CurrentSettingsInfo) {
+    $report = Get-CurrentSettingsAndMessageReport
+    Write-Output $report
     exit 0
 }
 
@@ -1695,6 +1735,65 @@ function Get-DiagnosticsReport {
     $lines += "PowerShell     : $($PSVersionTable.PSVersion)"
     $lines += "Script Dir     : $ScriptDir"
     $lines += "Is First Run   : $($script:IsFirstRun)"
+
+    return $lines -join "`r`n"
+}
+
+# Get-CurrentSettingsAndMessageReport: Return a CLI-friendly report showing saved settings
+# plus the live current OOF state and message bodies from Exchange Online.
+function Get-CurrentSettingsAndMessageReport {
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $lines = @()
+    $lines += "===== DailyOOF Current Settings and Message ====="
+    $lines += "Generated : $ts"
+    $lines += ""
+
+    $workDaysText = if ($script:WorkDays -and $script:WorkDays.Count -gt 0) { $script:WorkDays -join ', ' } else { '(not set)' }
+
+    $lines += "--- Saved Settings ---"
+    $lines += "Config File        : $ConfigFile ($(if (Test-Path $ConfigFile) { 'exists' } else { 'MISSING' }))"
+    $lines += "Mailbox Alias      : $(if ($script:UserAlias) { $script:UserAlias } else { '(not set)' })"
+    $lines += "Email Suffix       : $(if ($script:UserAliasSuffix) { $script:UserAliasSuffix } else { '(not set)' })"
+    $lines += "Full Name          : $(if ($script:FullName) { $script:FullName } else { '(not set)' })"
+    $lines += "Role               : $(if ($script:Role) { $script:Role } else { '(not set)' })"
+    $lines += "Backup Engineer    : $(if ($script:BackupContact) { $script:BackupContact } else { '(not set)' })"
+    $lines += "Engineer Email     : $(if ($script:BackupEngineerEmail) { $script:BackupEngineerEmail } else { '(not set)' })"
+    $lines += "Team Alias         : $(if ($script:TeamAlias) { $script:TeamAlias } else { '(not set)' })"
+    $lines += "Support Link       : $(if ($script:SupportLink) { $script:SupportLink } else { '(not set)' })"
+    $lines += "Override Account   : $($script:OverrideAccount)"
+    $lines += "Shift Start        : $(if ($script:StartOfShift) { $script:StartOfShift.ToString('yyyy-MM-dd HH:mm:ss') } else { '(not set)' })"
+    $lines += "Shift End          : $(if ($script:EndOfShift) { $script:EndOfShift.ToString('yyyy-MM-dd HH:mm:ss') } else { '(not set)' })"
+    $lines += "Work Days          : $workDaysText"
+    $lines += "Task Offset (min)  : $($script:TaskStartOffsetMinutes)"
+    $lines += "Script Version     : v$($script:ScriptVersion)"
+    $lines += ""
+
+    $lines += "--- Current OOF From Exchange ---"
+    try {
+        if ([string]::IsNullOrWhiteSpace($script:UserAlias)) {
+            Resolve-UserAlias
+        }
+
+        Connect-ExchangeOnlineSession | Out-Null
+        try {
+            $arc = Get-AutoReplyConfiguration
+            $lines += "AutoReplyState     : $($arc.AutoReplyState)"
+            $lines += "Start Time         : $($arc.StartTime)"
+            $lines += "End Time           : $($arc.EndTime)"
+            $lines += ""
+            $lines += "--- Internal Message ---"
+            $lines += $(if ([string]::IsNullOrWhiteSpace($arc.InternalMessage)) { '(empty)' } else { $arc.InternalMessage })
+            $lines += ""
+            $lines += "--- External Message ---"
+            $lines += $(if ([string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { '(empty)' } else { $arc.ExternalMessage })
+        }
+        finally {
+            try { Disconnect-ExchangeOnlineSession } catch { }
+        }
+    }
+    catch {
+        $lines += "Could not retrieve current OOF message: $($_.Exception.Message)"
+    }
 
     return $lines -join "`r`n"
 }
