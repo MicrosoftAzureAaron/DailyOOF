@@ -13,7 +13,7 @@ Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
-$script:PortableVersion = "1.1.1"
+$script:PortableVersion = "1.1.2"
 $script:IsConnectedToEXO = $false
 $script:UserAlias = ""
 $script:UserAliasSuffix = ""
@@ -373,8 +373,8 @@ $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Daily OOF Portable - State Manager"
-        Height="620" Width="760"
-        MinHeight="580" MinWidth="720"
+    Height="820" Width="760"
+    MinHeight="820" MinWidth="720"
         WindowStartupLocation="CenterScreen"
         Background="#F4F6F8">
     <Grid>

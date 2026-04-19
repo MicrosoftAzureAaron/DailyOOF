@@ -46,7 +46,7 @@ Launch the standalone portable script for state-only management:
 .\AAOOF-Portable.ps1
 ```
 
-Portable versioning is independent from the main GUI script. Current portable version: `1.1.0`.
+Portable versioning is independent from the main GUI script. Current portable version: `1.1.2`.
 
 Portable mode scope:
 - Manages only auto-reply state (Enabled / Disabled / Scheduled)
@@ -54,6 +54,7 @@ Portable mode scope:
 - Does not include scheduled task automation management
 - Auto-detects the mailbox from your Windows login and email domain when possible
 - Prompts to install the ExchangeOnlineManagement module if it is missing
+- Supports work-day presets for common schedules such as Mon-Fri, Sun-Wed, and Wed-Sat when calculating the next scheduled auto-reply window
 - Message content should be managed in Outlook or Outlook on the web
 
 The GUI has five tabs:
