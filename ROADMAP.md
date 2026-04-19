@@ -38,7 +38,7 @@ Goals:
 Patch goals:
 
 - `1.8.0`: Add backup contact, team alias, and support link placeholders with config/UI support.
-- `1.8.1`: Refine template defaults based on live usage.
+- `1.8.1`: Polish Quick Actions UX (connection button state cues and button sizing consistency).
 - `1.8.2`: Add additional placeholder validation and preview warnings.
 
 ### 1.9.x Diagnostics and Operational Safety

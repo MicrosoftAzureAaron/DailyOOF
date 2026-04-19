@@ -55,7 +55,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.8.0" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.8.1" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1261,6 +1261,38 @@ function Show-ErrorDialog($Title, $Message) {
     [System.Windows.MessageBox]::Show($Message, $Title, 'OK', 'Error')
 }
 
+# Update-ConnectionUiState: Keep status text and Connect button visuals in sync.
+function Update-ConnectionUiState {
+    param(
+        [ValidateSet('Connected', 'Disconnected', 'Failed')]
+        [string]$State = 'Disconnected'
+    )
+
+    if ($State -eq 'Connected') {
+        $txtConnectionStatus.Text = 'Connected'
+        $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+        $btnConnect.Content = 'Connected'
+        $btnConnect.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x10, 0x7C, 0x10))
+        $btnConnect.Foreground = [System.Windows.Media.Brushes]::White
+        $script:IsConnectedToEXO = $true
+        return
+    }
+
+    if ($State -eq 'Failed') {
+        $txtConnectionStatus.Text = 'Connection Failed'
+        $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+    }
+    else {
+        $txtConnectionStatus.Text = 'Disconnected'
+        $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::DarkOrange
+    }
+
+    $btnConnect.Content = 'Connect'
+    $btnConnect.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x00, 0x78, 0xD4))
+    $btnConnect.Foreground = [System.Windows.Media.Brushes]::White
+    $script:IsConnectedToEXO = $false
+}
+
 # Assert-ExchangeConnection: Check for an active Exchange Online session and auto-connect
 # if none exists. Updates the connection status UI. Returns $true if connected, $false on failure.
 function Assert-ExchangeConnection {
@@ -1277,9 +1309,7 @@ function Assert-ExchangeConnection {
         $script:UserAlias = $txtAccount.Text
     }
     Connect-ExchangeOnlineSession
-    $txtConnectionStatus.Text = "Connected"
-    $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
-    $script:IsConnectedToEXO = $true
+    Update-ConnectionUiState -State Connected
     return $true
 }
 
@@ -1561,9 +1591,7 @@ $btnConnect.Add_Click({
                 $script:UserAlias = $txtAccount.Text
             }
             Connect-ExchangeOnlineSession
-            $txtConnectionStatus.Text = "Connected"
-            $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
-            $script:IsConnectedToEXO = $true
+            Update-ConnectionUiState -State Connected
 
             # On first connect, pull current OOF config and message and save locally
             try {
@@ -1587,8 +1615,7 @@ $btnConnect.Add_Click({
             Update-StatusBar "Connected as $($script:UserAlias)"
         }
         catch {
-            $txtConnectionStatus.Text = "Connection Failed"
-            $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+            Update-ConnectionUiState -State Failed
             Show-ErrorDialog "Connection Error" $_.Exception.Message
             Update-StatusBar "Connection failed"
         }
@@ -1598,9 +1625,7 @@ $btnConnect.Add_Click({
 $btnDisconnect.Add_Click({
         try {
             Disconnect-ExchangeOnlineSession
-            $txtConnectionStatus.Text = "Disconnected"
-            $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
-            $script:IsConnectedToEXO = $false
+            Update-ConnectionUiState -State Disconnected
             $script:OOFReplyEnabled = $true
             Update-StatusBar "Disconnected from Exchange Online"
         }
@@ -1720,9 +1745,7 @@ $btnViewCurrentMsg.Add_Click({
                     $script:UserAlias = $txtAccount.Text
                 }
                 Connect-ExchangeOnlineSession
-                $txtConnectionStatus.Text = "Connected"
-                $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
-                $script:IsConnectedToEXO = $true
+                Update-ConnectionUiState -State Connected
             }
 
             $arc = Get-AutoReplyConfiguration
@@ -1778,13 +1801,10 @@ $btnRefreshCurrentOOF.Add_Click({
                         $script:UserAlias = $txtAccount.Text
                     }
                     Connect-ExchangeOnlineSession
-                    $txtConnectionStatus.Text = "Connected"
-                    $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
-                    $script:IsConnectedToEXO = $true
+                    Update-ConnectionUiState -State Connected
                 }
                 catch {
-                    $txtConnectionStatus.Text = "Connection Failed"
-                    $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+                    Update-ConnectionUiState -State Failed
                     $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Connection Failed</h3><p>Could not connect to Exchange Online. Please check your account settings and try again.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
                     $txtCurrentOOFStatus.Text = "Connection failed"
                     Update-StatusBar "Connection failed"
@@ -1850,9 +1870,7 @@ $tcMain.Add_SelectionChanged({
                     $script:UserAlias = $txtAccount.Text
                 }
                 Connect-ExchangeOnlineSession
-                $txtConnectionStatus.Text = "Connected"
-                $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
-                $script:IsConnectedToEXO = $true
+                Update-ConnectionUiState -State Connected
             }
 
             $arc = Get-AutoReplyConfiguration
@@ -2575,6 +2593,7 @@ $tcMessageView.Add_SelectionChanged({
 # ===================== Initialize UI =====================
 # Apply saved configuration values to all controls before showing the window.
 Initialize-UIFromConfig
+Update-ConnectionUiState -State Disconnected
 Update-ScheduledTaskStatusUI
 
 # Populate holiday picker with upcoming US federal holidays
