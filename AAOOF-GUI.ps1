@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.6.2" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.6.3" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1745,8 +1745,8 @@ $btnCheckForUpdates.Add_Click({
 
         $updated = Invoke-ScriptSelfUpdateExternal
         if ($updated) {
-            Update-StatusBar "Update downloaded successfully. Please restart after this window closes."
-            Show-TemporaryInfoDialog "Update Complete" "The application has been updated successfully. Please restart the script after this window closes." 5
+            Update-StatusBar "Update downloaded successfully. Please restart the script now."
+            Show-InfoDialog "Update Complete" "The application has been updated successfully. Please restart the script now."
             $Window.Close()
         }
     }
