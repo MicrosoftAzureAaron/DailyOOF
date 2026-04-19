@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.8.1" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.8.3" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -130,6 +130,27 @@ function Get-RemoteScriptVersion {
         return 'unknown'
     }
     catch { return 'unknown' }
+}
+
+# Test-IsRemoteVersionNewer: Return $true only when remote version is strictly greater than local.
+function Test-IsRemoteVersionNewer {
+    param(
+        [string]$RemoteVersion,
+        [string]$LocalVersion
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RemoteVersion) -or $RemoteVersion -eq 'unknown') {
+        return $false
+    }
+
+    try {
+        $remoteParsed = [version]$RemoteVersion
+        $localParsed = [version]$LocalVersion
+        return ($remoteParsed -gt $localParsed)
+    }
+    catch {
+        return $false
+    }
 }
 
 # Invoke-ScriptSelfUpdateExternal: Start a separate PowerShell process to download the
@@ -1122,7 +1143,7 @@ if ($InputParameter) {
     # Check for updates after applying OOF changes so reply updates are not blocked.
     try {
         $remoteVer = Get-RemoteScriptVersion
-        if ($remoteVer -ne 'unknown' -and $remoteVer -ne $script:ScriptVersion) {
+        if (Test-IsRemoteVersionNewer -RemoteVersion $remoteVer -LocalVersion $script:ScriptVersion) {
             Write-Host "Update available: v$($script:ScriptVersion) -> v$remoteVer" -ForegroundColor Cyan
             $updated = Invoke-ScriptSelfUpdateExternal $InputParameter
             if ($updated) {
@@ -2158,10 +2179,19 @@ $btnCheckForUpdates.Add_Click({
             # Show remote version
             $remoteVer = Get-RemoteScriptVersion
             $txtRemoteVersion.Text = $remoteVer
-            if ($remoteVer -eq $script:ScriptVersion) {
+            $isNewerVersion = Test-IsRemoteVersionNewer -RemoteVersion $remoteVer -LocalVersion $script:ScriptVersion
+            if (-not $isNewerVersion) {
                 $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
                 Update-StatusBar "Already up to date"
-                Show-InfoDialog "No Update" "You are already running the latest version."
+                if ($remoteVer -eq 'unknown') {
+                    Show-InfoDialog "No Update" "Could not determine a newer version from GitHub right now."
+                }
+                elseif (Test-IsRemoteVersionNewer -RemoteVersion $script:ScriptVersion -LocalVersion $remoteVer) {
+                    Show-InfoDialog "No Update" "Your local version (v$($script:ScriptVersion)) is newer than GitHub (v$remoteVer)."
+                }
+                else {
+                    Show-InfoDialog "No Update" "You are already running the latest version."
+                }
                 return
             }
             else {
@@ -2765,7 +2795,7 @@ $txtLocalVersion.Text = $script:ScriptVersion
 try {
     $remoteVer = Get-RemoteScriptVersion
     $txtRemoteVersion.Text = $remoteVer
-    if ($remoteVer -ne $script:ScriptVersion -and $remoteVer -ne 'unknown') {
+    if (Test-IsRemoteVersionNewer -RemoteVersion $remoteVer -LocalVersion $script:ScriptVersion) {
         $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
         Update-StatusBar "Update available: v$remoteVer — go to Configuration > Check for Updates"
     }
@@ -2810,8 +2840,17 @@ $script:UpdateCheckJob = Start-Job -ScriptBlock {
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         $remoteVersion = if ($line) { $line.Matches[0].Groups[1].Value } else { $null }
 
-        # Only flag an update if the remote version is different and parseable
-        if ($remoteVersion -and $remoteVersion -ne $LocalVersion) {
+        # Only flag an update when remote version is strictly newer than local.
+        $isNewer = $false
+        if ($remoteVersion) {
+            try {
+                $isNewer = ([version]$remoteVersion -gt [version]$LocalVersion)
+            }
+            catch {
+                $isNewer = $false
+            }
+        }
+        if ($isNewer) {
             Write-Output "UPDATE_AVAILABLE"
         }
     }
