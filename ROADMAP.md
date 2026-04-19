@@ -10,9 +10,9 @@ This document tracks the planned feature roadmap for DailyOOF and the versioning
 
 ## Release Plan
 
-## Current State (After 1.8.3)
+## Current State (After 1.8.6)
 
-- Completed and validated in main track: `1.8.0`, `1.8.1`, `1.8.3`.
+- Completed and validated in main track: `1.8.0`, `1.8.1`, `1.8.3`, `1.8.5`, `1.8.6`.
 - Confirmed behavior from live testing: when GitHub is older than local, the app no longer auto-prompts users to update.
 - In progress: visual and XAML confirmation via fresh screenshots.
 

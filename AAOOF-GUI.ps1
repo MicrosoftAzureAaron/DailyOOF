@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.8.5" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.8.6" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -151,6 +151,25 @@ function Test-IsRemoteVersionNewer {
     catch {
         return $false
     }
+}
+
+# Get-UpdateVersionState: Classify update comparison for clearer user-facing messaging.
+function Get-UpdateVersionState {
+    param(
+        [string]$RemoteVersion,
+        [string]$LocalVersion
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RemoteVersion) -or $RemoteVersion -eq 'unknown') {
+        return 'Unknown'
+    }
+    if (Test-IsRemoteVersionNewer -RemoteVersion $RemoteVersion -LocalVersion $LocalVersion) {
+        return 'RemoteNewer'
+    }
+    if (Test-IsRemoteVersionNewer -RemoteVersion $LocalVersion -LocalVersion $RemoteVersion) {
+        return 'LocalNewer'
+    }
+    return 'UpToDate'
 }
 
 # Invoke-ScriptSelfUpdateExternal: Start a separate PowerShell process to download the
@@ -2184,23 +2203,30 @@ $btnCheckForUpdates.Add_Click({
             # Show remote version
             $remoteVer = Get-RemoteScriptVersion
             $txtRemoteVersion.Text = $remoteVer
-            $isNewerVersion = Test-IsRemoteVersionNewer -RemoteVersion $remoteVer -LocalVersion $script:ScriptVersion
-            if (-not $isNewerVersion) {
-                $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
-                Update-StatusBar "Already up to date"
-                if ($remoteVer -eq 'unknown') {
+            $updateState = Get-UpdateVersionState -RemoteVersion $remoteVer -LocalVersion $script:ScriptVersion
+            switch ($updateState) {
+                'Unknown' {
+                    $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::DarkOrange
+                    Update-StatusBar "Could not determine GitHub version"
                     Show-InfoDialog "No Update" "Could not determine a newer version from GitHub right now."
+                    return
                 }
-                elseif (Test-IsRemoteVersionNewer -RemoteVersion $script:ScriptVersion -LocalVersion $remoteVer) {
+                'LocalNewer' {
+                    $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
+                    Update-StatusBar "Local version is newer than GitHub"
                     Show-InfoDialog "No Update" "Your local version (v$($script:ScriptVersion)) is newer than GitHub (v$remoteVer)."
+                    return
                 }
-                else {
+                'UpToDate' {
+                    $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
+                    Update-StatusBar "Already up to date"
                     Show-InfoDialog "No Update" "You are already running the latest version."
+                    return
                 }
-                return
-            }
-            else {
-                $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
+                default {
+                    $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
+                    Update-StatusBar "Update available: v$remoteVer"
+                }
             }
 
             $updated = Invoke-ScriptSelfUpdateExternal
@@ -2800,12 +2826,23 @@ $txtLocalVersion.Text = $script:ScriptVersion
 try {
     $remoteVer = Get-RemoteScriptVersion
     $txtRemoteVersion.Text = $remoteVer
-    if (Test-IsRemoteVersionNewer -RemoteVersion $remoteVer -LocalVersion $script:ScriptVersion) {
-        $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
-        Update-StatusBar "Update available: v$remoteVer — go to Configuration > Check for Updates"
-    }
-    else {
-        $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
+    $updateState = Get-UpdateVersionState -RemoteVersion $remoteVer -LocalVersion $script:ScriptVersion
+    switch ($updateState) {
+        'RemoteNewer' {
+            $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
+            Update-StatusBar "Update available: v$remoteVer — go to Configuration > Check for Updates"
+        }
+        'LocalNewer' {
+            $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
+            Update-StatusBar "Local version is newer than GitHub (v$remoteVer)."
+        }
+        'Unknown' {
+            $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::DarkOrange
+            Update-StatusBar "Could not determine GitHub version at startup."
+        }
+        default {
+            $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
+        }
     }
 }
 catch { }
