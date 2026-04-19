@@ -227,11 +227,11 @@ $script:EnableAutoUpdateCheck = $true                   # Background check for s
 $script:EnableAutoUpdateRestart = $false                # Restart the GUI automatically after applying an update
 $script:UseRootConfig = $false                          # Store config.json alongside the script instead of in config/ folder
 
-# Script-level tracking for EXO sync state
+# Track EXO sync state for status/UI updates.
 $script:IsConnectedToEXO = $false
 $script:OOFReplyEnabled = $true
 
-# Import-AppConfiguration: Read config.json and populate global variables.
+# ConvertTo-UserAliasSuffix: Normalize a configured email suffix.
 function ConvertTo-UserAliasSuffix($suffix) {
     if ([string]::IsNullOrEmpty($suffix)) { return $suffix }
     $normalized = $suffix.Trim()
@@ -241,6 +241,7 @@ function ConvertTo-UserAliasSuffix($suffix) {
     return "@$normalized"
 }
 
+# Import-AppConfiguration: Read config.json and populate global variables.
 function Import-AppConfiguration {
     if (Test-Path $ConfigFile) {
         $cfg = Get-Content $ConfigFile -Raw | ConvertFrom-Json
@@ -259,10 +260,10 @@ function Import-AppConfiguration {
     }
 }
 
-# Load config immediately on script start
+# Load config immediately on script start.
 Import-AppConfiguration
 
-# Apply startup switches and persist them if requested
+# Apply startup switches and persist them if requested.
 $startupSwitchesApplied = $false
 if ($DisableTemplateAutoDownload) {
     $script:EnableTemplateAutoDownload = $false
@@ -288,7 +289,7 @@ if ($startupSwitchesApplied) {
     Export-AppConfiguration
 }
 
-# Check if running as administrator
+# Test-IsAdmin: Return $true when the current process is elevated.
 function Test-IsAdmin {
     try {
         $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
@@ -300,7 +301,7 @@ function Test-IsAdmin {
     }
 }
 
-# Get install command for ExchangeOnlineManagement module
+# Get-InstallCommand: Return the appropriate Install-Module command for the current context.
 function Get-InstallCommand {
     if (Test-IsAdmin) {
         return "Install-Module -Name ExchangeOnlineManagement -Force"
@@ -310,7 +311,7 @@ function Get-InstallCommand {
     }
 }
 
-# Check if ExchangeOnlineManagement module is installed, throw error if not
+# Test-ExchangeOnlineModule: Ensure ExchangeOnlineManagement is installed and available.
 function Test-ExchangeOnlineModule {
     if (!(Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
         $installCmd = Get-InstallCommand
@@ -676,7 +677,7 @@ function Disable-VacationAutoReply {
 # The task runs this script daily in CLI mode with parameter '1'.
 # Admin rights are required to create/update registration, but not required for task execution.
 function Register-DailyScheduledTask {
-    # Check for admin privileges before attempting
+        # Check elevation before attempting to register or update the task.
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
         throw "This action requires Administrator privileges.`n`nPlease close the app and re-run the script as Administrator, then try again."
@@ -799,7 +800,7 @@ if ($InputParameter) {
         Disconnect-ExchangeOnlineSession
     }
 
-    # Self-update after OOF settings have been applied so updates never block the reply
+    # Check for updates after applying OOF changes so reply updates are not blocked.
     try {
         $remoteVer = Get-RemoteScriptVersion
         if ($remoteVer -ne 'unknown' -and $remoteVer -ne $script:ScriptVersion) {
@@ -975,8 +976,7 @@ function Assert-ExchangeConnection {
 @("AM", "PM") | ForEach-Object { $cmbStartAmPm.Items.Add($_) | Out-Null; $cmbEndAmPm.Items.Add($_) | Out-Null }
 
 # ===================== Load Saved Config into UI =====================
-# Initialize-UIFromConfig: Populate all UI controls from global config values,
-# setting sensible defaults where config values are missing.
+# Initialize-UIFromConfig: Populate controls from saved config and apply defaults where needed.
 function Initialize-UIFromConfig {
     # Full Name
     if (![string]::IsNullOrEmpty($script:FullName)) {
@@ -1859,7 +1859,7 @@ $txtAccount.Add_LostFocus({
     })
 
 # ===================== HTML Formatting Toolbar Handlers =====================
-# Helper: Wrap the selected text in the editor with an HTML tag, or insert at cursor.
+# Add-HtmlTag: Wrap selected text in an HTML tag, or insert the tag pair at the cursor.
 function Add-HtmlTag($openTag, $closeTag) {
     $selStart = $txtMessage.SelectionStart
     $selLen = $txtMessage.SelectionLength
@@ -1878,7 +1878,7 @@ function Add-HtmlTag($openTag, $closeTag) {
     $txtMessage.Focus()
 }
 
-# Helper: Insert a snippet at the cursor position.
+# Add-HtmlSnippet: Insert an HTML snippet at the current cursor position.
 function Add-HtmlSnippet($snippet) {
     $selStart = $txtMessage.SelectionStart
     $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
@@ -2126,7 +2126,7 @@ foreach ($h in $upcomingHolidays) {
 }
 $cmbHoliday.SelectedIndex = 0
 
-# Holiday selection: set return date and holiday name when a holiday is chosen
+# Holiday picker: Set the return date and holiday name when a holiday is selected.
 $cmbHoliday.Add_SelectionChanged({
         if ($cmbHoliday.SelectedIndex -le 0) {
             $script:SelectedHolidayName = ""
@@ -2246,9 +2246,8 @@ $Window.Add_KeyDown({
     })
 
 # ===================== Show the Window =====================
-# Display the WPF window (blocks execution until closed).
-# On close, disconnect Exchange Online to release the session.
-# Warn if there are unapplied message changes while connected.
+# Display the WPF window until it is closed.
+# On close, release the Exchange Online session and warn if OOF is currently disabled.
 
 # Silent startup update check — notify via status bar if a newer version exists
 $txtLocalVersion.Text = $script:ScriptVersion
