@@ -10,38 +10,43 @@ This document tracks the planned feature roadmap for DailyOOF and the versioning
 
 ## Release Plan
 
-## Current State (After 1.8.6)
+## Current State (After 1.9.4)
 
-- Completed and validated in main track: `1.8.0`, `1.8.1`, `1.8.3`, `1.8.5`, `1.8.6`.
-- Confirmed behavior from live testing: when GitHub is older than local, the app no longer auto-prompts users to update.
-- In progress: visual and XAML confirmation via fresh screenshots.
+Completed and validated in main track:
+
+| Version | Summary |
+|---------|---------|
+| `1.8.0` | Backup contact, team alias, support link placeholders |
+| `1.8.1` | Quick Actions UX polish, connection button state cues |
+| `1.8.3` | Strict version comparison — no false update prompts when local is newer |
+| `1.8.4` | Placeholder validation hardening with per-field guidance |
+| `1.8.5` | Quick Actions button width parity |
+| `1.8.6` | Update panel messaging: newer / up-to-date / local-newer |
+| `1.8.7` | Button shape parity; XAML version token + auto-refresh on mismatch |
+| `1.8.8` | Config-field emptiness checks in `Get-TemplateWarnings` |
+| `1.8.9` | Fix first-run `$script:EnableTemplateAutoDownload` initialization |
+| `1.9.0` | Auto-populate Full Name from EXO `DisplayName` post-connect |
+| `1.9.1` | Prompt user for name when EXO lookup fails and field is blank |
+| `1.9.2` | First-run auto-connect via `ContentRendered` hook |
+| `1.9.3` | Fix EXO name lookup — remove invalid `FirstName`/`LastName` properties |
+| `1.9.4` | Live elapsed-time connecting window during EXO auth (separate STA runspace) |
 
 ## Next Execution Queue
 
-1. `1.8.4` Placeholder Validation Hardening
-- Scope: strengthen template placeholder warnings before apply/save, with clear missing-field guidance.
-- Acceptance: applying a template with unresolved required placeholders shows a specific warning list and does not silently proceed.
-- Validation: test with empty `BackupContact`, `TeamAlias`, and `SupportLink`; confirm warnings and corrected behavior after fields are filled.
+1. `1.9.5` Diagnostics Foundation
+- Scope: add a one-click diagnostics export capturing connection status, task status, config source, EXO identity, and recent update-check outcome.
+- Acceptance: output is readable plain text or JSON; works in both connected and disconnected states.
+- Validation: run in connected/disconnected states and with task present/missing.
 
-2. `1.8.5` Quick Actions Button Size Parity
-- Scope: enforce identical widths for `Refresh Status` and `View Current Message` in Quick Actions.
-- Acceptance: both buttons render with matching width regardless of local XAML age.
-- Validation: confirm parity in GUI and screenshot output.
-
-3. `1.8.6` Update UX Messaging Cleanup
-- Scope: make update panel/status text explicitly state one of three outcomes: newer available, up to date, or local newer than GitHub.
-- Acceptance: no ambiguous "Update Available" state when local is newer.
-- Validation: verify UI text with three controlled version scenarios using local/remote combinations.
-
-4. `1.9.0` Diagnostics Foundation
-- Scope: add a diagnostics tab or export action that captures connection status, task status, config source, and recent update-check outcome.
-- Acceptance: one-click diagnostics output available for troubleshooting without manual log gathering.
-- Validation: run diagnostics in connected/disconnected states and with task present/missing.
-
-5. `1.9.1` False-Positive Warning Reduction
-- Scope: tune warning conditions based on live findings from `1.8.4`-`1.9.0`.
-- Acceptance: warnings are actionable and map to real blocking states.
+2. `1.9.6` False-Positive Warning Reduction
+- Scope: tune `Get-TemplateWarnings` conditions based on live findings; suppress warnings for fields that have valid fallback values.
+- Acceptance: warnings are actionable and map to real blocking states only.
 - Validation: regression pass through Quick Actions, Automation, and Current OOF flows.
+
+3. `1.9.7` Connecting Window — cancel support
+- Scope: add a Cancel button to the connecting window that aborts the EXO auth attempt gracefully.
+- Acceptance: user can cancel mid-connect without the UI freezing or leaving a dangling session.
+- Validation: test cancel during MFA prompt and before auth completes.
 
 ### 1.7.x Scheduled Task Management and Validation
 
