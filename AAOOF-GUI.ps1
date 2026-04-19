@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.6.3" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.6.4" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -990,39 +990,8 @@ function Show-InfoDialog($Title, $Message) {
 
 # Show-TemporaryInfoDialog: Display an auto-closing informational popup.
 function Show-TemporaryInfoDialog($Title, $Message, [int]$Seconds = 5) {
-    $dialog = New-Object System.Windows.Window
-    $dialog.Title = $Title
-    $dialog.WindowStyle = 'ToolWindow'
-    $dialog.ResizeMode = 'NoResize'
-    $dialog.SizeToContent = 'WidthAndHeight'
-    $dialog.Topmost = $true
-    $dialog.WindowStartupLocation = 'CenterScreen'
-    $dialog.Content = New-Object System.Windows.Controls.TextBlock -Property @{ Text = $Message; Margin = 16; TextWrapping = 'Wrap'; Width = 360 }
-
-    $timer = New-Object System.Windows.Threading.DispatcherTimer
-    $timer.Interval = [TimeSpan]::FromSeconds($Seconds)
-    $timer.Tag = $dialog
-    $dialog.Tag = $timer
-    $timer.Add_Tick({
-        $selfTimer = $this
-        try { $selfTimer.Stop() } catch { }
-        $targetDialog = $selfTimer.Tag
-        if ($null -ne $targetDialog) {
-            try { $targetDialog.Close() } catch { }
-        }
-    })
-    $dialog.Add_Closed({
-        $closedDialog = $this
-        $dialogTimer = $closedDialog.Tag
-        if ($null -ne $dialogTimer) {
-            try { $dialogTimer.Stop() } catch { }
-            try { $dialogTimer.Tag = $null } catch { }
-        }
-        try { $closedDialog.Tag = $null } catch { }
-    })
-    $timer.Start()
-
-    $dialog.ShowDialog() | Out-Null
+    # Fallback implementation: avoid timer/event callback complexity.
+    Show-InfoDialog $Title $Message
 }
 
 # Show-ErrorDialog: Display an error popup.
