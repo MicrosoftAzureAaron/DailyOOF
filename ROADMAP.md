@@ -10,6 +10,34 @@ This document tracks the planned feature roadmap for DailyOOF and the versioning
 
 ## Release Plan
 
+## Current State (After 1.8.3)
+
+- Completed and validated in main track: `1.8.0`, `1.8.1`, `1.8.3`.
+- Confirmed behavior from live testing: when GitHub is older than local, the app no longer auto-prompts users to update.
+- In progress: visual and XAML confirmation via fresh screenshots.
+
+## Next Execution Queue
+
+1. `1.8.4` Placeholder Validation Hardening
+- Scope: strengthen template placeholder warnings before apply/save, with clear missing-field guidance.
+- Acceptance: applying a template with unresolved required placeholders shows a specific warning list and does not silently proceed.
+- Validation: test with empty `BackupContact`, `TeamAlias`, and `SupportLink`; confirm warnings and corrected behavior after fields are filled.
+
+2. `1.8.5` Update UX Messaging Cleanup
+- Scope: make update panel/status text explicitly state one of three outcomes: newer available, up to date, or local newer than GitHub.
+- Acceptance: no ambiguous "Update Available" state when local is newer.
+- Validation: verify UI text with three controlled version scenarios using local/remote combinations.
+
+3. `1.9.0` Diagnostics Foundation
+- Scope: add a diagnostics tab or export action that captures connection status, task status, config source, and recent update-check outcome.
+- Acceptance: one-click diagnostics output available for troubleshooting without manual log gathering.
+- Validation: run diagnostics in connected/disconnected states and with task present/missing.
+
+4. `1.9.1` False-Positive Warning Reduction
+- Scope: tune warning conditions based on live findings from `1.8.4`-`1.9.0`.
+- Acceptance: warnings are actionable and map to real blocking states.
+- Validation: regression pass through Quick Actions, Automation, and Current OOF flows.
+
 ### 1.7.x Scheduled Task Management and Validation
 
 Goals:
@@ -41,6 +69,8 @@ Patch goals:
 - `1.8.1`: Polish Quick Actions UX (connection button state cues and button sizing consistency).
 - `1.8.2`: Add additional placeholder validation and preview warnings.
 - `1.8.3`: Fix update detection so update prompts only appear when GitHub version is strictly newer than local.
+- `1.8.4`: Add stronger unresolved-placeholder blocking/warnings and clearer per-field guidance.
+- `1.8.5`: Improve update panel messaging for newer/up-to-date/local-newer scenarios.
 
 ### 1.9.x Diagnostics and Operational Safety
 
