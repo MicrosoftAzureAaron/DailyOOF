@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.5.3" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.5.4" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -2319,23 +2319,23 @@ $Window.Add_Closed({
 # Check for script updates once when the GUI starts.
 # If an update is available, highlight the Check for Updates button.
 $updateCheckJob = Start-Job -ScriptBlock {
-    param($UpdateUrl, $LocalPath)
+    param($UpdateUrl, $LocalVersion)
     try {
         $tempFile = [System.IO.Path]::GetTempFileName()
         Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-        $remoteHash = (Get-FileHash -Path $tempFile -Algorithm SHA256 -ErrorAction Stop).Hash
-        $localHash  = (Get-FileHash -Path $LocalPath -Algorithm SHA256 -ErrorAction Stop).Hash
+        $line = Select-String -Path $tempFile -Pattern '^\$script:ScriptVersion\s*=\s*"(.+)"' | Select-Object -First 1
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-        
-        # If hashes differ, an update is available
-        if ($remoteHash -ne $localHash) {
+        $remoteVersion = if ($line) { $line.Matches[0].Groups[1].Value } else { $null }
+
+        # Only flag an update if the remote version is different and parseable
+        if ($remoteVersion -and $remoteVersion -ne $LocalVersion) {
             Write-Output "UPDATE_AVAILABLE"
         }
     }
     catch {
         # Silently skip on error
     }
-} -ArgumentList $ScriptUpdateUrl, $PSCommandPath
+} -ArgumentList $ScriptUpdateUrl, $script:ScriptVersion
 
 # Track whether an update has been signaled
 $script:UpdateSignaled = $false
