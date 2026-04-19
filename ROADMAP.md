@@ -77,6 +77,7 @@ Patch goals:
 - `1.8.4`: Add stronger unresolved-placeholder blocking/warnings and clearer per-field guidance.
 - `1.8.5`: Enforce matching Quick Actions button widths for status/message actions.
 - `1.8.6`: Improve update panel messaging for newer/up-to-date/local-newer scenarios.
+- `1.8.7`: Normalize Quick Actions button shape (width/height/margin parity); add XAML version token and auto-refresh on mismatch.
 
 ### 1.9.x Diagnostics and Operational Safety
 

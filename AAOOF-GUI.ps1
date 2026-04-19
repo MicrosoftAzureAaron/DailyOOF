@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.8.6" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.8.7" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1191,7 +1191,26 @@ if (!(Test-Path $XamlFile)) {
     ) | Out-Null
     exit 1
 }
-[xml]$XAML = Get-Content $XamlFile -Raw
+
+# XAML version check: extract the embedded XamlVersion token and compare to the
+# running script version. If stale and auto-download is enabled, pull a fresh copy
+# from GitHub so layout changes (button sizing, new controls) take effect immediately.
+$xamlRaw = Get-Content $XamlFile -Raw
+$xamlVersionMatch = [regex]::Match($xamlRaw, '<!--\s*XamlVersion:\s*([\d\.]+)\s*-->')
+$xamlVersion = if ($xamlVersionMatch.Success) { $xamlVersionMatch.Groups[1].Value } else { 'unknown' }
+if ($xamlVersion -ne $script:ScriptVersion -and $script:EnableTemplateAutoDownload) {
+    Write-Host "XAML version mismatch (XAML: $xamlVersion / Script: $($script:ScriptVersion)) — refreshing layout from GitHub..." -ForegroundColor Yellow
+    try {
+        $xamlUrl = "$RepoBaseUrl/AAOOF-GUI.xaml"
+        Invoke-WebRequest -Uri $xamlUrl -OutFile $XamlFile -UseBasicParsing -TimeoutSec 10 -Headers @{ 'Cache-Control' = 'no-cache' }
+        $xamlRaw = Get-Content $XamlFile -Raw
+        Write-Host "XAML updated successfully." -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Warning: Could not refresh XAML layout: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+[xml]$XAML = $xamlRaw
 
 # ===================== Build the Window =====================
 # Instantiate the WPF window from XAML and bind all named controls to variables.
@@ -1221,8 +1240,18 @@ $txtCurrentOOFStatus = $Window.FindName("txtCurrentOOFStatus")
 
 # Ensure parity for adjacent status buttons even when an older XAML is present locally.
 $quickStatusButtonWidth = 170
+$quickStatusButtonHeight = 36
+$quickStatusButtonMargin = [System.Windows.Thickness]::new(4)
 $btnRefreshStatus.Width = $quickStatusButtonWidth
 $btnViewCurrentMsg.Width = $quickStatusButtonWidth
+$btnRefreshStatus.MinWidth = $quickStatusButtonWidth
+$btnViewCurrentMsg.MinWidth = $quickStatusButtonWidth
+$btnRefreshStatus.MaxWidth = $quickStatusButtonWidth
+$btnViewCurrentMsg.MaxWidth = $quickStatusButtonWidth
+$btnRefreshStatus.Height = $quickStatusButtonHeight
+$btnViewCurrentMsg.Height = $quickStatusButtonHeight
+$btnRefreshStatus.Margin = $quickStatusButtonMargin
+$btnViewCurrentMsg.Margin = $quickStatusButtonMargin
 
 # --- Configuration and Automation tab controls ---
 $txtFullName = $Window.FindName("txtFullName")
