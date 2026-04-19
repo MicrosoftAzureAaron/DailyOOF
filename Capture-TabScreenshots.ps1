@@ -106,21 +106,34 @@ function Resolve-TemplatePlaceholdersForCapture {
         $backupEngineer = [string](Get-ConfigValue -Config $Config -Name "BackupContact" -DefaultValue "Backup Engineer")
     }
 
+    $officeHoursText = Get-OfficeHoursText -Config $Config
+    $timezoneText = [System.TimeZoneInfo]::Local.DisplayName
+    $workDaysText = ($workDays -join ", ")
+
+    $signatureLines = @(
+        "<p><b>Best Regards,</b><br/>",
+        "$fullName</p>",
+        "<p style='color: #555; font-size: 10pt;'>$officeHoursText | $timezoneText | $workDaysText</p>",
+        "<p><a href='mailto:$userAlias'>$userAlias</a></p>"
+    )
+    $signatureHtml = $signatureLines -join "`n"
+
     $tokenMap = [ordered]@{
         "[FULL NAME]" = $fullName
         "[FIRST NAME]" = $firstName
         "[LAST NAME]" = $lastName
         "[ROLE]" = [string](Get-ConfigValue -Config $Config -Name "Role" -DefaultValue "member of my team")
         "[EMAIL]" = $userAlias
-        "[OFFICE HOURS]" = Get-OfficeHoursText -Config $Config
-        "[WORK DAYS]" = ($workDays -join ", ")
-        "[TIMEZONE]" = [System.TimeZoneInfo]::Local.DisplayName
+        "[OFFICE HOURS]" = $officeHoursText
+        "[WORK DAYS]" = $workDaysText
+        "[TIMEZONE]" = $timezoneText
         "[RETURN DATE]" = (Get-Date).AddDays(5).ToString("MMMM d, yyyy")
         "[BACKUP ENGINEER]" = $backupEngineer
         "[BACKUP CONTACT]" = $backupEngineer
         "[BACKUP ENGINEER EMAIL]" = [string](Get-ConfigValue -Config $Config -Name "BackupEngineerEmail" -DefaultValue "backup@example.com")
         "[TEAM ALIAS]" = [string](Get-ConfigValue -Config $Config -Name "TeamAlias" -DefaultValue "Azure Support Team")
         "[SUPPORT LINK]" = [string](Get-ConfigValue -Config $Config -Name "SupportLink" -DefaultValue "https://portal.azure.com")
+        "[SIGNATURE]" = $signatureHtml
     }
 
     $resolved = $TemplateContent
