@@ -28,6 +28,9 @@ See [ROADMAP.md](ROADMAP.md) for the planned feature rollout and versioning stra
 ### Current OOF
 ![Current OOF Tab](screenshots/current-oof.png)
 
+### Portable
+![Portable Standalone](screenshots/portable.png)
+
 ---
 
 ## Features
