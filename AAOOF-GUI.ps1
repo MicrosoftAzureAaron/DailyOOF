@@ -41,7 +41,8 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 
 if ($UseRootConfig) {
     $ConfigFile = Join-Path $ScriptDir "config.json"
-} else {
+}
+else {
     $ConfigFile = Join-Path $ConfigDir "config.json"
 }
 $XamlFile = Join-Path $ConfigDir "AAOOF-GUI.xaml"
@@ -88,16 +89,16 @@ foreach ($fileName in $DefaultConfigFiles) {
 if ($downloadSkipped.Count -gt 0) {
     $skippedList = $downloadSkipped -join "`n  - "
     $msg = "Template auto-download is disabled. The following files were not downloaded:`n  - $skippedList`n`n" +
-           "If you want templates or XAML restored, enable auto-download in config.json or run with -DisableTemplateAutoDownload removed."
+    "If you want templates or XAML restored, enable auto-download in config.json or run with -DisableTemplateAutoDownload removed."
     Write-Host $msg -ForegroundColor Yellow
 }
 
 if ($downloadFailures.Count -gt 0) {
     $failedList = $downloadFailures -join "`n  - "
     $msg = "The following config files could not be downloaded:`n  - $failedList`n`n" +
-           "You can clone the full repository instead:`n`n" +
-           "git clone https://github.com/MicrosoftAzureAaron/DailyOOF.git`n`n" +
-           "Then run the script from the cloned folder."
+    "You can clone the full repository instead:`n`n" +
+    "git clone https://github.com/MicrosoftAzureAaron/DailyOOF.git`n`n" +
+    "Then run the script from the cloned folder."
     Write-Host $msg -ForegroundColor Yellow
     [System.Windows.MessageBox]::Show(
         $msg,
@@ -127,7 +128,8 @@ function Get-RemoteScriptVersion {
 function Invoke-ScriptSelfUpdateExternal([string]$InputParam = "") {
     if ($PSVersionTable.PSEdition -eq 'Core') {
         $psExe = Join-Path $PSHOME 'pwsh.exe'
-    } else {
+    }
+    else {
         $psExe = Join-Path $PSHOME 'powershell.exe'
     }
     if (-not (Test-Path $psExe)) {
@@ -211,13 +213,13 @@ function Confirm-HeadlessConfigAvailable {
 # ===================== Configuration (loaded from config.json) =====================
 # Global variables hold the user's settings. Defaults are set here and then
 # overwritten by Import-AppConfiguration if a config.json file exists.
-$script:StartOfShift   = $null                       # Shift start time (datetime)
-$script:EndOfShift     = $null                       # Shift end time (datetime)
-$script:WorkDays       = $null                       # Array of day names, e.g. @('Monday','Tuesday',...)
-$script:UserAlias      = ""                           # Email address used as Exchange identity
+$script:StartOfShift = $null                       # Shift start time (datetime)
+$script:EndOfShift = $null                       # Shift end time (datetime)
+$script:WorkDays = $null                       # Array of day names, e.g. @('Monday','Tuesday',...)
+$script:UserAlias = ""                           # Email address used as Exchange identity
 $script:UserAliasSuffix = ""                           # Domain suffix appended to the Windows username
-$script:FullName       = ""                           # Display name for auto-generated signature
-$script:Role           = ""                           # Job title inserted into templates via [ROLE]
+$script:FullName = ""                           # Display name for auto-generated signature
+$script:Role = ""                           # Job title inserted into templates via [ROLE]
 $script:OverrideAccount = $false                      # True if user manually overrides the account email
 $script:SelectedHolidayName = ""                      # Name of the selected holiday for [HOLIDAY NAME] placeholder
 $script:EnableTemplateAutoDownload = $true             # Automatically download missing templates/XAML on startup
@@ -242,13 +244,13 @@ function ConvertTo-UserAliasSuffix($suffix) {
 function Import-AppConfiguration {
     if (Test-Path $ConfigFile) {
         $cfg = Get-Content $ConfigFile -Raw | ConvertFrom-Json
-        if ($cfg.StartOfShift)    { $script:StartOfShift = [datetime]$cfg.StartOfShift }
-        if ($cfg.EndOfShift)      { $script:EndOfShift = [datetime]$cfg.EndOfShift }
-        if ($cfg.WorkDays)        { $script:WorkDays = @($cfg.WorkDays) }
-        if ($cfg.UserAlias)       { $script:UserAlias = $cfg.UserAlias }
+        if ($cfg.StartOfShift) { $script:StartOfShift = [datetime]$cfg.StartOfShift }
+        if ($cfg.EndOfShift) { $script:EndOfShift = [datetime]$cfg.EndOfShift }
+        if ($cfg.WorkDays) { $script:WorkDays = @($cfg.WorkDays) }
+        if ($cfg.UserAlias) { $script:UserAlias = $cfg.UserAlias }
         if ($cfg.UserAliasSuffix) { $script:UserAliasSuffix = ConvertTo-UserAliasSuffix($cfg.UserAliasSuffix) }
-        if ($cfg.FullName)        { $script:FullName = $cfg.FullName }
-        if ($cfg.Role)            { $script:Role = $cfg.Role }
+        if ($cfg.FullName) { $script:FullName = $cfg.FullName }
+        if ($cfg.Role) { $script:Role = $cfg.Role }
         if ($null -ne $cfg.OverrideAccount) { $script:OverrideAccount = [bool]$cfg.OverrideAccount }
         if ($null -ne $cfg.EnableTemplateAutoDownload) { $script:EnableTemplateAutoDownload = [bool]$cfg.EnableTemplateAutoDownload }
         if ($null -ne $cfg.EnableAutoUpdateCheck) { $script:EnableAutoUpdateCheck = [bool]$cfg.EnableAutoUpdateCheck }
@@ -292,7 +294,8 @@ function Test-IsAdmin {
         $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
         $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
         return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
-    } catch {
+    }
+    catch {
         return $false
     }
 }
@@ -301,7 +304,8 @@ function Test-IsAdmin {
 function Get-InstallCommand {
     if (Test-IsAdmin) {
         return "Install-Module -Name ExchangeOnlineManagement -Force"
-    } else {
+    }
+    else {
         return "Install-Module -Name ExchangeOnlineManagement -Force -Scope CurrentUser"
     }
 }
@@ -312,28 +316,30 @@ function Test-ExchangeOnlineModule {
         $installCmd = Get-InstallCommand
         try {
             Update-StatusBar "Installing ExchangeOnlineManagement module..."
-        } catch { }
+        }
+        catch { }
 
         try {
             if (Test-IsAdmin) {
                 Install-Module -Name ExchangeOnlineManagement -Force -AllowClobber -ErrorAction Stop
-            } else {
+            }
+            else {
                 Install-Module -Name ExchangeOnlineManagement -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
             }
         }
         catch {
             $msg = "The ExchangeOnlineManagement module is required but could not be installed automatically.`n`n" +
-                   "Install it manually by running:`n`n" +
-                   "$installCmd`n`n" +
-                   "Then restart the application.`n`n" +
-                   "Install error: $($_.Exception.Message)"
+            "Install it manually by running:`n`n" +
+            "$installCmd`n`n" +
+            "Then restart the application.`n`n" +
+            "Install error: $($_.Exception.Message)"
             throw $msg
         }
 
         if (!(Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
             $msg = "The ExchangeOnlineManagement module is required but still not available after installation.`n`n" +
-                   "Try installing manually:`n`n" +
-                   "$installCmd`
+            "Try installing manually:`n`n" +
+            "$installCmd`
 Then restart the application."
             throw $msg
         }
@@ -344,7 +350,8 @@ Then restart the application."
 if (!$InputParameter) {
     try {
         Test-ExchangeOnlineModule
-    } catch {
+    }
+    catch {
         [System.Windows.MessageBox]::Show(
             $_.Exception.Message,
             "Module Not Found",
@@ -366,7 +373,8 @@ function Resolve-UserAlias {
             $dnsDomain = $env:USERDNSDOMAIN.ToLower()
             if ($dnsDomain -match '\.?microsoft\.com$') {
                 $script:UserAliasSuffix = '@microsoft.com'
-            } else {
+            }
+            else {
                 $script:UserAliasSuffix = "@$dnsDomain"
             }
         }
@@ -374,7 +382,8 @@ function Resolve-UserAlias {
     $ComputerSystem = Get-CimInstance -ClassName Win32_ComputerSystem
     if ($ComputerSystem.Username) {
         $CurrentUser = $ComputerSystem.Username.Split('\')[-1]
-    } else {
+    }
+    else {
         $CurrentUser = $env:USERNAME
     }
     $script:UserAlias = "$CurrentUser$script:UserAliasSuffix"
@@ -399,8 +408,8 @@ function Get-AutoReplyConfiguration {
 # Set-AutoReplyState: Change the auto-reply state (Enabled|Disabled|Scheduled) on Exchange.
 function Set-AutoReplyState($State) {
     switch ($State) {
-        'Enabled'   { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Enabled" }
-        'Disabled'  { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Disabled" }
+        'Enabled' { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Enabled" }
+        'Disabled' { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Disabled" }
         'Scheduled' {
             # Calculate times first, then set state + times in a single atomic call
             # to avoid a race where Exchange activates scheduling with stale times.
@@ -444,7 +453,7 @@ function Set-AutoReplyMessage($Message, $MessageScope) {
     switch ($MessageScope) {
         'Internal' { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -InternalMessage $Message }
         'External' { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -ExternalMessage $Message }
-        default    { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -ExternalMessage $Message -InternalMessage $Message }
+        default { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -ExternalMessage $Message -InternalMessage $Message }
     }
 }
 
@@ -509,9 +518,9 @@ function Connect-ExchangeOnlineSession {
 
     # Flush UI before blocking on auth so status messages are visible
     if ($null -ne $Window) {
-        $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+        $Window.Dispatcher.Invoke([action] {}, [System.Windows.Threading.DispatcherPriority]::Render)
     }
-    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias -ShowBanner:$false -CommandName Get-MailboxAutoReplyConfiguration,Set-MailboxAutoReplyConfiguration
+    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias -ShowBanner:$false -CommandName Get-MailboxAutoReplyConfiguration, Set-MailboxAutoReplyConfiguration
     return $true
 }
 
@@ -690,7 +699,8 @@ function Register-DailyScheduledTask {
     if ($PSVersionTable.PSEdition -eq 'Core') {
         # PowerShell 7+: use pwsh.exe from its known install location
         $psExe = Join-Path $PSHOME "pwsh.exe"
-    } else {
+    }
+    else {
         # Windows PowerShell 5.1
         $psExe = Join-Path $PSHOME "powershell.exe"
     }
@@ -718,7 +728,8 @@ function Register-DailyScheduledTask {
     if ($existing) {
         # Update the existing task so stale configurations are corrected
         Set-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -Settings $settings -ErrorAction Stop | Out-Null
-    } else {
+    }
+    else {
         Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -Settings $settings -RunLevel Highest -ErrorAction Stop | Out-Null
     }
     return $scriptPath
@@ -797,10 +808,12 @@ if ($InputParameter) {
             if ($updated) {
                 Write-Host "Script update launched in a separate process." -ForegroundColor Green
             }
-        } else {
+        }
+        else {
             Write-Host "Script is up to date (v$($script:ScriptVersion))." -ForegroundColor Green
         }
-    } catch {
+    }
+    catch {
         Write-Host "Auto-update skipped: $($_.Exception.Message)" -ForegroundColor Yellow
     }
     exit
@@ -916,10 +929,11 @@ function Update-StatusBar($Message) {
     if ($script:IsConnectedToEXO -and -not $script:OOFReplyEnabled) {
         $borderStatusBar.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
         $txtStatusBar.Text = [char]0x26A0 + " Out of Office reply is not enabled | $Message"
-    } else {
+    }
+    else {
         $borderStatusBar.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x00, 0x78, 0xD4))
     }
-    $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Render)
+    $Window.Dispatcher.Invoke([action] {}, [Windows.Threading.DispatcherPriority]::Render)
 }
 
 # Show-InfoDialog: Display an informational popup.
@@ -943,7 +957,8 @@ function Assert-ExchangeConnection {
     if (-not $chkOverrideAccount.IsChecked) {
         Resolve-UserAlias
         $txtAccount.Text = $script:UserAlias
-    } else {
+    }
+    else {
         $script:UserAlias = $txtAccount.Text
     }
     Connect-ExchangeOnlineSession
@@ -956,8 +971,8 @@ function Assert-ExchangeConnection {
 # ===================== Populate Combos =====================
 # Fill the hour, minute, and AM/PM dropdown lists for shift time selection.
 1..12 | ForEach-Object { $cmbStartHour.Items.Add($_.ToString()) | Out-Null; $cmbEndHour.Items.Add($_.ToString()) | Out-Null }
-@("00","15","30","45") | ForEach-Object { $cmbStartMin.Items.Add($_) | Out-Null; $cmbEndMin.Items.Add($_) | Out-Null }
-@("AM","PM") | ForEach-Object { $cmbStartAmPm.Items.Add($_) | Out-Null; $cmbEndAmPm.Items.Add($_) | Out-Null }
+@("00", "15", "30", "45") | ForEach-Object { $cmbStartMin.Items.Add($_) | Out-Null; $cmbEndMin.Items.Add($_) | Out-Null }
+@("AM", "PM") | ForEach-Object { $cmbStartAmPm.Items.Add($_) | Out-Null; $cmbEndAmPm.Items.Add($_) | Out-Null }
 
 # ===================== Load Saved Config into UI =====================
 # Initialize-UIFromConfig: Populate all UI controls from global config values,
@@ -977,7 +992,8 @@ function Initialize-UIFromConfig {
     # Account
     if ($script:OverrideAccount) {
         $txtAccount.Text = $script:UserAlias
-    } else {
+    }
+    else {
         Resolve-UserAlias
         $txtAccount.Text = $script:UserAlias
     }
@@ -989,10 +1005,11 @@ function Initialize-UIFromConfig {
         $ampm = if ($h -ge 12) { "PM" } else { "AM" }
         $displayH = if ($h -gt 12) { $h - 12 } elseif ($h -eq 0) { 12 } else { $h }
         $cmbStartHour.SelectedItem = $displayH.ToString()
-        $nearestMin = @("00","15","30","45") | Sort-Object { [Math]::Abs([int]$_ - $m) } | Select-Object -First 1
+        $nearestMin = @("00", "15", "30", "45") | Sort-Object { [Math]::Abs([int]$_ - $m) } | Select-Object -First 1
         $cmbStartMin.SelectedItem = $nearestMin
         $cmbStartAmPm.SelectedItem = $ampm
-    } else {
+    }
+    else {
         $cmbStartHour.SelectedIndex = 8; $cmbStartMin.SelectedIndex = 0; $cmbStartAmPm.SelectedIndex = 0 # 9 AM
     }
 
@@ -1002,10 +1019,11 @@ function Initialize-UIFromConfig {
         $ampm = if ($h -ge 12) { "PM" } else { "AM" }
         $displayH = if ($h -gt 12) { $h - 12 } elseif ($h -eq 0) { 12 } else { $h }
         $cmbEndHour.SelectedItem = $displayH.ToString()
-        $nearestMin = @("00","15","30","45") | Sort-Object { [Math]::Abs([int]$_ - $m) } | Select-Object -First 1
+        $nearestMin = @("00", "15", "30", "45") | Sort-Object { [Math]::Abs([int]$_ - $m) } | Select-Object -First 1
         $cmbEndMin.SelectedItem = $nearestMin
         $cmbEndAmPm.SelectedItem = $ampm
-    } else {
+    }
+    else {
         $cmbEndHour.SelectedIndex = 5; $cmbEndMin.SelectedIndex = 0; $cmbEndAmPm.SelectedIndex = 1 # 6 PM
     }
 
@@ -1018,7 +1036,8 @@ function Initialize-UIFromConfig {
         $chkFri.IsChecked = ('Friday' -in $script:WorkDays)
         $chkSat.IsChecked = ('Saturday' -in $script:WorkDays)
         $chkSun.IsChecked = ('Sunday' -in $script:WorkDays)
-    } else {
+    }
+    else {
         # Default Mon-Fri
         $chkMon.IsChecked = $true; $chkTue.IsChecked = $true; $chkWed.IsChecked = $true
         $chkThu.IsChecked = $true; $chkFri.IsChecked = $true
@@ -1028,11 +1047,11 @@ function Initialize-UIFromConfig {
 # Resolve-TemplateFilePath: Map a template display name to its file path in the config directory.
 function Resolve-TemplateFilePath($TemplateName) {
     switch ($TemplateName) {
-        "Normal OOF"   { return Join-Path $ConfigDir "normal_oof.html" }
+        "Normal OOF" { return Join-Path $ConfigDir "normal_oof.html" }
         "Vacation OOF" { return Join-Path $ConfigDir "vacation_oof.html" }
-        "Sick OOF"     { return Join-Path $ConfigDir "sick_oof.html" }
-        "Holiday OOF"  { return Join-Path $ConfigDir "holiday_oof.html" }
-        default        { return $null }
+        "Sick OOF" { return Join-Path $ConfigDir "sick_oof.html" }
+        "Holiday OOF" { return Join-Path $ConfigDir "holiday_oof.html" }
+        default { return $null }
     }
 }
 
@@ -1065,16 +1084,19 @@ function Resolve-TemplatePlaceholders($text) {
     # Derive display name for name-based placeholders
     if (![string]::IsNullOrWhiteSpace($txtFullName.Text)) {
         $displayName = $txtFullName.Text
-    } else {
+    }
+    else {
         $aliasLocal = ($script:UserAlias -split '@')[0]
         if ($aliasLocal) {
             if ($aliasLocal -match '\.' ) {
                 $nameParts = $aliasLocal -split '\.'
-            } else {
+            }
+            else {
                 $nameParts = [regex]::Split($aliasLocal, '(?<=[a-z])(?=[A-Z])')
             }
             $displayName = ($nameParts | ForEach-Object { (Get-Culture).TextInfo.ToTitleCase($_.ToLower()) }) -join ' '
-        } else {
+        }
+        else {
             $displayName = $env:USERNAME
         }
     }
@@ -1100,7 +1122,7 @@ function Resolve-TemplatePlaceholders($text) {
 
     # Replace [WORK DAYS]
     if ($script:WorkDays -and $script:WorkDays.Count -gt 0) {
-        $weekOrder = @('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')
+        $weekOrder = @('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
         $sorted = $script:WorkDays | Sort-Object { $weekOrder.IndexOf($_) }
         $text = $text -replace '\[WORK DAYS\]', ($sorted -join ', ')
     }
@@ -1126,7 +1148,7 @@ function Resolve-TemplatePlaceholders($text) {
         $detailParts += [System.TimeZoneInfo]::Local.DisplayName
     }
     if ($chkIncludeWorkDays.IsChecked -and $script:WorkDays) {
-        $weekOrder = @('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')
+        $weekOrder = @('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
         $sorted = $script:WorkDays | Sort-Object { $weekOrder.IndexOf($_) }
         $detailParts += ($sorted -join ', ')
     }
@@ -1142,7 +1164,8 @@ function Resolve-TemplatePlaceholders($text) {
     if ($sigLines.Count -gt 0) {
         $signatureHtml = $sigLines -join "`n"
         $text = $text -replace '\[SIGNATURE\]', $signatureHtml
-    } else {
+    }
+    else {
         $text = $text -replace '(?m)^\s*\[SIGNATURE\]\s*\r?\n?', ''
     }
     return $text
@@ -1184,228 +1207,175 @@ function Read-ShiftTimesFromUI {
 
 # Connect: Resolve the user alias and establish an Exchange Online session.
 $btnConnect.Add_Click({
-    try {
-        Update-StatusBar "Connecting to Exchange Online..."
-        if (-not $chkOverrideAccount.IsChecked) {
-            Resolve-UserAlias
-            $txtAccount.Text = $script:UserAlias
-        } else {
-            $script:UserAlias = $txtAccount.Text
-        }
-        Connect-ExchangeOnlineSession
-        $txtConnectionStatus.Text = "Connected"
-        $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
-        $script:IsConnectedToEXO = $true
-
-        # On first connect, pull current OOF config and message and save locally
         try {
-            $arc = Get-AutoReplyConfiguration
-            $txtARCState.Text = $arc.AutoReplyState
-            $txtARCStart.Text = $arc.StartTime.ToString()
-            $txtARCEnd.Text = $arc.EndTime.ToString()
-
-            # Check if OOF auto-reply is enabled (not Disabled)
-            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
-
-            # Save the current online messages to template files if we don't already have a saved message
-            $savedMsgFile = Join-Path $ConfigDir "message.html"
-            if (!(Test-Path $savedMsgFile) -and ![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) {
-                Export-MessageToFile $savedMsgFile $arc.ExternalMessage
-            }
-        } catch { }
-
-        Export-AppConfiguration
-        Update-StatusBar "Connected as $($script:UserAlias)"
-    }
-    catch {
-        $txtConnectionStatus.Text = "Connection Failed"
-        $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
-        Show-ErrorDialog "Connection Error" $_.Exception.Message
-        Update-StatusBar "Connection failed"
-    }
-})
-
-# Disconnect: Tear down the Exchange Online session and update the UI.
-$btnDisconnect.Add_Click({
-    try {
-        Disconnect-ExchangeOnlineSession
-        $txtConnectionStatus.Text = "Disconnected"
-        $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
-        $script:IsConnectedToEXO = $false
-        $script:OOFReplyEnabled = $true
-        Update-StatusBar "Disconnected from Exchange Online"
-    }
-    catch {
-        Show-ErrorDialog "Disconnect Error" $_.Exception.Message
-    }
-})
-
-# Enable Scheduled Auto Reply: Read shift/work-day settings and apply Scheduled mode.
-$btnEnableScheduled.Add_Click({
-    try {
-        Assert-ExchangeConnection
-        Update-StatusBar "Setting scheduled auto reply..."
-        Read-ShiftTimesFromUI
-        $script:WorkDays = Read-WorkDaysFromUI
-        Set-AutoReplyState 'Scheduled'
-        $arc = Get-AutoReplyConfiguration
-        $txtARCState.Text = $arc.AutoReplyState
-        $txtARCStart.Text = $arc.StartTime.ToString()
-        $txtARCEnd.Text = $arc.EndTime.ToString()
-        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
-        Update-StatusBar "Scheduled auto reply enabled"
-        Show-InfoDialog "Success" "Scheduled Auto Reply enabled.`nStart: $($arc.StartTime)`nEnd: $($arc.EndTime)"
-    }
-    catch {
-        Show-ErrorDialog "Error" $_.Exception.Message
-        Update-StatusBar "Failed to set scheduled auto reply"
-    }
-})
-
-# Set Vacation OOF: Configure an extended OOF until the selected return date.
-$btnSetVacation.Add_Click({
-    try {
-        if ($null -eq $dpReturnDate.SelectedDate) {
-            Show-ErrorDialog "Missing Date" "Please select a return date."
-            return
-        }
-        Assert-ExchangeConnection
-        Update-StatusBar "Setting vacation OOF..."
-        Read-ShiftTimesFromUI
-        $returnDate = $dpReturnDate.SelectedDate.ToString("yyyy/MM/dd")
-        Set-VacationAutoReply $returnDate
-
-        # If there's a vacation template loaded, apply it
-        $vacPath = Resolve-TemplateFilePath "Vacation OOF"
-        if ((Test-Path $vacPath) -and [string]::IsNullOrWhiteSpace($txtMessage.Text) -eq $false) {
-            # User may want to apply the loaded message - handled separately via Apply buttons
-        }
-
-        $arc = Get-AutoReplyConfiguration
-        $txtARCState.Text = $arc.AutoReplyState
-        $txtARCStart.Text = $arc.StartTime.ToString()
-        $txtARCEnd.Text = $arc.EndTime.ToString()
-        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
-        Update-StatusBar "Vacation OOF set until $returnDate"
-        Show-InfoDialog "Success" "Vacation OOF enabled until $returnDate`nStart: $($arc.StartTime)`nEnd: $($arc.EndTime)"
-    }
-    catch {
-        Show-ErrorDialog "Error" $_.Exception.Message
-        Update-StatusBar "Failed to set vacation OOF"
-    }
-})
-
-# Cancel Vacation OOF: Disable the vacation/extended OOF.
-$btnCancelVacation.Add_Click({
-    try {
-        Assert-ExchangeConnection
-        Update-StatusBar "Cancelling vacation OOF..."
-        Disable-VacationAutoReply
-        $arc = Get-AutoReplyConfiguration
-        $txtARCState.Text = $arc.AutoReplyState
-        $txtARCStart.Text = $arc.StartTime.ToString()
-        $txtARCEnd.Text = $arc.EndTime.ToString()
-        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
-        Update-StatusBar "Vacation OOF cancelled"
-        Show-InfoDialog "Success" "Vacation OOF has been disabled."
-    }
-    catch {
-        Show-ErrorDialog "Error" $_.Exception.Message
-        Update-StatusBar "Failed to cancel vacation OOF"
-    }
-})
-
-# Refresh Status: Pull the current auto-reply state and schedule from Exchange.
-$btnRefreshStatus.Add_Click({
-    try {
-        Assert-ExchangeConnection
-        Update-StatusBar "Refreshing status..."
-        $arc = Get-AutoReplyConfiguration
-        $txtARCState.Text = $arc.AutoReplyState
-        $txtARCStart.Text = $arc.StartTime.ToString()
-        $txtARCEnd.Text = $arc.EndTime.ToString()
-        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
-        Update-StatusBar "Status refreshed"
-    }
-    catch {
-        Show-ErrorDialog "Error" "Could not refresh. Are you connected?`n$($_.Exception.Message)"
-        Update-StatusBar "Refresh failed"
-    }
-})
-
-# View Current OOF Message: Auto-connect if needed, fetch the live auto-reply,
-# render it on the Current OOF tab, and switch to that tab.
-$btnViewCurrentMsg.Add_Click({
-    try {
-        Update-StatusBar "Fetching current OOF message..."
-        $txtCurrentOOFStatus.Text = "Loading..."
-
-        # Check connection — attempt to connect if disconnected
-        $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
-        $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
-        if (-not $connected) {
-            $txtCurrentOOFStatus.Text = "Disconnected — reconnecting..."
-            Update-StatusBar "Not connected — attempting to connect..."
+            Update-StatusBar "Connecting to Exchange Online..."
             if (-not $chkOverrideAccount.IsChecked) {
                 Resolve-UserAlias
                 $txtAccount.Text = $script:UserAlias
-            } else {
+            }
+            else {
                 $script:UserAlias = $txtAccount.Text
             }
             Connect-ExchangeOnlineSession
             $txtConnectionStatus.Text = "Connected"
             $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
             $script:IsConnectedToEXO = $true
-        }
 
-        $arc = Get-AutoReplyConfiguration
-        $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
-               elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
-               else { $null }
-        if ($null -eq $msg) {
-            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
-            $txtCurrentOOFStatus.Text = "No message set"
-            Update-StatusBar "No current OOF message"
-        } else {
-            $wbCurrentOOF.NavigateToString($msg)
-            $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
-            Update-StatusBar "Current OOF message loaded"
-        }
-
-        $txtARCState.Text = $arc.AutoReplyState
-        $txtARCStart.Text = $arc.StartTime.ToString()
-        $txtARCEnd.Text = $arc.EndTime.ToString()
-
-        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
-
-        # Switch to the Current OOF tab
-        $tcMain.SelectedIndex = 3
-    }
-    catch {
-        $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not fetch message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
-        $txtCurrentOOFStatus.Text = "Error loading"
-        Update-StatusBar "Failed to fetch current OOF message"
-    }
-})
-
-# Refresh Current OOF tab: Check connection (auto-reconnect if needed),
-# then fetch and render the live auto-reply message in the WebBrowser.
-$btnRefreshCurrentOOF.Add_Click({
-    try {
-        Update-StatusBar "Fetching current OOF message..."
-        $txtCurrentOOFStatus.Text = "Loading..."
-
-        # Check connection — attempt to connect if disconnected
-        $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
-        $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
-        if (-not $connected) {
-            $txtCurrentOOFStatus.Text = "Disconnected — reconnecting..."
-            Update-StatusBar "Not connected — attempting to connect..."
+            # On first connect, pull current OOF config and message and save locally
             try {
+                $arc = Get-AutoReplyConfiguration
+                $txtARCState.Text = $arc.AutoReplyState
+                $txtARCStart.Text = $arc.StartTime.ToString()
+                $txtARCEnd.Text = $arc.EndTime.ToString()
+
+                # Check if OOF auto-reply is enabled (not Disabled)
+                $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
+
+                # Save the current online messages to template files if we don't already have a saved message
+                $savedMsgFile = Join-Path $ConfigDir "message.html"
+                if (!(Test-Path $savedMsgFile) -and ![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) {
+                    Export-MessageToFile $savedMsgFile $arc.ExternalMessage
+                }
+            }
+            catch { }
+
+            Export-AppConfiguration
+            Update-StatusBar "Connected as $($script:UserAlias)"
+        }
+        catch {
+            $txtConnectionStatus.Text = "Connection Failed"
+            $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+            Show-ErrorDialog "Connection Error" $_.Exception.Message
+            Update-StatusBar "Connection failed"
+        }
+    })
+
+# Disconnect: Tear down the Exchange Online session and update the UI.
+$btnDisconnect.Add_Click({
+        try {
+            Disconnect-ExchangeOnlineSession
+            $txtConnectionStatus.Text = "Disconnected"
+            $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+            $script:IsConnectedToEXO = $false
+            $script:OOFReplyEnabled = $true
+            Update-StatusBar "Disconnected from Exchange Online"
+        }
+        catch {
+            Show-ErrorDialog "Disconnect Error" $_.Exception.Message
+        }
+    })
+
+# Enable Scheduled Auto Reply: Read shift/work-day settings and apply Scheduled mode.
+$btnEnableScheduled.Add_Click({
+        try {
+            Assert-ExchangeConnection
+            Update-StatusBar "Setting scheduled auto reply..."
+            Read-ShiftTimesFromUI
+            $script:WorkDays = Read-WorkDaysFromUI
+            Set-AutoReplyState 'Scheduled'
+            $arc = Get-AutoReplyConfiguration
+            $txtARCState.Text = $arc.AutoReplyState
+            $txtARCStart.Text = $arc.StartTime.ToString()
+            $txtARCEnd.Text = $arc.EndTime.ToString()
+            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
+            Update-StatusBar "Scheduled auto reply enabled"
+            Show-InfoDialog "Success" "Scheduled Auto Reply enabled.`nStart: $($arc.StartTime)`nEnd: $($arc.EndTime)"
+        }
+        catch {
+            Show-ErrorDialog "Error" $_.Exception.Message
+            Update-StatusBar "Failed to set scheduled auto reply"
+        }
+    })
+
+# Set Vacation OOF: Configure an extended OOF until the selected return date.
+$btnSetVacation.Add_Click({
+        try {
+            if ($null -eq $dpReturnDate.SelectedDate) {
+                Show-ErrorDialog "Missing Date" "Please select a return date."
+                return
+            }
+            Assert-ExchangeConnection
+            Update-StatusBar "Setting vacation OOF..."
+            Read-ShiftTimesFromUI
+            $returnDate = $dpReturnDate.SelectedDate.ToString("yyyy/MM/dd")
+            Set-VacationAutoReply $returnDate
+
+            # If there's a vacation template loaded, apply it
+            $vacPath = Resolve-TemplateFilePath "Vacation OOF"
+            if ((Test-Path $vacPath) -and [string]::IsNullOrWhiteSpace($txtMessage.Text) -eq $false) {
+                # User may want to apply the loaded message - handled separately via Apply buttons
+            }
+
+            $arc = Get-AutoReplyConfiguration
+            $txtARCState.Text = $arc.AutoReplyState
+            $txtARCStart.Text = $arc.StartTime.ToString()
+            $txtARCEnd.Text = $arc.EndTime.ToString()
+            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
+            Update-StatusBar "Vacation OOF set until $returnDate"
+            Show-InfoDialog "Success" "Vacation OOF enabled until $returnDate`nStart: $($arc.StartTime)`nEnd: $($arc.EndTime)"
+        }
+        catch {
+            Show-ErrorDialog "Error" $_.Exception.Message
+            Update-StatusBar "Failed to set vacation OOF"
+        }
+    })
+
+# Cancel Vacation OOF: Disable the vacation/extended OOF.
+$btnCancelVacation.Add_Click({
+        try {
+            Assert-ExchangeConnection
+            Update-StatusBar "Cancelling vacation OOF..."
+            Disable-VacationAutoReply
+            $arc = Get-AutoReplyConfiguration
+            $txtARCState.Text = $arc.AutoReplyState
+            $txtARCStart.Text = $arc.StartTime.ToString()
+            $txtARCEnd.Text = $arc.EndTime.ToString()
+            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
+            Update-StatusBar "Vacation OOF cancelled"
+            Show-InfoDialog "Success" "Vacation OOF has been disabled."
+        }
+        catch {
+            Show-ErrorDialog "Error" $_.Exception.Message
+            Update-StatusBar "Failed to cancel vacation OOF"
+        }
+    })
+
+# Refresh Status: Pull the current auto-reply state and schedule from Exchange.
+$btnRefreshStatus.Add_Click({
+        try {
+            Assert-ExchangeConnection
+            Update-StatusBar "Refreshing status..."
+            $arc = Get-AutoReplyConfiguration
+            $txtARCState.Text = $arc.AutoReplyState
+            $txtARCStart.Text = $arc.StartTime.ToString()
+            $txtARCEnd.Text = $arc.EndTime.ToString()
+            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
+            Update-StatusBar "Status refreshed"
+        }
+        catch {
+            Show-ErrorDialog "Error" "Could not refresh. Are you connected?`n$($_.Exception.Message)"
+            Update-StatusBar "Refresh failed"
+        }
+    })
+
+# View Current OOF Message: Auto-connect if needed, fetch the live auto-reply,
+# render it on the Current OOF tab, and switch to that tab.
+$btnViewCurrentMsg.Add_Click({
+        try {
+            Update-StatusBar "Fetching current OOF message..."
+            $txtCurrentOOFStatus.Text = "Loading..."
+
+            # Check connection — attempt to connect if disconnected
+            $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
+            $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
+            if (-not $connected) {
+                $txtCurrentOOFStatus.Text = "Disconnected — reconnecting..."
+                Update-StatusBar "Not connected — attempting to connect..."
                 if (-not $chkOverrideAccount.IsChecked) {
                     Resolve-UserAlias
                     $txtAccount.Text = $script:UserAlias
-                } else {
+                }
+                else {
                     $script:UserAlias = $txtAccount.Text
                 }
                 Connect-ExchangeOnlineSession
@@ -1413,123 +1383,185 @@ $btnRefreshCurrentOOF.Add_Click({
                 $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
                 $script:IsConnectedToEXO = $true
             }
-            catch {
-                $txtConnectionStatus.Text = "Connection Failed"
-                $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
-                $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Connection Failed</h3><p>Could not connect to Exchange Online. Please check your account settings and try again.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
-                $txtCurrentOOFStatus.Text = "Connection failed"
-                Update-StatusBar "Connection failed"
-                return
+
+            $arc = Get-AutoReplyConfiguration
+            $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
+            elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
+            else { $null }
+            if ($null -eq $msg) {
+                $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
+                $txtCurrentOOFStatus.Text = "No message set"
+                Update-StatusBar "No current OOF message"
             }
-        }
+            else {
+                $wbCurrentOOF.NavigateToString($msg)
+                $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
+                Update-StatusBar "Current OOF message loaded"
+            }
 
-        $arc = Get-AutoReplyConfiguration
-        $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
-               elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
-               else { $null }
-        if ($null -eq $msg) {
-            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
-            $txtCurrentOOFStatus.Text = "No message set"
-            Update-StatusBar "No current OOF message"
-        } else {
-            $wbCurrentOOF.NavigateToString($msg)
-            $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
-            Update-StatusBar "Current OOF message loaded"
-        }
+            $txtARCState.Text = $arc.AutoReplyState
+            $txtARCStart.Text = $arc.StartTime.ToString()
+            $txtARCEnd.Text = $arc.EndTime.ToString()
 
-        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
-    }
-    catch {
-        $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not fetch message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
-        $txtCurrentOOFStatus.Text = "Error loading"
-        Update-StatusBar "Failed to fetch current OOF message"
-    }
-})
+            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
+
+            # Switch to the Current OOF tab
+            $tcMain.SelectedIndex = 3
+        }
+        catch {
+            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not fetch message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
+            $txtCurrentOOFStatus.Text = "Error loading"
+            Update-StatusBar "Failed to fetch current OOF message"
+        }
+    })
+
+# Refresh Current OOF tab: Check connection (auto-reconnect if needed),
+# then fetch and render the live auto-reply message in the WebBrowser.
+$btnRefreshCurrentOOF.Add_Click({
+        try {
+            Update-StatusBar "Fetching current OOF message..."
+            $txtCurrentOOFStatus.Text = "Loading..."
+
+            # Check connection — attempt to connect if disconnected
+            $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
+            $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
+            if (-not $connected) {
+                $txtCurrentOOFStatus.Text = "Disconnected — reconnecting..."
+                Update-StatusBar "Not connected — attempting to connect..."
+                try {
+                    if (-not $chkOverrideAccount.IsChecked) {
+                        Resolve-UserAlias
+                        $txtAccount.Text = $script:UserAlias
+                    }
+                    else {
+                        $script:UserAlias = $txtAccount.Text
+                    }
+                    Connect-ExchangeOnlineSession
+                    $txtConnectionStatus.Text = "Connected"
+                    $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                    $script:IsConnectedToEXO = $true
+                }
+                catch {
+                    $txtConnectionStatus.Text = "Connection Failed"
+                    $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+                    $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Connection Failed</h3><p>Could not connect to Exchange Online. Please check your account settings and try again.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
+                    $txtCurrentOOFStatus.Text = "Connection failed"
+                    Update-StatusBar "Connection failed"
+                    return
+                }
+            }
+
+            $arc = Get-AutoReplyConfiguration
+            $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
+            elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
+            else { $null }
+            if ($null -eq $msg) {
+                $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
+                $txtCurrentOOFStatus.Text = "No message set"
+                Update-StatusBar "No current OOF message"
+            }
+            else {
+                $wbCurrentOOF.NavigateToString($msg)
+                $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
+                Update-StatusBar "Current OOF message loaded"
+            }
+
+            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
+        }
+        catch {
+            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not fetch message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
+            $txtCurrentOOFStatus.Text = "Error loading"
+            Update-StatusBar "Failed to fetch current OOF message"
+        }
+    })
 
 # Auto-load Current OOF tab on first visit: connect if needed and fetch the message.
 # When switching to the Message Templates tab, sync config globals from UI
 # so templates reflect the latest unsaved changes (work days, shift times, etc.).
 $script:CurrentOOFLoaded = $false
 $tcMain.Add_SelectionChanged({
-    if ($tcMain.SelectedIndex -eq 2) {
-        # Sync config globals from UI before template rendering
-        Read-ShiftTimesFromUI
-        $script:WorkDays = Read-WorkDaysFromUI
-        $script:FullName = $txtFullName.Text
-        $script:Role = $txtRole.Text
-        & $optionReloadHandler
-        return
-    }
-    if ($tcMain.SelectedIndex -ne 3) { return }
-    if ($script:CurrentOOFLoaded) { return }
-    $script:CurrentOOFLoaded = $true
-    try {
-        Update-StatusBar "Loading current OOF message..."
-        $txtCurrentOOFStatus.Text = "Loading..."
+        if ($tcMain.SelectedIndex -eq 2) {
+            # Sync config globals from UI before template rendering
+            Read-ShiftTimesFromUI
+            $script:WorkDays = Read-WorkDaysFromUI
+            $script:FullName = $txtFullName.Text
+            $script:Role = $txtRole.Text
+            & $optionReloadHandler
+            return
+        }
+        if ($tcMain.SelectedIndex -ne 3) { return }
+        if ($script:CurrentOOFLoaded) { return }
+        $script:CurrentOOFLoaded = $true
+        try {
+            Update-StatusBar "Loading current OOF message..."
+            $txtCurrentOOFStatus.Text = "Loading..."
 
-        $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
-        $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
-        if (-not $connected) {
-            $txtCurrentOOFStatus.Text = "Disconnected — connecting..."
-            Update-StatusBar "Not connected — attempting to connect..."
-            if (-not $chkOverrideAccount.IsChecked) {
-                Resolve-UserAlias
-                $txtAccount.Text = $script:UserAlias
-            } else {
-                $script:UserAlias = $txtAccount.Text
+            $session = Get-ConnectionInformation -ErrorAction SilentlyContinue
+            $connected = $null -ne ($session | Where-Object { $_.Name -like "ExchangeOnline_*" })
+            if (-not $connected) {
+                $txtCurrentOOFStatus.Text = "Disconnected — connecting..."
+                Update-StatusBar "Not connected — attempting to connect..."
+                if (-not $chkOverrideAccount.IsChecked) {
+                    Resolve-UserAlias
+                    $txtAccount.Text = $script:UserAlias
+                }
+                else {
+                    $script:UserAlias = $txtAccount.Text
+                }
+                Connect-ExchangeOnlineSession
+                $txtConnectionStatus.Text = "Connected"
+                $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $script:IsConnectedToEXO = $true
             }
-            Connect-ExchangeOnlineSession
-            $txtConnectionStatus.Text = "Connected"
-            $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
-            $script:IsConnectedToEXO = $true
+
+            $arc = Get-AutoReplyConfiguration
+            $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
+            elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
+            else { $null }
+            if ($null -eq $msg) {
+                $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
+                $txtCurrentOOFStatus.Text = "No message set"
+                Update-StatusBar "No current OOF message"
+            }
+            else {
+                $wbCurrentOOF.NavigateToString($msg)
+                $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
+                Update-StatusBar "Current OOF message loaded"
+            }
+
+            $txtARCState.Text = $arc.AutoReplyState
+            $txtARCStart.Text = $arc.StartTime.ToString()
+            $txtARCEnd.Text = $arc.EndTime.ToString()
+
+            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
         }
-
-        $arc = Get-AutoReplyConfiguration
-        $msg = if (![string]::IsNullOrWhiteSpace($arc.ExternalMessage)) { $arc.ExternalMessage }
-               elseif (![string]::IsNullOrWhiteSpace($arc.InternalMessage)) { $arc.InternalMessage }
-               else { $null }
-        if ($null -eq $msg) {
-            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:#888;'><h3>No OOF message is currently set.</h3></body></html>")
-            $txtCurrentOOFStatus.Text = "No message set"
-            Update-StatusBar "No current OOF message"
-        } else {
-            $wbCurrentOOF.NavigateToString($msg)
-            $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
-            Update-StatusBar "Current OOF message loaded"
+        catch {
+            $script:CurrentOOFLoaded = $false
+            $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not load message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
+            $txtCurrentOOFStatus.Text = "Error loading"
+            Update-StatusBar "Failed to load current OOF message"
         }
-
-        $txtARCState.Text = $arc.AutoReplyState
-        $txtARCStart.Text = $arc.StartTime.ToString()
-        $txtARCEnd.Text = $arc.EndTime.ToString()
-
-        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
-    }
-    catch {
-        $script:CurrentOOFLoaded = $false
-        $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not load message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
-        $txtCurrentOOFStatus.Text = "Error loading"
-        Update-StatusBar "Failed to load current OOF message"
-    }
-})
+    })
 
 # Debounced auto-save: When any config control changes, restart a 0.5-second timer.
 # When the timer fires (user stopped making changes), read all UI fields and save.
 $script:ConfigSaveTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:ConfigSaveTimer.Interval = [TimeSpan]::FromMilliseconds(500)
 $script:ConfigSaveTimer.Add_Tick({
-    $script:ConfigSaveTimer.Stop()
-    $script:FullName = $txtFullName.Text
-    $script:Role = $txtRole.Text
-    if ($chkOverrideAccount.IsChecked) {
-        $script:UserAlias = $txtAccount.Text
-    } else {
-        Resolve-UserAlias
-    }
-    Read-ShiftTimesFromUI
-    $script:WorkDays = Read-WorkDaysFromUI
-    Export-AppConfiguration
-    Update-StatusBar "💾 Settings saved"
-})
+        $script:ConfigSaveTimer.Stop()
+        $script:FullName = $txtFullName.Text
+        $script:Role = $txtRole.Text
+        if ($chkOverrideAccount.IsChecked) {
+            $script:UserAlias = $txtAccount.Text
+        }
+        else {
+            Resolve-UserAlias
+        }
+        Read-ShiftTimesFromUI
+        $script:WorkDays = Read-WorkDaysFromUI
+        Export-AppConfiguration
+        Update-StatusBar "💾 Settings saved"
+    })
 
 function Request-DebouncedConfigSave {
     $script:ConfigSaveTimer.Stop()
@@ -1555,205 +1587,208 @@ $chkSat.Add_Checked({ Request-DebouncedConfigSave }); $chkSat.Add_Unchecked({ Re
 # Work day presets: Quick-fill checkbox groups for common schedules.
 # Preset Mon-Fri (standard 5x8)
 $btnPresetMF.Add_Click({
-    $chkMon.IsChecked = $true; $chkTue.IsChecked = $true; $chkWed.IsChecked = $true
-    $chkThu.IsChecked = $true; $chkFri.IsChecked = $true
-    $chkSat.IsChecked = $false; $chkSun.IsChecked = $false
-})
+        $chkMon.IsChecked = $true; $chkTue.IsChecked = $true; $chkWed.IsChecked = $true
+        $chkThu.IsChecked = $true; $chkFri.IsChecked = $true
+        $chkSat.IsChecked = $false; $chkSun.IsChecked = $false
+    })
 
 # Preset Sun-Wed (4x10 schedule)
 $btnPresetSunWed.Add_Click({
-    $chkSun.IsChecked = $true; $chkMon.IsChecked = $true; $chkTue.IsChecked = $true
-    $chkWed.IsChecked = $true; $chkThu.IsChecked = $false
-    $chkFri.IsChecked = $false; $chkSat.IsChecked = $false
-})
+        $chkSun.IsChecked = $true; $chkMon.IsChecked = $true; $chkTue.IsChecked = $true
+        $chkWed.IsChecked = $true; $chkThu.IsChecked = $false
+        $chkFri.IsChecked = $false; $chkSat.IsChecked = $false
+    })
 
 # Preset Wed-Sat (4x10 schedule)
 $btnPresetWedSat.Add_Click({
-    $chkWed.IsChecked = $true; $chkThu.IsChecked = $true
-    $chkFri.IsChecked = $true; $chkSat.IsChecked = $true
-    $chkSun.IsChecked = $false; $chkMon.IsChecked = $false; $chkTue.IsChecked = $false
-})
+        $chkWed.IsChecked = $true; $chkThu.IsChecked = $true
+        $chkFri.IsChecked = $true; $chkSat.IsChecked = $true
+        $chkSun.IsChecked = $false; $chkMon.IsChecked = $false; $chkTue.IsChecked = $false
+    })
 
 # Auto Reply State buttons: Directly set the auto-reply mode on Exchange.
 $btnStateEnabled.Add_Click({
-    try {
-        Assert-ExchangeConnection
-        Update-StatusBar "Setting auto reply to Enabled..."
-        Set-AutoReplyState 'Enabled'
-        $script:OOFReplyEnabled = $true
-        Update-StatusBar "Auto reply set to Enabled"
-        Show-InfoDialog "Done" "Auto Reply State set to Enabled"
-    }
-    catch { Show-ErrorDialog "Error" $_.Exception.Message }
-})
+        try {
+            Assert-ExchangeConnection
+            Update-StatusBar "Setting auto reply to Enabled..."
+            Set-AutoReplyState 'Enabled'
+            $script:OOFReplyEnabled = $true
+            Update-StatusBar "Auto reply set to Enabled"
+            Show-InfoDialog "Done" "Auto Reply State set to Enabled"
+        }
+        catch { Show-ErrorDialog "Error" $_.Exception.Message }
+    })
 
 $btnStateDisabled.Add_Click({
-    try {
-        Assert-ExchangeConnection
-        Update-StatusBar "Setting auto reply to Disabled..."
-        Set-AutoReplyState 'Disabled'
-        $script:OOFReplyEnabled = $false
-        Update-StatusBar "Auto reply set to Disabled"
-        Show-InfoDialog "Done" "Auto Reply State set to Disabled"
-    }
-    catch { Show-ErrorDialog "Error" $_.Exception.Message }
-})
+        try {
+            Assert-ExchangeConnection
+            Update-StatusBar "Setting auto reply to Disabled..."
+            Set-AutoReplyState 'Disabled'
+            $script:OOFReplyEnabled = $false
+            Update-StatusBar "Auto reply set to Disabled"
+            Show-InfoDialog "Done" "Auto Reply State set to Disabled"
+        }
+        catch { Show-ErrorDialog "Error" $_.Exception.Message }
+    })
 
 $btnStateScheduled.Add_Click({
-    try {
-        Assert-ExchangeConnection
-        Update-StatusBar "Setting auto reply to Scheduled..."
-        Read-ShiftTimesFromUI
-        $script:WorkDays = Read-WorkDaysFromUI
-        Set-AutoReplyState 'Scheduled'
-        $script:OOFReplyEnabled = $true
-        Update-StatusBar "Auto reply set to Scheduled"
-        Show-InfoDialog "Done" "Auto Reply State set to Scheduled"
-    }
-    catch { Show-ErrorDialog "Error" $_.Exception.Message }
-})
+        try {
+            Assert-ExchangeConnection
+            Update-StatusBar "Setting auto reply to Scheduled..."
+            Read-ShiftTimesFromUI
+            $script:WorkDays = Read-WorkDaysFromUI
+            Set-AutoReplyState 'Scheduled'
+            $script:OOFReplyEnabled = $true
+            Update-StatusBar "Auto reply set to Scheduled"
+            Show-InfoDialog "Done" "Auto Reply State set to Scheduled"
+        }
+        catch { Show-ErrorDialog "Error" $_.Exception.Message }
+    })
 
 # Create Scheduled Task: Register a Windows Task Scheduler job to run this script daily.
 $btnCreateTask.Add_Click({
-    try {
-        Read-ShiftTimesFromUI
-        $taskScriptPath = Register-DailyScheduledTask
-        if ($taskScriptPath) {
-            Show-InfoDialog "Success" "Scheduled task 'AAOOF' created/updated successfully.`n`nScript path:`n$taskScriptPath"
-            Update-StatusBar "Scheduled task ready"
+        try {
+            Read-ShiftTimesFromUI
+            $taskScriptPath = Register-DailyScheduledTask
+            if ($taskScriptPath) {
+                Show-InfoDialog "Success" "Scheduled task 'AAOOF' created/updated successfully.`n`nScript path:`n$taskScriptPath"
+                Update-StatusBar "Scheduled task ready"
+            }
         }
-    }
-    catch {
-        Show-ErrorDialog "Error" "Failed to create task.`n`n$($_.Exception.Message)"
-        Update-StatusBar "Task creation failed"
-    }
-})
+        catch {
+            Show-ErrorDialog "Error" "Failed to create task.`n`n$($_.Exception.Message)"
+            Update-StatusBar "Task creation failed"
+        }
+    })
 
 # Check for Updates: If a newer version exists, launch the external updater and prompt for restart.
 $btnCheckForUpdates.Add_Click({
-    try {
-        Update-StatusBar "Checking for updates..."
-        # Show remote version
-        $remoteVer = Get-RemoteScriptVersion
-        $txtRemoteVersion.Text = $remoteVer
-        if ($remoteVer -eq $script:ScriptVersion) {
-            $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
-            Update-StatusBar "Already up to date"
-            Show-InfoDialog "No Update" "You are already running the latest version."
-            return
-        } else {
-            $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
-        }
+        try {
+            Update-StatusBar "Checking for updates..."
+            # Show remote version
+            $remoteVer = Get-RemoteScriptVersion
+            $txtRemoteVersion.Text = $remoteVer
+            if ($remoteVer -eq $script:ScriptVersion) {
+                $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
+                Update-StatusBar "Already up to date"
+                Show-InfoDialog "No Update" "You are already running the latest version."
+                return
+            }
+            else {
+                $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
+            }
 
-        $updated = Invoke-ScriptSelfUpdateExternal
-        if ($updated) {
-            Update-StatusBar "Update downloaded successfully. Please restart the script now."
-            Show-InfoDialog "Update Complete" "The application has been updated successfully. Please restart the script now."
-            $Window.Close()
+            $updated = Invoke-ScriptSelfUpdateExternal
+            if ($updated) {
+                Update-StatusBar "Update downloaded successfully. Please restart the script now."
+                Show-InfoDialog "Update Complete" "The application has been updated successfully. Please restart the script now."
+                $Window.Close()
+            }
         }
-    }
-    catch {
-        Show-ErrorDialog "Update Error" $_.Exception.Message
-        Update-StatusBar "Update check failed"
-    }
-})
+        catch {
+            Show-ErrorDialog "Update Error" $_.Exception.Message
+            Update-StatusBar "Update check failed"
+        }
+    })
 
 # Populate dynamic items: When the template dropdown opens, scan the config directory
 # for backup files, saved messages, and custom_*.html files and insert them dynamically.
 $cmbTemplate.Add_DropDownOpened({
-    # Remove previously added dynamic items (identified by Tag)
-    $dynamicItems = @($cmbTemplate.Items | Where-Object { $_.Tag -ne $null })
-    foreach ($item in $dynamicItems) { $cmbTemplate.Items.Remove($item) }
+        # Remove previously added dynamic items (identified by Tag)
+        $dynamicItems = @($cmbTemplate.Items | Where-Object { $_.Tag -ne $null })
+        foreach ($item in $dynamicItems) { $cmbTemplate.Items.Remove($item) }
 
-    # Insert dynamic items before "Custom..."
-    $customIdx = -1
-    for ($i = 0; $i -lt $cmbTemplate.Items.Count; $i++) {
-        if ($cmbTemplate.Items[$i].Content -eq "Custom...") { $customIdx = $i; break }
-    }
-    if ($customIdx -lt 0) { $customIdx = $cmbTemplate.Items.Count }
+        # Insert dynamic items before "Custom..."
+        $customIdx = -1
+        for ($i = 0; $i -lt $cmbTemplate.Items.Count; $i++) {
+            if ($cmbTemplate.Items[$i].Content -eq "Custom...") { $customIdx = $i; break }
+        }
+        if ($customIdx -lt 0) { $customIdx = $cmbTemplate.Items.Count }
 
-    # Check for message backup
-    $bakFile = Join-Path $ConfigDir "message.html.bak"
-    if (Test-Path $bakFile) {
-        $item = New-Object System.Windows.Controls.ComboBoxItem
-        $item.Content = "Last Message Backup"
-        $item.Tag = $bakFile
-        $cmbTemplate.Items.Insert($customIdx, $item)
-        $customIdx++
-    }
+        # Check for message backup
+        $bakFile = Join-Path $ConfigDir "message.html.bak"
+        if (Test-Path $bakFile) {
+            $item = New-Object System.Windows.Controls.ComboBoxItem
+            $item.Content = "Last Message Backup"
+            $item.Tag = $bakFile
+            $cmbTemplate.Items.Insert($customIdx, $item)
+            $customIdx++
+        }
 
-    # Check for saved online message
-    $msgFile = Join-Path $ConfigDir "message.html"
-    if (Test-Path $msgFile) {
-        $item = New-Object System.Windows.Controls.ComboBoxItem
-        $item.Content = "Saved Online Message"
-        $item.Tag = $msgFile
-        $cmbTemplate.Items.Insert($customIdx, $item)
-        $customIdx++
-    }
+        # Check for saved online message
+        $msgFile = Join-Path $ConfigDir "message.html"
+        if (Test-Path $msgFile) {
+            $item = New-Object System.Windows.Controls.ComboBoxItem
+            $item.Content = "Saved Online Message"
+            $item.Tag = $msgFile
+            $cmbTemplate.Items.Insert($customIdx, $item)
+            $customIdx++
+        }
 
-    # Check for any custom_*.html files
-    $customFiles = Get-ChildItem -Path $ConfigDir -Filter "custom_*.html" -ErrorAction SilentlyContinue
-    foreach ($f in $customFiles) {
-        $item = New-Object System.Windows.Controls.ComboBoxItem
-        $item.Content = "Custom: $($f.BaseName)"
-        $item.Tag = $f.FullName
-        $cmbTemplate.Items.Insert($customIdx, $item)
-        $customIdx++
-    }
-})
+        # Check for any custom_*.html files
+        $customFiles = Get-ChildItem -Path $ConfigDir -Filter "custom_*.html" -ErrorAction SilentlyContinue
+        foreach ($f in $customFiles) {
+            $item = New-Object System.Windows.Controls.ComboBoxItem
+            $item.Content = "Custom: $($f.BaseName)"
+            $item.Tag = $f.FullName
+            $cmbTemplate.Items.Insert($customIdx, $item)
+            $customIdx++
+        }
+    })
 
 # Auto-load template when dropdown selection changes
 $cmbTemplate.Add_SelectionChanged({
-    if ($null -eq $cmbTemplate.SelectedItem) { return }
-    $selected = $cmbTemplate.SelectedItem.Content
-    if ($selected -eq "Custom...") {
-        Update-StatusBar "Use 'Browse File...' to load a custom template"
-        return
-    }
-    $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
-    if ($path -and (Test-Path $path)) {
-        # Save current message to backup before overwriting
-        if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
-            $backupFile = Join-Path $ConfigDir "message.html.bak"
-            Export-MessageToFile $backupFile $txtMessage.Text
+        if ($null -eq $cmbTemplate.SelectedItem) { return }
+        $selected = $cmbTemplate.SelectedItem.Content
+        if ($selected -eq "Custom...") {
+            Update-StatusBar "Use 'Browse File...' to load a custom template"
+            return
         }
-        $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
-        # Refresh preview if on Preview tab
-        if ($tcMessageView.SelectedIndex -eq 1) {
-            $wbPreview.NavigateToString($txtMessage.Text)
+        $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
+        if ($path -and (Test-Path $path)) {
+            # Save current message to backup before overwriting
+            if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
+                $backupFile = Join-Path $ConfigDir "message.html.bak"
+                Export-MessageToFile $backupFile $txtMessage.Text
+            }
+            $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+            # Refresh preview if on Preview tab
+            if ($tcMessageView.SelectedIndex -eq 1) {
+                $wbPreview.NavigateToString($txtMessage.Text)
+            }
+            Update-StatusBar "Template loaded: $selected"
         }
-        Update-StatusBar "Template loaded: $selected"
-    } else {
-        Show-ErrorDialog "Not Found" "Template file not found: $path"
-        Update-StatusBar "Template file not found"
-    }
-})
+        else {
+            Show-ErrorDialog "Not Found" "Template file not found: $path"
+            Update-StatusBar "Template file not found"
+        }
+    })
 
 # Load Template button (also loads selected template)
 $btnLoadTemplate.Add_Click({
-    if ($null -eq $cmbTemplate.SelectedItem) { return }
-    $selected = $cmbTemplate.SelectedItem.Content
-    if ($selected -eq "Custom...") {
-        Update-StatusBar "Use 'Browse File...' to load a custom template"
-        return
-    }
-    $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
-    if ($path -and (Test-Path $path)) {
-        if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
-            $backupFile = Join-Path $ConfigDir "message.html.bak"
-            Export-MessageToFile $backupFile $txtMessage.Text
+        if ($null -eq $cmbTemplate.SelectedItem) { return }
+        $selected = $cmbTemplate.SelectedItem.Content
+        if ($selected -eq "Custom...") {
+            Update-StatusBar "Use 'Browse File...' to load a custom template"
+            return
         }
-        $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
-        if ($tcMessageView.SelectedIndex -eq 1) {
-            $wbPreview.NavigateToString($txtMessage.Text)
+        $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
+        if ($path -and (Test-Path $path)) {
+            if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
+                $backupFile = Join-Path $ConfigDir "message.html.bak"
+                Export-MessageToFile $backupFile $txtMessage.Text
+            }
+            $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+            if ($tcMessageView.SelectedIndex -eq 1) {
+                $wbPreview.NavigateToString($txtMessage.Text)
+            }
+            Update-StatusBar "Template loaded: $selected"
         }
-        Update-StatusBar "Template loaded: $selected"
-    } else {
-        Show-ErrorDialog "Not Found" "Template file not found: $path"
-        Update-StatusBar "Template file not found"
-    }
-})
+        else {
+            Show-ErrorDialog "Not Found" "Template file not found: $path"
+            Update-StatusBar "Template file not found"
+        }
+    })
 
 # Re-resolve template when any option checkbox changes
 $optionReloadHandler = {
@@ -1782,46 +1817,46 @@ $dpReturnDate.Add_SelectedDateChanged($optionReloadHandler)
 
 # Save and reload on Full Name / Role changes
 $txtFullName.Add_TextChanged({
-    $script:FullName = $txtFullName.Text
-    Request-DebouncedConfigSave
-    & $optionReloadHandler
-})
+        $script:FullName = $txtFullName.Text
+        Request-DebouncedConfigSave
+        & $optionReloadHandler
+    })
 $txtRole.Add_TextChanged({
-    $script:Role = $txtRole.Text
-    Request-DebouncedConfigSave
-    & $optionReloadHandler
-})
+        $script:Role = $txtRole.Text
+        Request-DebouncedConfigSave
+        & $optionReloadHandler
+    })
 
 # Override Account checkbox: enable/disable account text box
 $chkOverrideAccount.Add_Checked({
-    $script:OverrideAccount = $true
-    $txtAccount.IsEnabled = $true
-    Request-DebouncedConfigSave
-})
+        $script:OverrideAccount = $true
+        $txtAccount.IsEnabled = $true
+        Request-DebouncedConfigSave
+    })
 $chkOverrideAccount.Add_Unchecked({
-    $script:OverrideAccount = $false
-    $txtAccount.IsEnabled = $false
-    Resolve-UserAlias
-    $txtAccount.Text = $script:UserAlias
-    Request-DebouncedConfigSave
-    & $optionReloadHandler
-})
+        $script:OverrideAccount = $false
+        $txtAccount.IsEnabled = $false
+        Resolve-UserAlias
+        $txtAccount.Text = $script:UserAlias
+        Request-DebouncedConfigSave
+        & $optionReloadHandler
+    })
 # Save edited account while typing, then persist after a brief pause
 $txtAccount.Add_TextChanged({
-    if ($chkOverrideAccount.IsChecked) {
-        $script:UserAlias = $txtAccount.Text
-        Request-DebouncedConfigSave
-    }
-})
+        if ($chkOverrideAccount.IsChecked) {
+            $script:UserAlias = $txtAccount.Text
+            Request-DebouncedConfigSave
+        }
+    })
 
 # Save edited account when user tabs out
 $txtAccount.Add_LostFocus({
-    if ($chkOverrideAccount.IsChecked) {
-        $script:UserAlias = $txtAccount.Text
-        Request-DebouncedConfigSave
-        & $optionReloadHandler
-    }
-})
+        if ($chkOverrideAccount.IsChecked) {
+            $script:UserAlias = $txtAccount.Text
+            Request-DebouncedConfigSave
+            & $optionReloadHandler
+        }
+    })
 
 # ===================== HTML Formatting Toolbar Handlers =====================
 # Helper: Wrap the selected text in the editor with an HTML tag, or insert at cursor.
@@ -1834,7 +1869,8 @@ function Add-HtmlTag($openTag, $closeTag) {
         $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $replacement)
         $txtMessage.SelectionStart = $selStart
         $txtMessage.SelectionLength = $replacement.Length
-    } else {
+    }
+    else {
         $insert = "$openTag$closeTag"
         $txtMessage.Text = $txtMessage.Text.Insert($selStart, $insert)
         $txtMessage.SelectionStart = $selStart + $openTag.Length
@@ -1858,56 +1894,59 @@ $btnFmtP.Add_Click({ Add-HtmlTag '<p>' '</p>' })
 $btnFmtBr.Add_Click({ Add-HtmlSnippet '<br/>' })
 
 $btnFmtLink.Add_Click({
-    $selStart = $txtMessage.SelectionStart
-    $selLen = $txtMessage.SelectionLength
-    $linkText = if ($selLen -gt 0) { $txtMessage.Text.Substring($selStart, $selLen) } else { 'link text' }
-    $snippet = "<a href=`"https://`">$linkText</a>"
-    if ($selLen -gt 0) {
-        $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
-    } else {
-        $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
-    }
-    # Position cursor inside the href quotes
-    $txtMessage.SelectionStart = $selStart + 9
-    $txtMessage.SelectionLength = 8
-    $txtMessage.Focus()
-})
+        $selStart = $txtMessage.SelectionStart
+        $selLen = $txtMessage.SelectionLength
+        $linkText = if ($selLen -gt 0) { $txtMessage.Text.Substring($selStart, $selLen) } else { 'link text' }
+        $snippet = "<a href=`"https://`">$linkText</a>"
+        if ($selLen -gt 0) {
+            $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
+        }
+        else {
+            $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
+        }
+        # Position cursor inside the href quotes
+        $txtMessage.SelectionStart = $selStart + 9
+        $txtMessage.SelectionLength = 8
+        $txtMessage.Focus()
+    })
 
 $btnFmtColor.Add_Click({
-    $selStart = $txtMessage.SelectionStart
-    $selLen = $txtMessage.SelectionLength
-    $colorText = if ($selLen -gt 0) { $txtMessage.Text.Substring($selStart, $selLen) } else { 'text' }
-    $snippet = "<span style='color: #0078D4;'>$colorText</span>"
-    if ($selLen -gt 0) {
-        $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
-    } else {
-        $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
-    }
-    # Select the hex color so user can change it
-    $txtMessage.SelectionStart = $selStart + 22
-    $txtMessage.SelectionLength = 7
-    $txtMessage.Focus()
-})
+        $selStart = $txtMessage.SelectionStart
+        $selLen = $txtMessage.SelectionLength
+        $colorText = if ($selLen -gt 0) { $txtMessage.Text.Substring($selStart, $selLen) } else { 'text' }
+        $snippet = "<span style='color: #0078D4;'>$colorText</span>"
+        if ($selLen -gt 0) {
+            $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
+        }
+        else {
+            $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
+        }
+        # Select the hex color so user can change it
+        $txtMessage.SelectionStart = $selStart + 22
+        $txtMessage.SelectionLength = 7
+        $txtMessage.Focus()
+    })
 
 $btnFmtList.Add_Click({
-    $selStart = $txtMessage.SelectionStart
-    $selLen = $txtMessage.SelectionLength
-    if ($selLen -gt 0) {
-        $selected = $txtMessage.Text.Substring($selStart, $selLen)
-        $lines = $selected -split "`r?`n" | Where-Object { $_.Trim() -ne '' }
-        $listItems = ($lines | ForEach-Object { "    <li>$($_.Trim())</li>" }) -join "`n"
-        $snippet = "<ul>`n$listItems`n</ul>"
-        $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
-    } else {
-        $snippet = "<ul>`n    <li></li>`n</ul>"
-        $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
-        $txtMessage.SelectionStart = $selStart + 14
-    }
-    $txtMessage.Focus()
-})
+        $selStart = $txtMessage.SelectionStart
+        $selLen = $txtMessage.SelectionLength
+        if ($selLen -gt 0) {
+            $selected = $txtMessage.Text.Substring($selStart, $selLen)
+            $lines = $selected -split "`r?`n" | Where-Object { $_.Trim() -ne '' }
+            $listItems = ($lines | ForEach-Object { "    <li>$($_.Trim())</li>" }) -join "`n"
+            $snippet = "<ul>`n$listItems`n</ul>"
+            $txtMessage.Text = $txtMessage.Text.Remove($selStart, $selLen).Insert($selStart, $snippet)
+        }
+        else {
+            $snippet = "<ul>`n    <li></li>`n</ul>"
+            $txtMessage.Text = $txtMessage.Text.Insert($selStart, $snippet)
+            $txtMessage.SelectionStart = $selStart + 14
+        }
+        $txtMessage.Focus()
+    })
 
 $btnFmtRef.Add_Click({
-    $ref = @"
+        $ref = @"
 HTML Quick Reference:
 
 TEXT FORMATTING
@@ -1935,137 +1974,138 @@ COMMON COLORS
   #0078D4 (blue)    #2E7D32 (green)    #D83B01 (red/orange)
   #FF8F00 (amber)   #555555 (gray)     #333333 (dark gray)
 "@
-    Show-InfoDialog "HTML Quick Reference" $ref
-})
+        Show-InfoDialog "HTML Quick Reference" $ref
+    })
 
 # Browse File: Open a file picker dialog to load a custom HTML template from disk.
 $btnBrowseFile.Add_Click({
-    $dialog = New-Object System.Windows.Forms.OpenFileDialog
-    $dialog.Filter = "HTML Files (*.html)|*.html|All Files (*.*)|*.*"
-    $dialog.InitialDirectory = $ConfigDir
-    if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $txtMessage.Text = Get-Content $dialog.FileName -Raw
-        Update-StatusBar "Loaded message from $($dialog.FileName)"
-    }
-})
+        $dialog = New-Object System.Windows.Forms.OpenFileDialog
+        $dialog.Filter = "HTML Files (*.html)|*.html|All Files (*.*)|*.*"
+        $dialog.InitialDirectory = $ConfigDir
+        if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $txtMessage.Text = Get-Content $dialog.FileName -Raw
+            Update-StatusBar "Loaded message from $($dialog.FileName)"
+        }
+    })
 
 # Apply Internal Message: Push the editor text to Exchange as the Internal auto-reply.
 $btnApplyInternal.Add_Click({
-    try {
-        if ([string]::IsNullOrWhiteSpace($txtMessage.Text)) {
-            Show-ErrorDialog "Empty Message" "Please enter or load a message first."
-            return
+        try {
+            if ([string]::IsNullOrWhiteSpace($txtMessage.Text)) {
+                Show-ErrorDialog "Empty Message" "Please enter or load a message first."
+                return
+            }
+            $warnings = Get-TemplateWarnings
+            if ($warnings.Count -gt 0) {
+                $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
+                if ($result -ne 'Yes') { return }
+            }
+            Assert-ExchangeConnection
+            Update-StatusBar "Applying internal message..."
+            Set-AutoReplyMessage $txtMessage.Text 'Internal'
+            Update-StatusBar "Internal message applied"
+            Show-InfoDialog "Done" "Internal auto-reply message updated."
         }
-        $warnings = Get-TemplateWarnings
-        if ($warnings.Count -gt 0) {
-            $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
-            if ($result -ne 'Yes') { return }
-        }
-        Assert-ExchangeConnection
-        Update-StatusBar "Applying internal message..."
-        Set-AutoReplyMessage $txtMessage.Text 'Internal'
-        Update-StatusBar "Internal message applied"
-        Show-InfoDialog "Done" "Internal auto-reply message updated."
-    }
-    catch { Show-ErrorDialog "Error" $_.Exception.Message }
-})
+        catch { Show-ErrorDialog "Error" $_.Exception.Message }
+    })
 
 # Apply External Message: Push the editor text to Exchange as the External auto-reply.
 $btnApplyExternal.Add_Click({
-    try {
-        if ([string]::IsNullOrWhiteSpace($txtMessage.Text)) {
-            Show-ErrorDialog "Empty Message" "Please enter or load a message first."
-            return
+        try {
+            if ([string]::IsNullOrWhiteSpace($txtMessage.Text)) {
+                Show-ErrorDialog "Empty Message" "Please enter or load a message first."
+                return
+            }
+            $warnings = Get-TemplateWarnings
+            if ($warnings.Count -gt 0) {
+                $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
+                if ($result -ne 'Yes') { return }
+            }
+            Assert-ExchangeConnection
+            Update-StatusBar "Applying external message..."
+            Set-AutoReplyMessage $txtMessage.Text 'External'
+            Update-StatusBar "External message applied"
+            Show-InfoDialog "Done" "External auto-reply message updated."
         }
-        $warnings = Get-TemplateWarnings
-        if ($warnings.Count -gt 0) {
-            $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
-            if ($result -ne 'Yes') { return }
-        }
-        Assert-ExchangeConnection
-        Update-StatusBar "Applying external message..."
-        Set-AutoReplyMessage $txtMessage.Text 'External'
-        Update-StatusBar "External message applied"
-        Show-InfoDialog "Done" "External auto-reply message updated."
-    }
-    catch { Show-ErrorDialog "Error" $_.Exception.Message }
-})
+        catch { Show-ErrorDialog "Error" $_.Exception.Message }
+    })
 
 # Apply Both Messages: Push the editor text as both Internal and External auto-reply.
 $btnApplyBoth.Add_Click({
-    try {
-        if ([string]::IsNullOrWhiteSpace($txtMessage.Text)) {
-            Show-ErrorDialog "Empty Message" "Please enter or load a message first."
-            return
+        try {
+            if ([string]::IsNullOrWhiteSpace($txtMessage.Text)) {
+                Show-ErrorDialog "Empty Message" "Please enter or load a message first."
+                return
+            }
+            $warnings = Get-TemplateWarnings
+            if ($warnings.Count -gt 0) {
+                $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
+                if ($result -ne 'Yes') { return }
+            }
+            Assert-ExchangeConnection
+            Update-StatusBar "Applying message to both internal and external..."
+            Set-AutoReplyMessage $txtMessage.Text 'Both'
+            Update-StatusBar "Both messages applied"
+            Show-InfoDialog "Done" "Internal and External auto-reply messages updated."
         }
-        $warnings = Get-TemplateWarnings
-        if ($warnings.Count -gt 0) {
-            $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
-            if ($result -ne 'Yes') { return }
-        }
-        Assert-ExchangeConnection
-        Update-StatusBar "Applying message to both internal and external..."
-        Set-AutoReplyMessage $txtMessage.Text 'Both'
-        Update-StatusBar "Both messages applied"
-        Show-InfoDialog "Done" "Internal and External auto-reply messages updated."
-    }
-    catch { Show-ErrorDialog "Error" $_.Exception.Message }
-})
+        catch { Show-ErrorDialog "Error" $_.Exception.Message }
+    })
 
 # Save Template: Write the current editor content to the selected template file on disk.
 # If "Custom..." is selected, opens a Save dialog; otherwise overwrites the named template.
 $btnSaveTemplate.Add_Click({
-    $selected = $cmbTemplate.SelectedItem.Content
-    if ($selected -eq "Custom...") {
-        $dialog = New-Object System.Windows.Forms.SaveFileDialog
-        $dialog.Filter = "HTML Files (*.html)|*.html"
-        $dialog.InitialDirectory = $ConfigDir
-        if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-            Export-MessageToFile $dialog.FileName $txtMessage.Text
-            Update-StatusBar "Message saved to $($dialog.FileName)"
-            Show-InfoDialog "Saved" "Message saved to $($dialog.FileName)"
+        $selected = $cmbTemplate.SelectedItem.Content
+        if ($selected -eq "Custom...") {
+            $dialog = New-Object System.Windows.Forms.SaveFileDialog
+            $dialog.Filter = "HTML Files (*.html)|*.html"
+            $dialog.InitialDirectory = $ConfigDir
+            if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                Export-MessageToFile $dialog.FileName $txtMessage.Text
+                Update-StatusBar "Message saved to $($dialog.FileName)"
+                Show-InfoDialog "Saved" "Message saved to $($dialog.FileName)"
+            }
         }
-    } else {
-        $path = Resolve-TemplateFilePath $selected
-        if ($path) {
-            Export-MessageToFile $path $txtMessage.Text
-            Update-StatusBar "Template saved: $selected"
-            Show-InfoDialog "Saved" "Template '$selected' updated."
+        else {
+            $path = Resolve-TemplateFilePath $selected
+            if ($path) {
+                Export-MessageToFile $path $txtMessage.Text
+                Update-StatusBar "Template saved: $selected"
+                Show-InfoDialog "Saved" "Template '$selected' updated."
+            }
         }
-    }
-})
+    })
 
 # Save Online Message: Fetch the live auto-reply from Exchange, save it locally
 # as message.html, and load it into the editor for review.
 $btnSaveOnlineMsg.Add_Click({
-    try {
-        Update-StatusBar "Fetching current online message..."
-        $arc = Get-AutoReplyConfiguration
-        $msgFile = Join-Path $ConfigDir "message.html"
-        Export-MessageToFile $msgFile $arc.ExternalMessage
-        $txtMessage.Text = $arc.ExternalMessage
-        Update-StatusBar "Online message saved to message.html"
-        Show-InfoDialog "Saved" "Current online auto-reply message saved to:`n$msgFile"
-    }
-    catch {
-        Show-ErrorDialog "Error" "Could not fetch message. Are you connected?`n$($_.Exception.Message)"
-        Update-StatusBar "Failed to save online message"
-    }
-})
+        try {
+            Update-StatusBar "Fetching current online message..."
+            $arc = Get-AutoReplyConfiguration
+            $msgFile = Join-Path $ConfigDir "message.html"
+            Export-MessageToFile $msgFile $arc.ExternalMessage
+            $txtMessage.Text = $arc.ExternalMessage
+            Update-StatusBar "Online message saved to message.html"
+            Show-InfoDialog "Saved" "Current online auto-reply message saved to:`n$msgFile"
+        }
+        catch {
+            Show-ErrorDialog "Error" "Could not fetch message. Are you connected?`n$($_.Exception.Message)"
+            Update-StatusBar "Failed to save online message"
+        }
+    })
 
 # ===================== HTML Preview Tab Handler =====================
 # When the user switches to the Preview tab, render the current editor HTML
 # in the embedded WebBrowser control for a live WYSIWYG preview.
 $tcMessageView.Add_SelectionChanged({
-    if ($tcMessageView.SelectedIndex -eq 1) {
-        # Preview tab selected - render HTML
-        $html = $txtMessage.Text
-        if ([string]::IsNullOrWhiteSpace($html)) {
-            $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
+        if ($tcMessageView.SelectedIndex -eq 1) {
+            # Preview tab selected - render HTML
+            $html = $txtMessage.Text
+            if ([string]::IsNullOrWhiteSpace($html)) {
+                $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
+            }
+            $wbPreview.NavigateToString($html)
         }
-        $wbPreview.NavigateToString($html)
-    }
-})
+    })
 
 # ===================== Initialize UI =====================
 # Apply saved configuration values to all controls before showing the window.
@@ -2088,17 +2128,17 @@ $cmbHoliday.SelectedIndex = 0
 
 # Holiday selection: set return date and holiday name when a holiday is chosen
 $cmbHoliday.Add_SelectionChanged({
-    if ($cmbHoliday.SelectedIndex -le 0) {
-        $script:SelectedHolidayName = ""
-        return
-    }
-    $holiday = $cmbHoliday.SelectedItem.Tag
-    if ($null -ne $holiday) {
-        $dpReturnDate.SelectedDate = $holiday.ReturnDate
-        $script:SelectedHolidayName = $holiday.Name
-        Update-StatusBar "Holiday: $($holiday.Name) — Return date set to $($holiday.ReturnDate.ToString('MMMM d, yyyy'))"
-    }
-})
+        if ($cmbHoliday.SelectedIndex -le 0) {
+            $script:SelectedHolidayName = ""
+            return
+        }
+        $holiday = $cmbHoliday.SelectedItem.Tag
+        if ($null -ne $holiday) {
+            $dpReturnDate.SelectedDate = $holiday.ReturnDate
+            $script:SelectedHolidayName = $holiday.Name
+            Update-StatusBar "Holiday: $($holiday.Name) — Return date set to $($holiday.ReturnDate.ToString('MMMM d, yyyy'))"
+        }
+    })
 
 # Load default template into message box
 $defaultTemplate = Resolve-TemplateFilePath "Normal OOF"
@@ -2114,23 +2154,23 @@ $ScreenshotsDir = Join-Path $ScriptDir "screenshots"
 
 function Wait-WebBrowserReady($browser, [int]$timeoutMs = 5000) {
     # Wait for the WebBrowser's LoadCompleted event before proceeding.
-    $handler = [System.Windows.Navigation.LoadCompletedEventHandler]{ $script:_wbLoaded = $true }
+    $handler = [System.Windows.Navigation.LoadCompletedEventHandler] { $script:_wbLoaded = $true }
     $script:_wbLoaded = $false
     $browser.Add_LoadCompleted($handler)
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     while (-not $script:_wbLoaded -and $sw.ElapsedMilliseconds -lt $timeoutMs) {
-        $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Background)
+        $Window.Dispatcher.Invoke([action] {}, [Windows.Threading.DispatcherPriority]::Background)
         Start-Sleep -Milliseconds 50
     }
     $browser.Remove_LoadCompleted($handler)
     # Extra render pass to ensure the layout is painted
-    $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Render)
+    $Window.Dispatcher.Invoke([action] {}, [Windows.Threading.DispatcherPriority]::Render)
     Start-Sleep -Milliseconds 300
 }
 
 function Save-WindowScreenshot($filePath) {
     # Flush WPF render queue and let the window paint
-    $Window.Dispatcher.Invoke([action]{}, [Windows.Threading.DispatcherPriority]::Render)
+    $Window.Dispatcher.Invoke([action] {}, [Windows.Threading.DispatcherPriority]::Render)
     Start-Sleep -Milliseconds 300
 
     # Get window position and size in physical pixels
@@ -2138,9 +2178,9 @@ function Save-WindowScreenshot($filePath) {
     [double]$dpiX = $source.CompositionTarget.TransformToDevice.M11
     [double]$dpiY = $source.CompositionTarget.TransformToDevice.M22
 
-    [int]$left   = [Math]::Round($Window.Left * $dpiX)
-    [int]$top    = [Math]::Round($Window.Top  * $dpiY)
-    [int]$width  = [Math]::Round($Window.ActualWidth  * $dpiX)
+    [int]$left = [Math]::Round($Window.Left * $dpiX)
+    [int]$top = [Math]::Round($Window.Top * $dpiY)
+    [int]$width = [Math]::Round($Window.ActualWidth * $dpiX)
     [int]$height = [Math]::Round($Window.ActualHeight * $dpiY)
 
     # Capture from screen — includes WebBrowser and all hosted Win32 content
@@ -2153,57 +2193,57 @@ function Save-WindowScreenshot($filePath) {
 }
 
 $Window.Add_KeyDown({
-    if ($_.Key -eq 'F12') {
-        $_.Handled = $true
-        # Screenshot capture is disabled by default. Enable via "EnableScreenshots": true in config.json.
-        $cfg = @{}
-        $cfgPath = Join-Path $ScriptDir "config\config.json"
-        if (Test-Path $cfgPath) { $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json }
-        if (-not ($cfg.PSObject.Properties.Name -contains 'EnableScreenshots' -and $cfg.EnableScreenshots -eq $true)) { return }
-        try {
-            if (!(Test-Path $ScreenshotsDir)) { New-Item -ItemType Directory -Path $ScreenshotsDir | Out-Null }
-            Update-StatusBar "Capturing screenshots..."
+        if ($_.Key -eq 'F12') {
+            $_.Handled = $true
+            # Screenshot capture is disabled by default. Enable via "EnableScreenshots": true in config.json.
+            $cfg = @{}
+            $cfgPath = Join-Path $ScriptDir "config\config.json"
+            if (Test-Path $cfgPath) { $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json }
+            if (-not ($cfg.PSObject.Properties.Name -contains 'EnableScreenshots' -and $cfg.EnableScreenshots -eq $true)) { return }
+            try {
+                if (!(Test-Path $ScreenshotsDir)) { New-Item -ItemType Directory -Path $ScreenshotsDir | Out-Null }
+                Update-StatusBar "Capturing screenshots..."
 
-            # Remember current tab positions to restore after
-            $originalTab = $tcMain.SelectedIndex
-            $originalSubTab = $tcMessageView.SelectedIndex
+                # Remember current tab positions to restore after
+                $originalTab = $tcMain.SelectedIndex
+                $originalSubTab = $tcMessageView.SelectedIndex
 
-            # Tab 0: Quick Actions
-            $tcMain.SelectedIndex = 0
-            Save-WindowScreenshot (Join-Path $ScreenshotsDir "quick-actions.png")
+                # Tab 0: Quick Actions
+                $tcMain.SelectedIndex = 0
+                Save-WindowScreenshot (Join-Path $ScreenshotsDir "quick-actions.png")
 
-            # Tab 1: Configuration
-            $tcMain.SelectedIndex = 1
-            Save-WindowScreenshot (Join-Path $ScreenshotsDir "configuration.png")
+                # Tab 1: Configuration
+                $tcMain.SelectedIndex = 1
+                Save-WindowScreenshot (Join-Path $ScreenshotsDir "configuration.png")
 
-            # Tab 2: Message Templates — Edit
-            $tcMain.SelectedIndex = 2
-            $tcMessageView.SelectedIndex = 0
-            Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-edit.png")
+                # Tab 2: Message Templates — Edit
+                $tcMain.SelectedIndex = 2
+                $tcMessageView.SelectedIndex = 0
+                Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-edit.png")
 
-            # Tab 2: Message Templates — Preview
-            $tcMessageView.SelectedIndex = 1
-            Wait-WebBrowserReady $wbPreview
-            Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-preview.png")
+                # Tab 2: Message Templates — Preview
+                $tcMessageView.SelectedIndex = 1
+                Wait-WebBrowserReady $wbPreview
+                Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-preview.png")
 
-            # Tab 3: Current OOF
-            $tcMain.SelectedIndex = 3
-            Wait-WebBrowserReady $wbCurrentOOF
-            Save-WindowScreenshot (Join-Path $ScreenshotsDir "current-oof.png")
+                # Tab 3: Current OOF
+                $tcMain.SelectedIndex = 3
+                Wait-WebBrowserReady $wbCurrentOOF
+                Save-WindowScreenshot (Join-Path $ScreenshotsDir "current-oof.png")
 
-            # Restore original tab positions
-            $tcMessageView.SelectedIndex = $originalSubTab
-            $tcMain.SelectedIndex = $originalTab
+                # Restore original tab positions
+                $tcMessageView.SelectedIndex = $originalSubTab
+                $tcMain.SelectedIndex = $originalTab
 
-            Update-StatusBar "Screenshots saved to screenshots/ folder"
-            Show-InfoDialog "Screenshots Captured" "5 screenshots saved to:`n$ScreenshotsDir`n`n- quick-actions.png`n- configuration.png`n- message-templates-edit.png`n- message-templates-preview.png`n- current-oof.png"
+                Update-StatusBar "Screenshots saved to screenshots/ folder"
+                Show-InfoDialog "Screenshots Captured" "5 screenshots saved to:`n$ScreenshotsDir`n`n- quick-actions.png`n- configuration.png`n- message-templates-edit.png`n- message-templates-preview.png`n- current-oof.png"
+            }
+            catch {
+                Show-ErrorDialog "Screenshot Error" "Failed to capture screenshots:`n$($_.Exception.Message)"
+                Update-StatusBar "Screenshot capture failed"
+            }
         }
-        catch {
-            Show-ErrorDialog "Screenshot Error" "Failed to capture screenshots:`n$($_.Exception.Message)"
-            Update-StatusBar "Screenshot capture failed"
-        }
-    }
-})
+    })
 
 # ===================== Show the Window =====================
 # Display the WPF window (blocks execution until closed).
@@ -2218,33 +2258,35 @@ try {
     if ($remoteVer -ne $script:ScriptVersion -and $remoteVer -ne 'unknown') {
         $txtRemoteVersion.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
         Update-StatusBar "Update available: v$remoteVer — go to Configuration > Check for Updates"
-    } else {
+    }
+    else {
         $txtRemoteVersion.Foreground = [System.Windows.Media.Brushes]::Green
     }
-} catch { }
+}
+catch { }
 $Window.Add_Closing({
-    if ($script:IsConnectedToEXO -and -not $script:OOFReplyEnabled) {
-        $result = [System.Windows.MessageBox]::Show(
-            "Your Out of Office reply is not currently enabled.`n`nAre you sure you want to exit without enabling it?",
-            "OOF Not Enabled",
-            'YesNo',
-            'Warning'
-        )
-        if ($result -ne 'Yes') {
-            $_.Cancel = $true
+        if ($script:IsConnectedToEXO -and -not $script:OOFReplyEnabled) {
+            $result = [System.Windows.MessageBox]::Show(
+                "Your Out of Office reply is not currently enabled.`n`nAre you sure you want to exit without enabling it?",
+                "OOF Not Enabled",
+                'YesNo',
+                'Warning'
+            )
+            if ($result -ne 'Yes') {
+                $_.Cancel = $true
+            }
         }
-    }
-})
+    })
 $Window.Add_Closed({
-    try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch { }
-    # Clean up background update check job and timer
-    if ($updateCheckTimer) {
-        $updateCheckTimer.Stop()
-    }
-    if ($updateCheckJob -and $updateCheckJob.State -eq 'Running') {
-        $updateCheckJob | Stop-Job -Force -ErrorAction SilentlyContinue
-    }
-})
+        try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch { }
+        # Clean up background update check job and timer
+        if ($updateCheckTimer) {
+            $updateCheckTimer.Stop()
+        }
+        if ($updateCheckJob -and $updateCheckJob.State -eq 'Running') {
+            $updateCheckJob | Stop-Job -Force -ErrorAction SilentlyContinue
+        }
+    })
 
 # ===================== Background Update Check =====================
 # Check for script updates once when the GUI starts.
