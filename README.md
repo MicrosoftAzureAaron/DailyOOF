@@ -8,7 +8,16 @@ See [ROADMAP.md](ROADMAP.md) for the planned feature rollout and versioning stra
 
 ## Screenshots
 
-> **Auto-capture (developer/troubleshooting):** Press **F12** inside the app to capture all tab screenshots and save them to the `screenshots/` folder. This is useful for capturing issues or documenting the current state of the application. Only the application window area is captured — no other screen content is included. This feature is **disabled by default**. To enable it, add `"EnableScreenshots": true` to `config/config.json`.
+> **Maintainer auto-capture:** Use the dedicated screenshot script to regenerate README screenshots without adding screenshot features to the end-user GUI flow.
+
+```powershell
+.\Capture-TabScreenshots.ps1
+
+# Optional: keep the window open after capture for inspection
+.\Capture-TabScreenshots.ps1 -KeepOpen
+```
+
+This script captures the app window for each major tab and writes PNG files into `screenshots/`.
 
 ### Quick Actions
 ![Quick Actions Tab](screenshots/quick-actions.png)
@@ -332,7 +341,6 @@ All configuration is stored in the `config/` folder:
 | `EndOfShift` | datetime | — | Configured shift end time |
 | `WorkDays` | string[] | — | Array of working day names (e.g. `["Monday","Tuesday"]`) |
 | `TaskStartOffsetMinutes` | int | `15` | How many minutes after shift start the daily scheduled task should run |
-| `EnableScreenshots` | bool | `false` | Enable **F12** to capture screenshots of all tabs to the `screenshots/` folder. Disabled by default to avoid confusing end users. |
 
 Additional files (gitignored):
 

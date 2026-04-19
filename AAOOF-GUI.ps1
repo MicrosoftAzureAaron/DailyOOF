@@ -97,7 +97,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.25" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.26" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -3408,109 +3408,6 @@ if (Test-Path $defaultTemplate) {
     $txtMessage.Text = Get-Content $defaultTemplate -Raw
     $script:IsLoadingTemplate = $false
 }
-
-# ===================== Screenshot Capture (F12) =====================
-# Capture screenshots of every tab for README documentation.
-# Uses screen capture (CopyFromScreen) so WebBrowser content is included.
-Add-Type -AssemblyName System.Drawing
-$ScreenshotsDir = Join-Path $ScriptDir "screenshots"
-
-function Wait-WebBrowserReady($browser, [int]$timeoutMs = 5000) {
-    # Wait for the WebBrowser's LoadCompleted event before proceeding.
-    $handler = [System.Windows.Navigation.LoadCompletedEventHandler] { $script:_wbLoaded = $true }
-    $script:_wbLoaded = $false
-    $browser.Add_LoadCompleted($handler)
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    while (-not $script:_wbLoaded -and $sw.ElapsedMilliseconds -lt $timeoutMs) {
-        $Window.Dispatcher.Invoke([action] {}, [Windows.Threading.DispatcherPriority]::Background)
-        Start-Sleep -Milliseconds 50
-    }
-    $browser.Remove_LoadCompleted($handler)
-    # Extra render pass to ensure the layout is painted
-    $Window.Dispatcher.Invoke([action] {}, [Windows.Threading.DispatcherPriority]::Render)
-    Start-Sleep -Milliseconds 300
-}
-
-function Save-WindowScreenshot($filePath) {
-    # Flush WPF render queue and let the window paint
-    $Window.Dispatcher.Invoke([action] {}, [Windows.Threading.DispatcherPriority]::Render)
-    Start-Sleep -Milliseconds 300
-
-    # Get window position and size in physical pixels
-    $source = [System.Windows.PresentationSource]::FromVisual($Window)
-    [double]$dpiX = $source.CompositionTarget.TransformToDevice.M11
-    [double]$dpiY = $source.CompositionTarget.TransformToDevice.M22
-
-    [int]$left = [Math]::Round($Window.Left * $dpiX)
-    [int]$top = [Math]::Round($Window.Top * $dpiY)
-    [int]$width = [Math]::Round($Window.ActualWidth * $dpiX)
-    [int]$height = [Math]::Round($Window.ActualHeight * $dpiY)
-
-    # Capture from screen — includes WebBrowser and all hosted Win32 content
-    $bmp = New-Object System.Drawing.Bitmap($width, $height)
-    $gfx = [System.Drawing.Graphics]::FromImage($bmp)
-    $gfx.CopyFromScreen($left, $top, 0, 0, (New-Object System.Drawing.Size($width, $height)))
-    $gfx.Dispose()
-    $bmp.Save($filePath, [System.Drawing.Imaging.ImageFormat]::Png)
-    $bmp.Dispose()
-}
-
-$Window.Add_KeyDown({
-        if ($_.Key -eq 'F12') {
-            $_.Handled = $true
-            # Screenshot capture is disabled by default. Enable via "EnableScreenshots": true in config.json.
-            $cfg = @{}
-            $cfgPath = Join-Path $ScriptDir "config\config.json"
-            if (Test-Path $cfgPath) { $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json }
-            if (-not ($cfg.PSObject.Properties.Name -contains 'EnableScreenshots' -and $cfg.EnableScreenshots -eq $true)) { return }
-            try {
-                if (!(Test-Path $ScreenshotsDir)) { New-Item -ItemType Directory -Path $ScreenshotsDir | Out-Null }
-                Update-StatusBar "Capturing screenshots..."
-
-                # Remember current tab positions to restore after
-                $originalTab = $tcMain.SelectedIndex
-                $originalSubTab = $tcMessageView.SelectedIndex
-
-                # Tab 0: Quick Actions
-                $tcMain.SelectedIndex = 0
-                Save-WindowScreenshot (Join-Path $ScreenshotsDir "quick-actions.png")
-
-                # Tab 1: Configuration
-                $tcMain.SelectedIndex = 1
-                Save-WindowScreenshot (Join-Path $ScreenshotsDir "configuration.png")
-
-                # Tab 2: Automation
-                $tcMain.SelectedIndex = 2
-                Save-WindowScreenshot (Join-Path $ScreenshotsDir "automation.png")
-
-                # Tab 3: Message Templates — Edit
-                $tcMain.SelectedIndex = 3
-                $tcMessageView.SelectedIndex = 0
-                Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-edit.png")
-
-                # Tab 3: Message Templates — Preview
-                $tcMessageView.SelectedIndex = 1
-                Wait-WebBrowserReady $wbPreview
-                Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-preview.png")
-
-                # Tab 4: Current OOF
-                $tcMain.SelectedIndex = 4
-                Wait-WebBrowserReady $wbCurrentOOF
-                Save-WindowScreenshot (Join-Path $ScreenshotsDir "current-oof.png")
-
-                # Restore original tab positions
-                $tcMessageView.SelectedIndex = $originalSubTab
-                $tcMain.SelectedIndex = $originalTab
-
-                Update-StatusBar "Screenshots saved to screenshots/ folder"
-                Show-InfoDialog "Screenshots Captured" "6 screenshots saved to:`n$ScreenshotsDir`n`n- quick-actions.png`n- configuration.png`n- automation.png`n- message-templates-edit.png`n- message-templates-preview.png`n- current-oof.png"
-            }
-            catch {
-                Show-ErrorDialog "Screenshot Error" "Failed to capture screenshots:`n$($_.Exception.Message)"
-                Update-StatusBar "Screenshot capture failed"
-            }
-        }
-    })
 
 # ===================== Show the Window =====================
 # Display the WPF window until it is closed.
