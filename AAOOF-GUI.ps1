@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.3" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.4" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -746,6 +746,78 @@ function Connect-ExchangeOnlineSession {
 # Disconnect-ExchangeOnlineSession: Safely tear down the Exchange Online connection.
 function Disconnect-ExchangeOnlineSession {
     try { Disconnect-ExchangeOnline -Confirm:$false } catch { }
+}
+
+# Show-ConnectingWindow: Display a small "Connecting..." progress window with a live elapsed
+# timer on a dedicated STA runspace so it keeps updating while the main UI thread is blocked
+# on Connect-ExchangeOnline. Returns a context hashtable to pass to Close-ConnectingWindow.
+function Show-ConnectingWindow {
+    $syncHash = [System.Collections.Hashtable]::Synchronized(@{ Done = $false; Window = $null })
+
+    $runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+    $runspace.ApartmentState = [System.Threading.ApartmentState]::STA
+    $runspace.ThreadOptions  = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable('syncHash', $syncHash)
+
+    $ps = [System.Management.Automation.PowerShell]::Create()
+    $ps.Runspace = $runspace
+    [void]$ps.AddScript({
+        Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue
+        $xaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Connecting" Width="320" Height="115"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        WindowStyle="ToolWindow" Topmost="True">
+    <StackPanel Margin="20" VerticalAlignment="Center">
+        <TextBlock Text="Connecting to Exchange Online..." FontSize="13"
+                   HorizontalAlignment="Center" TextWrapping="Wrap"/>
+        <TextBlock Name="lblElapsed" Text="0s elapsed" FontSize="11" Foreground="Gray"
+                   HorizontalAlignment="Center" Margin="0,10,0,0"/>
+    </StackPanel>
+</Window>
+'@
+        $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
+        $win    = [System.Windows.Markup.XamlReader]::Load($reader)
+        $lbl    = $win.FindName('lblElapsed')
+        $syncHash.Window = $win
+
+        $startTime = [datetime]::Now
+        $timer = New-Object System.Windows.Threading.DispatcherTimer
+        $timer.Interval = [System.TimeSpan]::FromMilliseconds(500)
+        $timer.Add_Tick(( {
+            if ($syncHash.Done) {
+                $timer.Stop()
+                $win.Close()
+                return
+            }
+            $elapsed = [int]([datetime]::Now - $startTime).TotalSeconds
+            $lbl.Text = "${elapsed}s elapsed"
+        } ).GetNewClosure())
+        $timer.Start()
+        $win.ShowDialog() | Out-Null
+    })
+
+    $handle = $ps.BeginInvoke()
+
+    # Wait until the window object is set (up to 3s) before returning.
+    $waited = 0
+    while ($null -eq $syncHash.Window -and $waited -lt 3000) {
+        Start-Sleep -Milliseconds 50
+        $waited += 50
+    }
+
+    return @{ SyncHash = $syncHash; PS = $ps; Runspace = $runspace; Handle = $handle }
+}
+
+# Close-ConnectingWindow: Signal the connecting window to close and clean up the runspace.
+function Close-ConnectingWindow {
+    param($ctx)
+    if ($null -eq $ctx) { return }
+    $ctx.SyncHash.Done = $true
+    try { $null = $ctx.PS.EndInvoke($ctx.Handle) } catch {}
+    try { $ctx.PS.Dispose() }      catch {}
+    try { $ctx.Runspace.Close(); $ctx.Runspace.Dispose() } catch {}
 }
 
 # Get-USFederalHolidays: Returns US federal holidays with observed dates and return dates.
@@ -1752,7 +1824,13 @@ $btnConnect.Add_Click({
             else {
                 $script:UserAlias = $txtAccount.Text
             }
-            Connect-ExchangeOnlineSession
+            $connectCtx = Show-ConnectingWindow
+            try {
+                Connect-ExchangeOnlineSession
+            }
+            finally {
+                Close-ConnectingWindow $connectCtx
+            }
             Update-ConnectionUiState -State Connected
 
             # On first connect, pull current OOF config and message and save locally
