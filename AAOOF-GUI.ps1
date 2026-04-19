@@ -55,7 +55,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.6.5" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.6.6" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1548,7 +1548,10 @@ $tcMain.Add_SelectionChanged({
 $script:ConfigSaveTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:ConfigSaveTimer.Interval = [TimeSpan]::FromMilliseconds(500)
 $script:ConfigSaveTimer.Add_Tick({
-        $script:ConfigSaveTimer.Stop()
+    $timer = $this
+    if ($null -ne $timer) {
+        try { $timer.Stop() } catch { }
+    }
         $script:FullName = $txtFullName.Text
         $script:Role = $txtRole.Text
         if ($chkOverrideAccount.IsChecked) {
@@ -2279,18 +2282,18 @@ $Window.Add_Closing({
 $Window.Add_Closed({
         try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch { }
         # Clean up background update check job and timer
-        if ($updateCheckTimer) {
-            $updateCheckTimer.Stop()
+        if ($script:UpdateCheckTimer) {
+            try { $script:UpdateCheckTimer.Stop() } catch { }
         }
-        if ($updateCheckJob -and $updateCheckJob.State -eq 'Running') {
-            $updateCheckJob | Stop-Job -Force -ErrorAction SilentlyContinue
+        if ($script:UpdateCheckJob -and $script:UpdateCheckJob.State -eq 'Running') {
+            $script:UpdateCheckJob | Stop-Job -Force -ErrorAction SilentlyContinue
         }
     })
 
 # ===================== Background Update Check =====================
 # Check for script updates once when the GUI starts.
 # If an update is available, highlight the Check for Updates button.
-$updateCheckJob = Start-Job -ScriptBlock {
+$script:UpdateCheckJob = Start-Job -ScriptBlock {
     param($UpdateUrl, $LocalVersion)
     try {
         $tempFile = [System.IO.Path]::GetTempFileName()
@@ -2313,12 +2316,23 @@ $updateCheckJob = Start-Job -ScriptBlock {
 $script:UpdateSignaled = $false
 
 # Set up a timer to check for background job completion once
-$updateCheckTimer = New-Object System.Windows.Threading.DispatcherTimer
-$updateCheckTimer.Interval = [TimeSpan]::FromMilliseconds(500)  # Check every 500ms until job completes
+$script:UpdateCheckTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:UpdateCheckTimer.Interval = [TimeSpan]::FromMilliseconds(500)  # Check every 500ms until job completes
 $updateCheckTimer_Tick = {
-    if (-not $script:UpdateSignaled -and $updateCheckJob.State -ne 'Running') {
-        $updateCheckTimer.Stop()
-        $jobOutput = $updateCheckJob | Receive-Job -ErrorAction SilentlyContinue
+    $timer = $this
+    $job = $script:UpdateCheckJob
+    if ($null -eq $job) {
+        if ($null -ne $timer) {
+            try { $timer.Stop() } catch { }
+        }
+        return
+    }
+
+    if (-not $script:UpdateSignaled -and $job.State -ne 'Running') {
+        if ($null -ne $timer) {
+            try { $timer.Stop() } catch { }
+        }
+        $jobOutput = $job | Receive-Job -ErrorAction SilentlyContinue
         if ($jobOutput -contains "UPDATE_AVAILABLE") {
             $script:UpdateSignaled = $true
             # Highlight and focus the Check for Updates button
@@ -2329,8 +2343,8 @@ $updateCheckTimer_Tick = {
         }
     }
 }
-$updateCheckTimer.Add_Tick($updateCheckTimer_Tick)
-$updateCheckTimer.Start()
+$script:UpdateCheckTimer.Add_Tick($updateCheckTimer_Tick)
+$script:UpdateCheckTimer.Start()
 
 $Window.ShowDialog() | Out-Null
 
