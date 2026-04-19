@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.4" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.5" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -561,34 +561,53 @@ function Resolve-UserAlias {
     $script:UserAlias = "$CurrentUser$script:UserAliasSuffix"
 }
 
-# Resolve-NameFromEXO: Query Get-EXOMailbox for DisplayName/FirstName/LastName.
-# Only runs when FullName is currently blank (first run or user cleared it).
-# Returns $true if a name was successfully resolved and saved, $false otherwise.
-function Resolve-NameFromEXO {
-    # Skip entirely if a name is already set — never overwrite user-entered values.
-    if (![string]::IsNullOrWhiteSpace($script:FullName)) { return $true }
+# Resolve-ProfileFromEXO: Query EXO for profile fields and populate any that are currently blank.
+# Pulls DisplayName (-> FullName) from Get-EXOMailbox and Title (-> Role) from Get-EXORecipient.
+# Only fills fields that are blank — never overwrites user-entered values.
+# Returns $true if FullName was resolved, $false if it still needs manual input.
+function Resolve-ProfileFromEXO {
+    $nameResolved = $false
+    $anyChange = $false
 
     try {
-        # DisplayName is returned by default from Get-EXOMailbox.
-        # FirstName/LastName are AAD user properties, not valid EXO mailbox properties.
-        $mbx = Get-EXOMailbox -Identity $script:UserAlias -ErrorAction Stop
-        $resolved = $null
-        if (![string]::IsNullOrWhiteSpace($mbx.DisplayName)) {
-            $resolved = $mbx.DisplayName
+        # --- Full Name from mailbox DisplayName ---
+        if ([string]::IsNullOrWhiteSpace($script:FullName)) {
+            $mbx = Get-EXOMailbox -Identity $script:UserAlias -ErrorAction Stop
+            if (![string]::IsNullOrWhiteSpace($mbx.DisplayName)) {
+                $script:FullName = $mbx.DisplayName
+                $txtFullName.Text = $mbx.DisplayName
+                $anyChange = $true
+                $nameResolved = $true
+                Write-Host "Full name resolved from EXO: $($mbx.DisplayName)" -ForegroundColor Green
+            }
         }
-        if (![string]::IsNullOrWhiteSpace($resolved)) {
-            $script:FullName = $resolved
-            $txtFullName.Text = $resolved
-            Export-AppConfiguration
-            Write-Host "Full name resolved from EXO: $resolved" -ForegroundColor Green
-            return $true
+        else {
+            $nameResolved = $true  # already set by user
         }
-        return $false
     }
     catch {
-        Write-Host "Could not resolve name from EXO: $($_.Exception.Message)" -ForegroundColor Yellow
-        return $false
+        Write-Host "Could not resolve display name from EXO: $($_.Exception.Message)" -ForegroundColor Yellow
     }
+
+    try {
+        # --- Role from recipient Title ---
+        if ([string]::IsNullOrWhiteSpace($script:Role)) {
+            $recip = Get-EXORecipient -Identity $script:UserAlias -Properties Title -ErrorAction Stop
+            if (![string]::IsNullOrWhiteSpace($recip.Title)) {
+                $script:Role = $recip.Title
+                $txtRole.Text = $recip.Title
+                $anyChange = $true
+                Write-Host "Role resolved from EXO: $($recip.Title)" -ForegroundColor Green
+            }
+        }
+    }
+    catch {
+        Write-Host "Could not resolve role/title from EXO: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+
+    if ($anyChange) { Export-AppConfiguration }
+
+    return $nameResolved
 }
 
 # Show-NameInputDialog: Prompt the user to enter their display name manually.
@@ -739,7 +758,7 @@ function Connect-ExchangeOnlineSession {
     if ($null -ne $Window) {
         $Window.Dispatcher.Invoke([action] {}, [System.Windows.Threading.DispatcherPriority]::Render)
     }
-    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias -ShowBanner:$false -CommandName Get-MailboxAutoReplyConfiguration, Set-MailboxAutoReplyConfiguration
+    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias -ShowBanner:$false -CommandName Get-MailboxAutoReplyConfiguration, Set-MailboxAutoReplyConfiguration, Get-EXOMailbox, Get-EXORecipient
     return $true
 }
 
@@ -1424,6 +1443,7 @@ $btnRefreshTaskStatus = $Window.FindName("btnRefreshTaskStatus")
 $btnRunTaskNow = $Window.FindName("btnRunTaskNow")
 $btnOpenTaskScheduler = $Window.FindName("btnOpenTaskScheduler")
 $btnCheckForUpdates = $Window.FindName("btnCheckForUpdates")
+$btnExportDiagnostics = $Window.FindName("btnExportDiagnostics")
 $txtTaskOffsetMinutes = $Window.FindName("txtTaskOffsetMinutes")
 $txtTaskExists = $Window.FindName("txtTaskExists")
 $txtTaskState = $Window.FindName("txtTaskState")
@@ -1494,6 +1514,183 @@ function Show-InfoDialog($Title, $Message) {
 function Show-ErrorDialog($Title, $Message) {
     [System.Windows.MessageBox]::Show($Message, $Title, 'OK', 'Error')
 }
+
+# Get-DiagnosticsReport: Collect a snapshot of current app state for troubleshooting.
+# Returns a formatted string covering identity, connection, OOF, task, config, and versions.
+function Get-DiagnosticsReport {
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $lines = @()
+    $lines += "===== DailyOOF Diagnostics ====="
+    $lines += "Generated : $ts"
+    $lines += ""
+
+    # --- Identity ---
+    $lines += "--- Identity ---"
+    $lines += "Windows User  : $($env:USERDOMAIN)\$($env:USERNAME)"
+    $lines += "EXO Alias     : $(if ($script:UserAlias) { $script:UserAlias } else { '(not set)' })"
+    $lines += "Full Name     : $(if ($script:FullName) { $script:FullName } else { '(not set)' })"
+    $lines += "Role          : $(if ($script:Role) { $script:Role } else { '(not set)' })"
+    $lines += "Backup Contact: $(if ($script:BackupContact) { $script:BackupContact } else { '(not set)' })"
+    $lines += "Team Alias    : $(if ($script:TeamAlias) { $script:TeamAlias } else { '(not set)' })"
+    $lines += "Support Link  : $(if ($script:SupportLink) { $script:SupportLink } else { '(not set)' })"
+    $lines += ""
+
+    # --- EXO Connection ---
+    $lines += "--- Exchange Online Connection ---"
+    $lines += "Connected     : $($script:IsConnectedToEXO)"
+    try {
+        $sessionInfo = Get-ConnectionInformation -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like 'ExchangeOnline_*' } |
+            Select-Object -First 1
+        if ($sessionInfo) {
+            $lines += "Session Name  : $($sessionInfo.Name)"
+            $lines += "Session State : $($sessionInfo.State)"
+            $lines += "Token Expires : $($sessionInfo.TokenExpiryTimeUTC)"
+        }
+        else {
+            $lines += "Session Info  : No active EXO session found"
+        }
+    }
+    catch {
+        $lines += "Session Info  : Could not retrieve ($($_.Exception.Message))"
+    }
+    $lines += ""
+
+    # --- OOF State ---
+    $lines += "--- OOF State ---"
+    $lines += "OOF Reply Enabled : $($script:OOFReplyEnabled)"
+    try {
+        $arcPath = Get-AutoReplyConfigPath
+        if (Test-Path $arcPath) {
+            $arc = Get-Content $arcPath -Raw | ConvertFrom-Json
+            $lines += "AutoReplyState    : $($arc.AutoReplyState)"
+            $lines += "Start Time        : $($arc.StartTime)"
+            $lines += "End Time          : $($arc.EndTime)"
+        }
+        else {
+            $lines += "Cached ARC        : Not found (connect to populate)"
+        }
+    }
+    catch {
+        $lines += "Cached ARC        : Could not read ($($_.Exception.Message))"
+    }
+    $lines += ""
+
+    # --- Scheduled Task ---
+    $lines += "--- Scheduled Task ---"
+    try {
+        $task = Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue
+        if ($task) {
+            $taskInfo = Get-ScheduledTaskInfo -TaskName "AAOOF" -ErrorAction SilentlyContinue
+            $lines += "Task Exists   : Yes"
+            $lines += "Task State    : $($task.State)"
+            $lines += "Next Run      : $(if ($taskInfo) { $taskInfo.NextRunTime } else { '-' })"
+            $lines += "Last Run      : $(if ($taskInfo) { $taskInfo.LastRunTime } else { '-' })"
+            $lines += "Last Result   : $(if ($taskInfo) { Get-ScheduledTaskResultText $taskInfo.LastTaskResult } else { '-' })"
+            $lines += "Script Path   : $(Get-ScheduledTaskScriptPath $task)"
+        }
+        else {
+            $lines += "Task Exists   : No — task not yet created"
+        }
+    }
+    catch {
+        $lines += "Task Info     : Could not retrieve ($($_.Exception.Message))"
+    }
+    $lines += ""
+
+    # --- Configuration Files ---
+    $lines += "--- Configuration Files ---"
+    $lines += "Config Dir    : $ConfigDir"
+    $lines += "Config File   : $ConfigFile ($(if (Test-Path $ConfigFile) { 'exists' } else { 'MISSING' }))"
+    $lines += "XAML File     : $XamlFile ($(if (Test-Path $XamlFile) { 'exists' } else { 'MISSING' }))"
+    foreach ($f in $DefaultConfigFiles) {
+        $fp = Join-Path $ConfigDir $f
+        $lines += "  $f : $(if (Test-Path $fp) { 'exists' } else { 'MISSING' })"
+    }
+    $lines += ""
+
+    # --- Versions ---
+    $lines += "--- Versions ---"
+    $lines += "Script Version : $($script:ScriptVersion)"
+    try {
+        $remote = Get-RemoteScriptVersion
+        $lines += "GitHub Version : $remote"
+        $lines += "Update State   : $(Get-UpdateVersionState $remote $script:ScriptVersion)"
+    }
+    catch {
+        $lines += "GitHub Version : Could not retrieve"
+        $lines += "Update State   : Unknown"
+    }
+    $lines += ""
+
+    # --- Environment ---
+    $lines += "--- Environment ---"
+    $lines += "OS             : $([System.Environment]::OSVersion.VersionString)"
+    $lines += "PowerShell     : $($PSVersionTable.PSVersion)"
+    $lines += "Script Dir     : $ScriptDir"
+    $lines += "Is First Run   : $($script:IsFirstRun)"
+
+    return $lines -join "`r`n"
+}
+
+# Show-DiagnosticsDialog: Display the diagnostics report in a scrollable window with
+# Copy to Clipboard and Save to File options.
+function Show-DiagnosticsDialog {
+    $report = Get-DiagnosticsReport
+
+    $diagXaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Diagnostics Report" Width="620" Height="540"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
+    <DockPanel Margin="12">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button x:Name="btnCopy"  Content="Copy to Clipboard" Padding="10,5" Margin="0,0,6,0"/>
+            <Button x:Name="btnSave"  Content="Save to File..."   Padding="10,5" Margin="0,0,6,0"/>
+            <Button x:Name="btnClose" Content="Close"             Padding="10,5" IsDefault="True" IsCancel="True"/>
+        </StackPanel>
+        <Border BorderBrush="#CCC" BorderThickness="1" CornerRadius="4">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <TextBox x:Name="txtReport" IsReadOnly="True" FontFamily="Consolas" FontSize="12"
+                         Background="#FAFAFA" BorderThickness="0" Padding="8"
+                         TextWrapping="NoWrap" VerticalAlignment="Stretch" AcceptsReturn="True"/>
+            </ScrollViewer>
+        </Border>
+    </DockPanel>
+</Window>
+'@
+    $reader  = [System.Xml.XmlReader]::Create([System.IO.StringReader]$diagXaml)
+    $diagWin = [System.Windows.Markup.XamlReader]::Load($reader)
+    $diagWin.Owner = $Window
+
+    $txtReport = $diagWin.FindName('txtReport')
+    $btnCopy   = $diagWin.FindName('btnCopy')
+    $btnSave   = $diagWin.FindName('btnSave')
+    $btnClose  = $diagWin.FindName('btnClose')
+
+    $txtReport.Text = $report
+
+    $btnCopy.Add_Click({
+        [System.Windows.Clipboard]::SetText($txtReport.Text)
+        $btnCopy.Content = "Copied!"
+    })
+
+    $btnSave.Add_Click({
+        $dlg = New-Object Microsoft.Win32.SaveFileDialog
+        $dlg.Title      = "Save Diagnostics Report"
+        $dlg.Filter     = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*"
+        $dlg.FileName   = "AAOOF-Diagnostics-$(Get-Date -Format yyyyMMdd-HHmmss).txt"
+        if ($dlg.ShowDialog($diagWin) -eq $true) {
+            $txtReport.Text | Set-Content -Path $dlg.FileName -Encoding UTF8
+            $btnSave.Content = "Saved!"
+        }
+    })
+
+    $btnClose.Add_Click({ $diagWin.Close() })
+
+    $diagWin.ShowDialog() | Out-Null
+}
+
 
 # Update-ConnectionUiState: Keep status text and Connect button visuals in sync.
 function Update-ConnectionUiState {
@@ -1851,10 +2048,10 @@ $btnConnect.Add_Click({
             }
             catch { }
 
-            # Auto-populate Full Name from EXO mailbox on first run or when blank.
+            # Auto-populate profile fields (Full Name, Role) from EXO on first run or when blank.
             # If EXO lookup fails and name is still blank, prompt the user to enter it.
             try {
-                $nameResolved = Resolve-NameFromEXO
+                $nameResolved = Resolve-ProfileFromEXO
                 if (-not $nameResolved -and [string]::IsNullOrWhiteSpace($script:FullName)) {
                     Show-NameInputDialog
                 }
@@ -2424,6 +2621,16 @@ $btnCheckForUpdates.Add_Click({
             Update-StatusBar "Update check failed"
         }
     })
+
+# Export Diagnostics: Build and display a full app state snapshot.
+$btnExportDiagnostics.Add_Click({
+    try {
+        Show-DiagnosticsDialog
+    }
+    catch {
+        Show-ErrorDialog "Diagnostics Error" $_.Exception.Message
+    }
+})
 
 # Populate dynamic items: When the template dropdown opens, scan the config directory
 # for backup files, saved messages, and custom_*.html files and insert them dynamically.
