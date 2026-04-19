@@ -58,6 +58,7 @@ Patch goals:
 
 Goals:
 
+- Ship this mode as a separate script file so the main full-featured GUI remains unchanged.
 - Deliver a single-file portable script with embedded GUI resources.
 - Focus only on managing auto-reply state (Enabled / Disabled / Scheduled).
 - Exclude template editing and message apply flows from this portable mode.
