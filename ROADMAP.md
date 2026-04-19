@@ -54,6 +54,21 @@ Patch goals:
 - `1.9.1`: Reduce false-positive warnings.
 - `1.9.2`: Improve troubleshooting output based on live testing.
 
+### 1.10.x Portable Simplified GUI Mode
+
+Goals:
+
+- Deliver a single-file portable script with embedded GUI resources.
+- Focus only on managing auto-reply state (Enabled / Disabled / Scheduled).
+- Exclude template editing and message apply flows from this portable mode.
+- Exclude scheduled task and automation management from this portable mode.
+- Provide clear in-app guidance that OOF message content should be managed in Outlook.
+
+Patch goals:
+
+- `1.10.1`: Build the portable-mode shell and minimal GUI state controls.
+- `1.10.2`: Add validation, simplified status messaging, and Outlook guidance polish.
+
 ## Implementation Rules
 
 - Every feature slice should include code comments for new logic.
