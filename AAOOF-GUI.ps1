@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.15" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.16" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1969,9 +1969,11 @@ function Resolve-TemplatePlaceholders($text) {
 
     # Replace 1.8.0 contact placeholders with configured values or safe defaults.
     $backupContact = if (![string]::IsNullOrWhiteSpace($txtBackupContact.Text)) { $txtBackupContact.Text } else { 'our support team' }
+    $backupEngineerEmail = if (![string]::IsNullOrWhiteSpace($txtBackupEngineerEmail.Text)) { $txtBackupEngineerEmail.Text } else { '' }
     $teamAlias = if (![string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) { $txtTeamAlias.Text } else { 'Azure Networking Support' }
     $supportLink = if (![string]::IsNullOrWhiteSpace($txtSupportLink.Text)) { $txtSupportLink.Text } else { 'AzureBU@microsoft.com' }
     $text = $text -replace '\[BACKUP CONTACT\]', $backupContact
+    $text = $text -replace '\[BACKUP ENGINEER EMAIL\]', $backupEngineerEmail
     $text = $text -replace '\[TEAM ALIAS\]', $teamAlias
     $text = $text -replace '\[SUPPORT LINK\]', $supportLink
 
