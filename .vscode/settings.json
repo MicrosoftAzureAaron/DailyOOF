@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^pwsh -NoProfile -File \"c:/Users/aarosanders/OneDrive - Microsoft/Desktop/live edit aaoof/DailyOOF/_check_verbs\\.ps1\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
