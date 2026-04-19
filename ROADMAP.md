@@ -10,7 +10,7 @@ This document tracks the planned feature roadmap for DailyOOF and the versioning
 
 ## Release Plan
 
-## Current State (After 1.9.4)
+## Current State (After 1.9.9)
 
 Completed and validated in main track:
 
@@ -30,6 +30,11 @@ Completed and validated in main track:
 | `1.9.2` | First-run auto-connect via `ContentRendered` hook |
 | `1.9.3` | Fix EXO name lookup — remove invalid `FirstName`/`LastName` properties |
 | `1.9.4` | Live elapsed-time connecting window during EXO auth (separate STA runspace) |
+| `1.9.5` | Diagnostics export + EXO profile enrichment (role from recipient title) |
+| `1.9.6` | Reduce false-positive template warnings when generic fallbacks are not actually used |
+| `1.9.7` | Add Cancel button to connecting window with graceful post-auth abort |
+| `1.9.8` | Normalize Check for Updates and Export Diagnostics button sizes |
+| `1.9.9` | Fix startup null-control sizing hotfix for update/diagnostics buttons |
 
 ## Next Execution Queue
 
@@ -113,6 +118,9 @@ Patch goals:
 
 - `1.0.0`: Build the portable-mode shell and minimal GUI state controls.
 - `1.0.1`: Add validation, simplified status messaging, and Outlook guidance polish.
+- `1.1.0`: Auto-detect mailbox, improve EXO setup/connection reuse, add connecting window with timer/cancel.
+- `1.1.1`: Add work-day presets (Mon–Fri, Sun–Wed, Wed–Sat) and schedule calculation that respects the next working day instead of assuming a 7-day work week.
+- `1.1.2`: Increase portable window height so the full state-management UI is visible without scrolling or manual resize.
 
 ## Implementation Rules
 

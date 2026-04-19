@@ -13,10 +13,13 @@ Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
-$script:PortableVersion = "1.1.0"
+$script:PortableVersion = "1.1.1"
 $script:IsConnectedToEXO = $false
 $script:UserAlias = ""
 $script:UserAliasSuffix = ""
+$script:StartOfShift = $null
+$script:EndOfShift = $null
+$script:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
 
 function Show-ErrorDialog($Title, $Message) {
     [System.Windows.MessageBox]::Show($Message, $Title, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error) | Out-Null
@@ -217,7 +220,7 @@ function Connect-ExchangeOnlineSession {
     }
 
     Update-StatusBar "Connecting to Exchange Online..."
-    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias -ShowBanner:$false -ErrorAction Stop
+    Connect-ExchangeOnline -UserPrincipalName $script:UserAlias -ShowBanner:$false -CommandName Get-MailboxAutoReplyConfiguration, Set-MailboxAutoReplyConfiguration -ErrorAction Stop
     $script:IsConnectedToEXO = $true
     $txtConnectionStatus.Text = "Connected"
     $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
@@ -238,17 +241,89 @@ function Assert-ExchangeConnection {
     }
 }
 
-function ConvertTo-DateTimeFromInputs($DatePicker, $TimeText, $FieldLabel) {
-    if ($null -eq $DatePicker.SelectedDate) {
-        throw "$FieldLabel date is required."
-    }
-
+function ConvertTo-TimeOfDayFromInput($TimeText, $FieldLabel) {
     $parsedTime = [datetime]::MinValue
     if (-not [datetime]::TryParseExact($TimeText.Text, "HH:mm", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$parsedTime)) {
         throw "$FieldLabel time must be in HH:mm format (24-hour)."
     }
 
-    return $DatePicker.SelectedDate.Date.AddHours($parsedTime.Hour).AddMinutes($parsedTime.Minute)
+    return $parsedTime
+}
+
+function Read-WorkDaysFromUI {
+    $days = @()
+    if ($chkSun.IsChecked) { $days += 'Sunday' }
+    if ($chkMon.IsChecked) { $days += 'Monday' }
+    if ($chkTue.IsChecked) { $days += 'Tuesday' }
+    if ($chkWed.IsChecked) { $days += 'Wednesday' }
+    if ($chkThu.IsChecked) { $days += 'Thursday' }
+    if ($chkFri.IsChecked) { $days += 'Friday' }
+    if ($chkSat.IsChecked) { $days += 'Saturday' }
+    return $days
+}
+
+function Set-WorkDayPreset([string[]]$Days) {
+    $chkSun.IsChecked = ('Sunday' -in $Days)
+    $chkMon.IsChecked = ('Monday' -in $Days)
+    $chkTue.IsChecked = ('Tuesday' -in $Days)
+    $chkWed.IsChecked = ('Wednesday' -in $Days)
+    $chkThu.IsChecked = ('Thursday' -in $Days)
+    $chkFri.IsChecked = ('Friday' -in $Days)
+    $chkSat.IsChecked = ('Saturday' -in $Days)
+}
+
+function Get-NextWorkDayOffset {
+    if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) { return 1 }
+    if (-not $script:WorkDays -or $script:WorkDays.Count -eq 0) { return 1 }
+
+    $currentTime = [datetime](Get-Date)
+
+    if (!($currentTime.DayOfWeek -in $script:WorkDays)) {
+        $daysAhead = 0
+        while (!($currentTime.DayOfWeek -in $script:WorkDays)) {
+            $daysAhead += 1
+            $currentTime = $currentTime.AddDays(1)
+        }
+        return $daysAhead
+    }
+
+    $nextDay = $currentTime.AddDays(1)
+    $daysAhead = 1
+    while (!($nextDay.DayOfWeek -in $script:WorkDays)) {
+        $daysAhead += 1
+        $nextDay = $nextDay.AddDays(1)
+    }
+    if ($daysAhead -gt 1) {
+        return $daysAhead
+    }
+
+    if ($currentTime.TimeOfDay -lt $script:StartOfShift.TimeOfDay) {
+        return 0
+    }
+
+    return 1
+}
+
+function Get-AutoReplyScheduleTimes {
+    if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) {
+        throw "Shift start and end times are required."
+    }
+    if (-not $script:WorkDays -or $script:WorkDays.Count -eq 0) {
+        throw "Select at least one work day."
+    }
+
+    $daysToAdd = Get-NextWorkDayOffset
+    $oofEndTime = (Get-Date).Date.Add($script:StartOfShift.TimeOfDay).AddDays($daysToAdd)
+    $oofStartTime = (Get-Date).Date.Add($script:EndOfShift.TimeOfDay)
+    if ($daysToAdd -eq 0) {
+        $oofStartTime = $oofStartTime.AddDays(-1)
+    }
+
+    if ($oofStartTime -ge $oofEndTime) {
+        throw "Calculated schedule is invalid. Check your shift times and work days."
+    }
+
+    return @{ StartTime = $oofStartTime; EndTime = $oofEndTime }
 }
 
 function Update-AutoReplyStatus {
@@ -279,16 +354,19 @@ function Set-AutoReplyDisabled {
 function Set-AutoReplyScheduled {
     Assert-ExchangeConnection
 
-    $startTime = ConvertTo-DateTimeFromInputs -DatePicker $dpStartDate -TimeText $txtStartTime -FieldLabel "Start"
-    $endTime = ConvertTo-DateTimeFromInputs -DatePicker $dpEndDate -TimeText $txtEndTime -FieldLabel "End"
+    $script:StartOfShift = ConvertTo-TimeOfDayFromInput -TimeText $txtStartTime -FieldLabel "Start"
+    $script:EndOfShift = ConvertTo-TimeOfDayFromInput -TimeText $txtEndTime -FieldLabel "End"
+    $script:WorkDays = Read-WorkDaysFromUI
 
-    if ($endTime -le $startTime) {
-        throw "End time must be later than start time."
+    if ($script:EndOfShift.TimeOfDay -eq $script:StartOfShift.TimeOfDay) {
+        throw "End time must be different from start time."
     }
 
-    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState Scheduled -StartTime $startTime -EndTime $endTime -ExternalAudience All -ErrorAction Stop
+    $schedule = Get-AutoReplyScheduleTimes
+
+    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState Scheduled -StartTime $schedule.StartTime -EndTime $schedule.EndTime -ExternalAudience All -ErrorAction Stop
     Update-AutoReplyStatus
-    Show-InfoDialog "Done" "Auto-reply state set to Scheduled.`nStart: $startTime`nEnd: $endTime"
+    Show-InfoDialog "Done" "Auto-reply state set to Scheduled.`nStart: $($schedule.StartTime)`nEnd: $($schedule.EndTime)"
 }
 
 $xaml = @"
@@ -355,22 +433,32 @@ $xaml = @"
                     </StackPanel>
                 </GroupBox>
 
-                <GroupBox Header="Scheduled Window" Margin="0,0,0,10">
+                <GroupBox Header="Work Schedule" Margin="0,0,0,10">
                     <StackPanel Margin="10">
-                        <TextBlock Text="Set only the schedule window here. Message content should be edited in Outlook." Foreground="#4B5563" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                        <TextBlock Text="Set your normal shift start/end times and work days. The tool will calculate OOF from end of shift to the next work-day start." Foreground="#4B5563" Margin="0,0,0,10" TextWrapping="Wrap"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="Start Date:" Width="90" VerticalAlignment="Center"/>
-                            <DatePicker x:Name="dpStartDate" Width="180" Margin="0,0,12,0"/>
-                            <TextBlock Text="Time (HH:mm):" Width="100" VerticalAlignment="Center"/>
+                            <TextBlock Text="Start Time:" Width="90" VerticalAlignment="Center"/>
                             <TextBox x:Name="txtStartTime" Width="90" Text="09:00"/>
+                            <TextBlock Text="End Time:" Width="80" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                            <TextBox x:Name="txtEndTime" Width="90" Text="17:00"/>
                         </StackPanel>
 
+                        <TextBlock Text="Work Days:" Margin="0,0,0,6"/>
+                        <WrapPanel Margin="0,0,0,8">
+                            <CheckBox x:Name="chkSun" Content="Sun" Margin="0,0,12,4"/>
+                            <CheckBox x:Name="chkMon" Content="Mon" Margin="0,0,12,4"/>
+                            <CheckBox x:Name="chkTue" Content="Tue" Margin="0,0,12,4"/>
+                            <CheckBox x:Name="chkWed" Content="Wed" Margin="0,0,12,4"/>
+                            <CheckBox x:Name="chkThu" Content="Thu" Margin="0,0,12,4"/>
+                            <CheckBox x:Name="chkFri" Content="Fri" Margin="0,0,12,4"/>
+                            <CheckBox x:Name="chkSat" Content="Sat" Margin="0,0,12,4"/>
+                        </WrapPanel>
+
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="End Date:" Width="90" VerticalAlignment="Center"/>
-                            <DatePicker x:Name="dpEndDate" Width="180" Margin="0,0,12,0"/>
-                            <TextBlock Text="Time (HH:mm):" Width="100" VerticalAlignment="Center"/>
-                            <TextBox x:Name="txtEndTime" Width="90" Text="17:00"/>
+                            <Button x:Name="btnPresetMF" Content="Mon-Fri" Padding="10,5" Margin="0,0,8,0"/>
+                            <Button x:Name="btnPresetSunWed" Content="Sun-Wed" Padding="10,5" Margin="0,0,8,0"/>
+                            <Button x:Name="btnPresetWedSat" Content="Wed-Sat" Padding="10,5"/>
                         </StackPanel>
 
                         <Button x:Name="btnStateScheduled" Content="Set Scheduled" Padding="12,6" HorizontalAlignment="Left"/>
@@ -400,17 +488,28 @@ $btnStateEnabled = $Window.FindName("btnStateEnabled")
 $btnStateDisabled = $Window.FindName("btnStateDisabled")
 $btnStateScheduled = $Window.FindName("btnStateScheduled")
 $btnRefreshStatus = $Window.FindName("btnRefreshStatus")
-$dpStartDate = $Window.FindName("dpStartDate")
-$dpEndDate = $Window.FindName("dpEndDate")
 $txtStartTime = $Window.FindName("txtStartTime")
 $txtEndTime = $Window.FindName("txtEndTime")
+$chkSun = $Window.FindName("chkSun")
+$chkMon = $Window.FindName("chkMon")
+$chkTue = $Window.FindName("chkTue")
+$chkWed = $Window.FindName("chkWed")
+$chkThu = $Window.FindName("chkThu")
+$chkFri = $Window.FindName("chkFri")
+$chkSat = $Window.FindName("chkSat")
+$btnPresetMF = $Window.FindName("btnPresetMF")
+$btnPresetSunWed = $Window.FindName("btnPresetSunWed")
+$btnPresetWedSat = $Window.FindName("btnPresetWedSat")
 $txtStatusBar = $Window.FindName("txtStatusBar")
 
 $defaultAlias = Resolve-UserAlias
 $txtAccount.Text = $defaultAlias
 $script:UserAlias = $defaultAlias
-$dpStartDate.SelectedDate = (Get-Date).Date
-$dpEndDate.SelectedDate = (Get-Date).Date.AddDays(1)
+Set-WorkDayPreset @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+
+$btnPresetMF.Add_Click({ Set-WorkDayPreset @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday') })
+$btnPresetSunWed.Add_Click({ Set-WorkDayPreset @('Sunday', 'Monday', 'Tuesday', 'Wednesday') })
+$btnPresetWedSat.Add_Click({ Set-WorkDayPreset @('Wednesday', 'Thursday', 'Friday', 'Saturday') })
 
 $btnConnect.Add_Click({
         try {
