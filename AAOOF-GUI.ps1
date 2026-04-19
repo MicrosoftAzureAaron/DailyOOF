@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.18" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.19" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -2797,10 +2797,12 @@ $cmbTemplate.Add_SelectionChanged({
                 $backupFile = Get-LastMessageTemplatePath
                 Export-MessageToFile $backupFile $txtMessage.Text
             }
-            $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+            $script:IsLoadingTemplate = $true
+            $txtMessage.Text = Get-Content $path -Raw
+            $script:IsLoadingTemplate = $false
             # Refresh preview if on Preview tab
             if ($tcMessageView.SelectedIndex -eq 1) {
-                $wbPreview.NavigateToString($txtMessage.Text)
+                $wbPreview.NavigateToString((Resolve-TemplatePlaceholders $txtMessage.Text))
             }
             Update-StatusBar "Template loaded: $selected"
         }
@@ -2824,9 +2826,11 @@ $btnLoadTemplate.Add_Click({
                 $backupFile = Get-LastMessageTemplatePath
                 Export-MessageToFile $backupFile $txtMessage.Text
             }
-            $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+            $script:IsLoadingTemplate = $true
+            $txtMessage.Text = Get-Content $path -Raw
+            $script:IsLoadingTemplate = $false
             if ($tcMessageView.SelectedIndex -eq 1) {
-                $wbPreview.NavigateToString($txtMessage.Text)
+                $wbPreview.NavigateToString((Resolve-TemplatePlaceholders $txtMessage.Text))
             }
             Update-StatusBar "Template loaded: $selected"
         }
@@ -2836,7 +2840,8 @@ $btnLoadTemplate.Add_Click({
         }
     })
 
-# Re-resolve template when any option checkbox changes
+# Re-resolve template when any option checkbox or config field changes.
+# Reloads raw content into the editor; preview is re-rendered if visible.
 $optionReloadHandler = {
     if ($null -eq $cmbTemplate.SelectedItem) { return }
     $selected = $cmbTemplate.SelectedItem.Content
@@ -2844,9 +2849,11 @@ $optionReloadHandler = {
     $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
     if ($path -and (Test-Path $path)) {
         $script:IsLoadingTemplate = $true
-        $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+        $txtMessage.Text = Get-Content $path -Raw
         $script:IsLoadingTemplate = $false
-        $wbPreview.NavigateToString($txtMessage.Text)
+        if ($tcMessageView.SelectedIndex -eq 1) {
+            $wbPreview.NavigateToString((Resolve-TemplatePlaceholders $txtMessage.Text))
+        }
     }
 }
 # Wire option checkboxes: When any template option (signature, hours, work days,
@@ -2940,13 +2947,12 @@ $script:TemplateEditTimer.Add_Tick({
         try { $timer.Stop() } catch { }
     }
     
-    # Update preview in real-time
-    $html = $txtMessage.Text
-    if ([string]::IsNullOrWhiteSpace($html)) {
-        $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
-    }
-    # Only update preview if we're on the Preview tab to avoid unnecessary rendering
+    # Update preview in real-time — resolve placeholders before rendering
     if ($tcMessageView.SelectedIndex -eq 1) {
+        $html = Resolve-TemplatePlaceholders $txtMessage.Text
+        if ([string]::IsNullOrWhiteSpace($html)) {
+            $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
+        }
         $wbPreview.NavigateToString($html)
     }
     
@@ -3232,8 +3238,8 @@ $btnBackupMessage.Add_Click({
 # in the embedded WebBrowser control for a live WYSIWYG preview.
 $tcMessageView.Add_SelectionChanged({
         if ($tcMessageView.SelectedIndex -eq 1) {
-            # Preview tab selected - render HTML
-            $html = $txtMessage.Text
+            # Preview tab selected — resolve placeholders before rendering
+            $html = Resolve-TemplatePlaceholders $txtMessage.Text
             if ([string]::IsNullOrWhiteSpace($html)) {
                 $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
             }
@@ -3276,10 +3282,12 @@ $cmbHoliday.Add_SelectionChanged({
         }
     })
 
-# Load default template into message box
+# Load default template into message box (raw — placeholders resolved only in Preview)
 $defaultTemplate = Resolve-TemplateFilePath "Normal OOF"
 if (Test-Path $defaultTemplate) {
-    $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $defaultTemplate -Raw)
+    $script:IsLoadingTemplate = $true
+    $txtMessage.Text = Get-Content $defaultTemplate -Raw
+    $script:IsLoadingTemplate = $false
 }
 
 # ===================== Screenshot Capture (F12) =====================
