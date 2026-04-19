@@ -11,10 +11,18 @@
 
 .PARAMETER KeepOpen
     Keep the window open after captures for visual verification.
+
+.PARAMETER CaptureDelayMs
+    Delay in milliseconds used between tab switches and captures.
+
+.PARAMETER UseBlankProfile
+    Ignore config.json and use generic sample values for all fields.
 #>
 param(
     [string]$OutputDirectory = (Join-Path $PSScriptRoot "screenshots"),
-    [switch]$KeepOpen
+    [switch]$KeepOpen,
+    [int]$CaptureDelayMs = 650,
+    [switch]$UseBlankProfile
 )
 
 Add-Type -AssemblyName PresentationFramework
@@ -123,6 +131,84 @@ function Resolve-TemplatePlaceholdersForCapture {
     return $resolved
 }
 
+function Set-ComboBoxByContent {
+    param(
+        [object]$ComboBox,
+        [string]$DesiredText
+    )
+
+    if ($null -eq $ComboBox -or [string]::IsNullOrWhiteSpace($DesiredText)) { return }
+
+    foreach ($item in $ComboBox.Items) {
+        if ([string]$item -eq $DesiredText) {
+            $ComboBox.SelectedItem = $item
+            return
+        }
+    }
+}
+
+function Initialize-UiFieldsForCapture {
+    param([object]$Config)
+
+    $sampleUserAlias = [string](Get-ConfigValue -Config $Config -Name "UserAlias" -DefaultValue "")
+    if ([string]::IsNullOrWhiteSpace($sampleUserAlias)) {
+        $sampleSuffix = [string](Get-ConfigValue -Config $Config -Name "UserAliasSuffix" -DefaultValue "@microsoft.com")
+        $sampleUserAlias = "$env:USERNAME$sampleSuffix"
+    }
+
+    $backupEngineer = [string](Get-ConfigValue -Config $Config -Name "BackupEngineer" -DefaultValue "")
+    if ([string]::IsNullOrWhiteSpace($backupEngineer)) {
+        $backupEngineer = [string](Get-ConfigValue -Config $Config -Name "BackupContact" -DefaultValue "Backup Engineer")
+    }
+
+    if ($null -ne $txtAccount) { $txtAccount.Text = $sampleUserAlias }
+    if ($null -ne $txtConnectionStatus) { $txtConnectionStatus.Text = "Disconnected" }
+    if ($null -ne $txtARCState) { $txtARCState.Text = "Scheduled" }
+    if ($null -ne $txtARCStart) { $txtARCStart.Text = (Get-Date).AddHours(-1).ToString("g") }
+    if ($null -ne $txtARCEnd) { $txtARCEnd.Text = (Get-Date).AddHours(7).ToString("g") }
+
+    if ($null -ne $txtFullName) { $txtFullName.Text = [string](Get-ConfigValue -Config $Config -Name "FullName" -DefaultValue "Alex Example") }
+    if ($null -ne $txtRole) { $txtRole.Text = [string](Get-ConfigValue -Config $Config -Name "Role" -DefaultValue "Support Engineer") }
+    if ($null -ne $txtBackupContact) { $txtBackupContact.Text = $backupEngineer }
+    if ($null -ne $txtBackupEngineerEmail) { $txtBackupEngineerEmail.Text = [string](Get-ConfigValue -Config $Config -Name "BackupEngineerEmail" -DefaultValue "backup@example.com") }
+    if ($null -ne $txtTeamAlias) { $txtTeamAlias.Text = [string](Get-ConfigValue -Config $Config -Name "TeamAlias" -DefaultValue "Azure Support Team") }
+    if ($null -ne $txtSupportLink) { $txtSupportLink.Text = [string](Get-ConfigValue -Config $Config -Name "SupportLink" -DefaultValue "https://portal.azure.com") }
+
+    # Use stable demo shift values for screenshot consistency across environments.
+    Set-ComboBoxByContent -ComboBox $cmbStartHour -DesiredText "9"
+    Set-ComboBoxByContent -ComboBox $cmbStartMin -DesiredText "00"
+    Set-ComboBoxByContent -ComboBox $cmbStartAmPm -DesiredText "AM"
+    Set-ComboBoxByContent -ComboBox $cmbEndHour -DesiredText "5"
+    Set-ComboBoxByContent -ComboBox $cmbEndMin -DesiredText "00"
+    Set-ComboBoxByContent -ComboBox $cmbEndAmPm -DesiredText "PM"
+
+    $workDays = Get-ConfigValue -Config $Config -Name "WorkDays" -DefaultValue @("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+    if ($workDays -isnot [System.Array]) {
+        $workDays = @([string]$workDays)
+    }
+
+    if ($null -ne $chkSun) { $chkSun.IsChecked = ($workDays -contains "Sunday") }
+    if ($null -ne $chkMon) { $chkMon.IsChecked = ($workDays -contains "Monday") }
+    if ($null -ne $chkTue) { $chkTue.IsChecked = ($workDays -contains "Tuesday") }
+    if ($null -ne $chkWed) { $chkWed.IsChecked = ($workDays -contains "Wednesday") }
+    if ($null -ne $chkThu) { $chkThu.IsChecked = ($workDays -contains "Thursday") }
+    if ($null -ne $chkFri) { $chkFri.IsChecked = ($workDays -contains "Friday") }
+    if ($null -ne $chkSat) { $chkSat.IsChecked = ($workDays -contains "Saturday") }
+
+    if ($null -ne $txtTaskOffsetMinutes) {
+        $txtTaskOffsetMinutes.Text = [string](Get-ConfigValue -Config $Config -Name "TaskStartOffsetMinutes" -DefaultValue 15)
+    }
+    if ($null -ne $txtTaskExists) { $txtTaskExists.Text = "Created" }
+    if ($null -ne $txtTaskState) { $txtTaskState.Text = "Ready" }
+    if ($null -ne $txtTaskNextRun) { $txtTaskNextRun.Text = (Get-Date).AddMinutes(45).ToString("g") }
+    if ($null -ne $txtTaskLastRun) { $txtTaskLastRun.Text = (Get-Date).AddHours(-18).ToString("g") }
+    if ($null -ne $txtTaskLastResult) { $txtTaskLastResult.Text = "Success (0x0)" }
+    if ($null -ne $txtTaskScriptPath) { $txtTaskScriptPath.Text = (Join-Path $ScriptDir "AAOOF-GUI.ps1") }
+    if ($null -ne $txtTaskSummary) { $txtTaskSummary.Text = "Task is ready for daily automation." }
+    if ($null -ne $txtLocalVersion) { $txtLocalVersion.Text = "1.9.26" }
+    if ($null -ne $txtRemoteVersion) { $txtRemoteVersion.Text = "1.9.26" }
+}
+
 function Invoke-UiPump {
     param([int]$Milliseconds = 250)
 
@@ -201,8 +287,43 @@ if ($null -eq $tcMain -or $null -eq $tcMessageView -or $null -eq $txtMessage -or
     throw "One or more required controls were not found in the XAML."
 }
 
+$txtAccount = $Window.FindName("txtAccount")
+$txtConnectionStatus = $Window.FindName("txtConnectionStatus")
+$txtARCState = $Window.FindName("txtARCState")
+$txtARCStart = $Window.FindName("txtARCStart")
+$txtARCEnd = $Window.FindName("txtARCEnd")
+$txtFullName = $Window.FindName("txtFullName")
+$txtRole = $Window.FindName("txtRole")
+$txtBackupContact = $Window.FindName("txtBackupContact")
+$txtBackupEngineerEmail = $Window.FindName("txtBackupEngineerEmail")
+$txtTeamAlias = $Window.FindName("txtTeamAlias")
+$txtSupportLink = $Window.FindName("txtSupportLink")
+$cmbStartHour = $Window.FindName("cmbStartHour")
+$cmbStartMin = $Window.FindName("cmbStartMin")
+$cmbStartAmPm = $Window.FindName("cmbStartAmPm")
+$cmbEndHour = $Window.FindName("cmbEndHour")
+$cmbEndMin = $Window.FindName("cmbEndMin")
+$cmbEndAmPm = $Window.FindName("cmbEndAmPm")
+$chkSun = $Window.FindName("chkSun")
+$chkMon = $Window.FindName("chkMon")
+$chkTue = $Window.FindName("chkTue")
+$chkWed = $Window.FindName("chkWed")
+$chkThu = $Window.FindName("chkThu")
+$chkFri = $Window.FindName("chkFri")
+$chkSat = $Window.FindName("chkSat")
+$txtTaskOffsetMinutes = $Window.FindName("txtTaskOffsetMinutes")
+$txtTaskExists = $Window.FindName("txtTaskExists")
+$txtTaskState = $Window.FindName("txtTaskState")
+$txtTaskNextRun = $Window.FindName("txtTaskNextRun")
+$txtTaskLastRun = $Window.FindName("txtTaskLastRun")
+$txtTaskLastResult = $Window.FindName("txtTaskLastResult")
+$txtTaskScriptPath = $Window.FindName("txtTaskScriptPath")
+$txtTaskSummary = $Window.FindName("txtTaskSummary")
+$txtLocalVersion = $Window.FindName("txtLocalVersion")
+$txtRemoteVersion = $Window.FindName("txtRemoteVersion")
+
 $config = $null
-if (Test-Path $ConfigFile) {
+if (-not $UseBlankProfile -and (Test-Path $ConfigFile)) {
     try {
         $config = Get-Content $ConfigFile -Raw | ConvertFrom-Json
     }
@@ -217,6 +338,12 @@ $templateRaw = if (Test-Path $TemplateFile) {
 else {
     "<html><body><h3>Out of Office</h3><p>Hello, I am currently away and will respond as soon as possible.</p></body></html>"
 }
+
+if ($UseBlankProfile) {
+    Write-Host "UseBlankProfile enabled: using generic sample values instead of config.json" -ForegroundColor Yellow
+}
+
+Initialize-UiFieldsForCapture -Config $config
 
 $txtMessage.Text = $templateRaw
 $resolvedTemplate = Resolve-TemplatePlaceholdersForCapture -TemplateContent $templateRaw -Config $config
@@ -245,7 +372,7 @@ function Invoke-CaptureRun {
 
         foreach ($shot in $tabShots) {
             $tcMain.SelectedIndex = $shot.Index
-            Invoke-UiPump -Milliseconds 350
+            Invoke-UiPump -Milliseconds $CaptureDelayMs
             $path = Join-Path $OutputDirectory $shot.File
             Save-WindowCapture -Path $path
             $script:CapturedFiles += $path
@@ -253,7 +380,7 @@ function Invoke-CaptureRun {
 
         $tcMain.SelectedIndex = 3
         $tcMessageView.SelectedIndex = 0
-        Invoke-UiPump -Milliseconds 350
+        Invoke-UiPump -Milliseconds $CaptureDelayMs
         $editPath = Join-Path $OutputDirectory "message-templates-edit.png"
         Save-WindowCapture -Path $editPath
         $script:CapturedFiles += $editPath
