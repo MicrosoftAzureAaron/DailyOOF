@@ -13,7 +13,7 @@ Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
-$script:PortableVersion = "1.10.1"
+$script:PortableVersion = "1.0.0"
 $script:IsConnectedToEXO = $false
 $script:UserAlias = ""
 
@@ -160,7 +160,7 @@ $xaml = @"
             <StackPanel>
                 <Border Background="White" BorderBrush="#D8D8D8" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,10">
                     <StackPanel>
-                        <TextBlock Text="Daily OOF Portable (v1.10.1)" FontSize="18" FontWeight="Bold" Foreground="#1F2937"/>
+                        <TextBlock Text="Daily OOF Portable (v1.0.0)" FontSize="18" FontWeight="Bold" Foreground="#1F2937"/>
                         <TextBlock Text="Simplified standalone GUI for auto-reply state only." Foreground="#4B5563" Margin="0,4,0,0"/>
                         <TextBlock Text="Manage message content in Outlook or Outlook on the web." Foreground="#B45309" FontWeight="SemiBold" Margin="0,8,0,0"/>
                     </StackPanel>

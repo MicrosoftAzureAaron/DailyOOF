@@ -4,9 +4,9 @@ This document tracks the planned feature roadmap for DailyOOF and the versioning
 
 ## Versioning
 
-- Minor version (`1.6` -> `1.7`) is used for a user-visible feature slice.
-- Patch version (`1.7.0` -> `1.7.1`) is used for bug fixes, validation hardening, and follow-up polish within the same feature slice.
-- Each minor release should be implemented, validated, and pushed independently so the live script can be updated and tested incrementally.
+- Main script track (`AAOOF-GUI.ps1`) uses minor+patch feature slices (for example `1.7.0` -> `1.7.1`).
+- Portable script track (`AAOOF-Portable.ps1`) is versioned independently starting at `1.0.0`.
+- Main and portable releases can move at different speeds, but each release should still be implemented, validated, and pushed independently.
 
 ## Release Plan
 
@@ -54,7 +54,7 @@ Patch goals:
 - `1.9.1`: Reduce false-positive warnings.
 - `1.9.2`: Improve troubleshooting output based on live testing.
 
-### 1.10.x Portable Simplified GUI Mode
+### Portable Track (1.x) Simplified GUI Mode
 
 Goals:
 
@@ -67,8 +67,8 @@ Goals:
 
 Patch goals:
 
-- `1.10.1`: Build the portable-mode shell and minimal GUI state controls.
-- `1.10.2`: Add validation, simplified status messaging, and Outlook guidance polish.
+- `1.0.0`: Build the portable-mode shell and minimal GUI state controls.
+- `1.0.1`: Add validation, simplified status messaging, and Outlook guidance polish.
 
 ## Implementation Rules
 

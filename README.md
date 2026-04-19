@@ -46,6 +46,8 @@ Launch the standalone portable script for state-only management:
 .\AAOOF-Portable.ps1
 ```
 
+Portable versioning is independent from the main GUI script and starts at `1.0.0`.
+
 Portable mode scope:
 - Manages only auto-reply state (Enabled / Disabled / Scheduled)
 - Does not include template editing or message apply flows
