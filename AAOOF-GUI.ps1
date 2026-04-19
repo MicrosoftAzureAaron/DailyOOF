@@ -890,7 +890,7 @@ function Get-DailyScheduledTaskStatus {
     }
 }
 
-# Update-ScheduledTaskStatusUI: Refresh the scheduled task section in the Configuration tab.
+# Update-ScheduledTaskStatusUI: Refresh the scheduled task section in the Automation tab.
 function Update-ScheduledTaskStatusUI {
     $taskStatus = Get-DailyScheduledTaskStatus
     if ($taskStatus.Exists) {
@@ -1034,7 +1034,7 @@ $wbCurrentOOF = $Window.FindName("wbCurrentOOF")
 $btnRefreshCurrentOOF = $Window.FindName("btnRefreshCurrentOOF")
 $txtCurrentOOFStatus = $Window.FindName("txtCurrentOOFStatus")
 
-# --- Configuration tab controls ---
+# --- Configuration and Automation tab controls ---
 $txtFullName = $Window.FindName("txtFullName")
 $txtRole = $Window.FindName("txtRole")
 $cmbStartHour = $Window.FindName("cmbStartHour")
@@ -1388,7 +1388,7 @@ function Read-ShiftTimesFromUI {
     $script:EndOfShift = [datetime](Get-Date).Date.AddHours($EndHour).AddMinutes($EndMinute)
 }
 
-# Read-TaskSettingsFromUI: Parse scheduled task settings from the Configuration tab.
+# Read-TaskSettingsFromUI: Parse scheduled task settings from the Automation tab.
 function Read-TaskSettingsFromUI {
     $parsedOffset = 0
     if ([int]::TryParse($txtTaskOffsetMinutes.Text, [ref]$parsedOffset)) {
@@ -1597,7 +1597,7 @@ $btnViewCurrentMsg.Add_Click({
             $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
 
             # Switch to the Current OOF tab
-            $tcMain.SelectedIndex = 3
+            $tcMain.SelectedIndex = 4
         }
         catch {
             $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not fetch message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
@@ -1671,7 +1671,7 @@ $btnRefreshCurrentOOF.Add_Click({
 # so templates reflect the latest unsaved changes (work days, shift times, etc.).
 $script:CurrentOOFLoaded = $false
 $tcMain.Add_SelectionChanged({
-        if ($tcMain.SelectedIndex -eq 2) {
+        if ($tcMain.SelectedIndex -eq 3) {
             # Sync config globals from UI before template rendering
             Read-ShiftTimesFromUI
             $script:WorkDays = Read-WorkDaysFromUI
@@ -1680,7 +1680,7 @@ $tcMain.Add_SelectionChanged({
             & $optionReloadHandler
             return
         }
-        if ($tcMain.SelectedIndex -ne 3) { return }
+        if ($tcMain.SelectedIndex -ne 4) { return }
         if ($script:CurrentOOFLoaded) { return }
         $script:CurrentOOFLoaded = $true
         try {
@@ -2458,18 +2458,22 @@ $Window.Add_KeyDown({
                 $tcMain.SelectedIndex = 1
                 Save-WindowScreenshot (Join-Path $ScreenshotsDir "configuration.png")
 
-                # Tab 2: Message Templates — Edit
+                # Tab 2: Automation
                 $tcMain.SelectedIndex = 2
+                Save-WindowScreenshot (Join-Path $ScreenshotsDir "automation.png")
+
+                # Tab 3: Message Templates — Edit
+                $tcMain.SelectedIndex = 3
                 $tcMessageView.SelectedIndex = 0
                 Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-edit.png")
 
-                # Tab 2: Message Templates — Preview
+                # Tab 3: Message Templates — Preview
                 $tcMessageView.SelectedIndex = 1
                 Wait-WebBrowserReady $wbPreview
                 Save-WindowScreenshot (Join-Path $ScreenshotsDir "message-templates-preview.png")
 
-                # Tab 3: Current OOF
-                $tcMain.SelectedIndex = 3
+                # Tab 4: Current OOF
+                $tcMain.SelectedIndex = 4
                 Wait-WebBrowserReady $wbCurrentOOF
                 Save-WindowScreenshot (Join-Path $ScreenshotsDir "current-oof.png")
 
@@ -2478,7 +2482,7 @@ $Window.Add_KeyDown({
                 $tcMain.SelectedIndex = $originalTab
 
                 Update-StatusBar "Screenshots saved to screenshots/ folder"
-                Show-InfoDialog "Screenshots Captured" "5 screenshots saved to:`n$ScreenshotsDir`n`n- quick-actions.png`n- configuration.png`n- message-templates-edit.png`n- message-templates-preview.png`n- current-oof.png"
+                Show-InfoDialog "Screenshots Captured" "6 screenshots saved to:`n$ScreenshotsDir`n`n- quick-actions.png`n- configuration.png`n- automation.png`n- message-templates-edit.png`n- message-templates-preview.png`n- current-oof.png"
             }
             catch {
                 Show-ErrorDialog "Screenshot Error" "Failed to capture screenshots:`n$($_.Exception.Message)"

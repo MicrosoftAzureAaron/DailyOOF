@@ -36,7 +36,7 @@ Launch the app with no arguments to open the full graphical interface:
 .\AAOOF-GUI.ps1
 ```
 
-The GUI has four tabs:
+The GUI has five tabs:
 
 ---
 
@@ -64,9 +64,13 @@ The GUI has four tabs:
 | **Office Hours** | Start and end times for your shift (supports non-hour-boundary times like 8:30). Used for OOF scheduling and the signature's office-hours line. |
 | **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). Days appear in the signature sorted by your work week (e.g., Wed–Sat starts with Wednesday). |
 | **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
+| **Check for Updates** | Downloads the latest script in a separate process and then prompts you to restart the app. |
+
+#### Automation
+| Setting | Description |
+|---|---|
 | **Scheduled Task** | Create or update the Windows Task Scheduler job used for daily automation. The UI shows task state, next run, last run, last result, and target script path. |
 | **Task Offset** | Sets how many minutes after your shift start the daily scheduled task should run. |
-| **Check for Updates** | Downloads the latest script in a separate process and then prompts you to restart the app. |
 
 ---
 

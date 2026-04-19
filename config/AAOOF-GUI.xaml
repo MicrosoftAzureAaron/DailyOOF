@@ -119,7 +119,7 @@
                         <GroupBox Header="Daily Auto Reply (Run Once Per Day)">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
-                                    Text="Sets Out of Office to Scheduled mode using your configured shift and work day settings. Run this once daily after the start of your shift. To automate this, create a Windows Scheduled Task on the Configuration tab."/>
+                                    Text="Sets Out of Office to Scheduled mode using your configured shift and work day settings. Run this once daily after the start of your shift. To automate this, create a Windows Scheduled Task on the Automation tab."/>
                                 <Button x:Name="btnEnableScheduled" Content="Enable Scheduled Auto Reply" Style="{StaticResource PrimaryBtn}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </GroupBox>
@@ -231,10 +231,39 @@
                             </StackPanel>
                         </GroupBox>
 
+                        <GroupBox Header="Updates">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Current Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="txtLocalVersion" Text="..." FontSize="13" FontWeight="SemiBold" Foreground="#0078D4" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Latest Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                            <TextBlock x:Name="txtRemoteVersion" Text="(not checked)" FontSize="13" Foreground="#888" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button x:Name="btnCheckForUpdates" Grid.Column="2" Content="Check for Updates" Style="{StaticResource SecondaryBtn}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                        </GroupBox>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ==================== TAB 3: Automation ==================== -->
+            <TabItem Header="  Automation  " FontSize="13" FontWeight="SemiBold">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
+                    <StackPanel>
                         <GroupBox Header="Scheduled Task">
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
-                                    Text="Create a Windows scheduled task to run this script with option 1 (daily auto-reply) 15 minutes after your shift starts."/>
+                                    Text="Create or update a Windows scheduled task to run this script with option 1 (daily auto-reply) after your configured shift starts."/>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <TextBlock Text="Start Offset (min):" FontSize="13" VerticalAlignment="Center" Width="120"/>
                                     <TextBox x:Name="txtTaskOffsetMinutes" Width="70" FontSize="13" VerticalContentAlignment="Center" Padding="4" Text="15"/>
@@ -268,7 +297,7 @@
                                     </StackPanel>
                                 </Border>
                                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#C00" FontStyle="Italic" Margin="0,0,0,6"
-                                    Text="Note: You must run this script as Administrator before clicking this button."/>
+                                    Text="Note: You must run this script as Administrator before clicking Create/Update Scheduled Task."/>
                                 <WrapPanel>
                                     <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnRefreshTaskStatus" Content="Refresh Task Status" Style="{StaticResource SecondaryBtn}"/>
@@ -277,33 +306,11 @@
                                 </WrapPanel>
                             </StackPanel>
                         </GroupBox>
-
-                        <GroupBox Header="Updates">
-                            <StackPanel>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                            <TextBlock Text="Current Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBlock x:Name="txtLocalVersion" Text="..." FontSize="13" FontWeight="SemiBold" Foreground="#0078D4" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Latest Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,14,0"/>
-                                            <TextBlock x:Name="txtRemoteVersion" Text="(not checked)" FontSize="13" Foreground="#888" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <Button x:Name="btnCheckForUpdates" Grid.Column="2" Content="Check for Updates" Style="{StaticResource SecondaryBtn}" VerticalAlignment="Center"/>
-                                </Grid>
-                            </StackPanel>
-                        </GroupBox>
-                </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
-            <!-- ==================== TAB 3: Message Templates ==================== -->
+            <!-- ==================== TAB 4: Message Templates ==================== -->
             <TabItem Header="  Message Templates  " FontSize="13" FontWeight="SemiBold">
                 <Grid Margin="15">
                     <Grid.RowDefinitions>
