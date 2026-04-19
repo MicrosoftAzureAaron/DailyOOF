@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.5.1"
+$script:ScriptVersion = "1.5.2"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -804,17 +804,6 @@ function Export-AppConfiguration {
 if ($InputParameter) {
     Report-MissingHeadlessFiles
 
-    # Silently self-update the script before running headless operations
-    try {
-        $updated = Invoke-ScriptSelfUpdateExternal $InputParameter
-        if ($updated) {
-            Write-Host "Script update launched in a separate process." -ForegroundColor Green
-            exit
-        }
-    } catch {
-        Write-Host "Auto-update skipped: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-
     if ($InputParameter -eq '1') {
         if (-not (Ensure-HeadlessConfigAvailable)) { exit }
         if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift -or $null -eq $script:WorkDays) {
@@ -838,7 +827,6 @@ if ($InputParameter) {
         $arc = Get-AutoReplyConfiguration
         Write-Host "Auto Reply: $($arc.AutoReplyState) | Start: $($arc.StartTime) | End: $($arc.EndTime)"
         Disconnect-ExchangeOnlineSession
-        exit
     }
     if ($InputParameter -as [datetime]) {
         if (-not (Ensure-HeadlessConfigAvailable)) { exit }
@@ -851,8 +839,18 @@ if ($InputParameter) {
         $arc = Get-AutoReplyConfiguration
         Write-Host "Auto Reply: $($arc.AutoReplyState) | Start: $($arc.StartTime) | End: $($arc.EndTime)"
         Disconnect-ExchangeOnlineSession
-        exit
     }
+
+    # Self-update after OOF settings have been applied so updates never block the reply
+    try {
+        $updated = Invoke-ScriptSelfUpdateExternal $InputParameter
+        if ($updated) {
+            Write-Host "Script update launched in a separate process." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "Auto-update skipped: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    exit
 }
 
 # ===================== Load XAML GUI from File =====================
