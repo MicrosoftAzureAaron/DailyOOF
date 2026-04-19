@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.13" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.15" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -276,6 +276,8 @@ $script:UserAliasSuffix = ""                           # Domain suffix appended 
 $script:FullName = ""                           # Display name for auto-generated signature
 $script:Role = ""                           # Job title inserted into templates via [ROLE]
 $script:BackupContact = ""                           # Contact person or mailbox used in [BACKUP CONTACT]
+$script:BackupEngineerEmail = ""                     # Email address of backup engineer for [BACKUP ENGINEER EMAIL]
+$script:BackupEmail = ""                            # Email address for template backups
 $script:TeamAlias = ""                           # Team name or alias used in [TEAM ALIAS]
 $script:SupportLink = ""                           # URL used in [SUPPORT LINK]
 $script:OverrideAccount = $false                      # True if user manually overrides the account email
@@ -312,6 +314,8 @@ function Import-AppConfiguration {
         if ($cfg.FullName) { $script:FullName = $cfg.FullName }
         if ($cfg.Role) { $script:Role = $cfg.Role }
         if ($cfg.BackupContact) { $script:BackupContact = $cfg.BackupContact }
+        if ($cfg.BackupEngineerEmail) { $script:BackupEngineerEmail = $cfg.BackupEngineerEmail }
+        if ($cfg.BackupEmail) { $script:BackupEmail = $cfg.BackupEmail }
         if ($cfg.TeamAlias) { $script:TeamAlias = $cfg.TeamAlias }
         if ($cfg.SupportLink) { $script:SupportLink = $cfg.SupportLink }
         if ($null -ne $cfg.OverrideAccount) { $script:OverrideAccount = [bool]$cfg.OverrideAccount }
@@ -1302,6 +1306,8 @@ function Export-AppConfiguration {
         FullName        = $script:FullName
         Role            = $script:Role
         BackupContact   = $script:BackupContact
+        BackupEngineerEmail = $script:BackupEngineerEmail
+        BackupEmail     = $script:BackupEmail
         TeamAlias       = $script:TeamAlias
         SupportLink     = $script:SupportLink
         OverrideAccount = $script:OverrideAccount
@@ -1452,6 +1458,7 @@ $btnViewCurrentMsg.Margin = $quickStatusButtonMargin
 $txtFullName = $Window.FindName("txtFullName")
 $txtRole = $Window.FindName("txtRole")
 $txtBackupContact = $Window.FindName("txtBackupContact")
+$txtBackupEngineerEmail = $Window.FindName("txtBackupEngineerEmail")
 $txtTeamAlias = $Window.FindName("txtTeamAlias")
 $txtSupportLink = $Window.FindName("txtSupportLink")
 $cmbStartHour = $Window.FindName("cmbStartHour")
@@ -1529,6 +1536,7 @@ $chkIncludeSignature = $Window.FindName("chkIncludeSignature")
 $chkIncludeOfficeHours = $Window.FindName("chkIncludeOfficeHours")
 $chkIncludeWorkDays = $Window.FindName("chkIncludeWorkDays")
 $chkIncludeTimezone = $Window.FindName("chkIncludeTimezone")
+$txtBackupEmail = $Window.FindName("txtBackupEmail")
 $tcMessageView = $Window.FindName("tcMessageView")
 $wbPreview = $Window.FindName("wbPreview")
 
@@ -1821,6 +1829,12 @@ function Initialize-UIFromConfig {
     }
     if (![string]::IsNullOrEmpty($script:BackupContact)) {
         $txtBackupContact.Text = $script:BackupContact
+    }
+    if (![string]::IsNullOrEmpty($script:BackupEngineerEmail)) {
+        $txtBackupEngineerEmail.Text = $script:BackupEngineerEmail
+    }
+    if (![string]::IsNullOrEmpty($script:BackupEmail)) {
+        $txtBackupEmail.Text = $script:BackupEmail
     }
     if (![string]::IsNullOrEmpty($script:TeamAlias)) {
         $txtTeamAlias.Text = $script:TeamAlias
@@ -2451,6 +2465,7 @@ $script:ConfigSaveTimer.Add_Tick({
     $script:FullName = $txtFullName.Text
     $script:Role = $txtRole.Text
     $script:BackupContact = $txtBackupContact.Text
+    $script:BackupEngineerEmail = $txtBackupEngineerEmail.Text
     $script:TeamAlias = $txtTeamAlias.Text
     $script:SupportLink = $txtSupportLink.Text
     if ($chkOverrideAccount.IsChecked) {
@@ -2864,6 +2879,15 @@ $txtBackupContact.Add_TextChanged({
         Request-DebouncedConfigSave
         & $optionReloadHandler
     })
+$txtBackupEngineerEmail.Add_TextChanged({
+        $script:BackupEngineerEmail = $txtBackupEngineerEmail.Text
+        Request-DebouncedConfigSave
+        & $optionReloadHandler
+    })
+$txtBackupEmail.Add_TextChanged({
+        $script:BackupEmail = $txtBackupEmail.Text
+        Request-DebouncedConfigSave
+    })
 $txtTeamAlias.Add_TextChanged({
         $script:TeamAlias = $txtTeamAlias.Text
         Request-DebouncedConfigSave
@@ -2905,6 +2929,53 @@ $txtAccount.Add_LostFocus({
             & $optionReloadHandler
         }
     })
+
+# ===================== Template Editor: Auto-Save and Live Preview =====================
+# Debounced timer for template auto-save and preview refresh.
+# Updates preview in real-time and saves the current template after user stops editing.
+$script:TemplateEditTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:TemplateEditTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+$script:TemplateEditTimer.Add_Tick({
+    $timer = $this
+    if ($null -ne $timer) {
+        try { $timer.Stop() } catch { }
+    }
+    
+    # Update preview in real-time
+    $html = $txtMessage.Text
+    if ([string]::IsNullOrWhiteSpace($html)) {
+        $html = "<html><body><p style='color:#888;font-family:Segoe UI;'>No message to preview.</p></body></html>"
+    }
+    # Only update preview if we're on the Preview tab to avoid unnecessary rendering
+    if ($tcMessageView.SelectedIndex -eq 1) {
+        $wbPreview.NavigateToString($html)
+    }
+    
+    # Auto-save the current template
+    $selected = $cmbTemplate.SelectedItem.Content
+    if ($selected -and $selected -ne "Custom..." -and $selected -ne "") {
+        $path = Resolve-TemplateFilePath $selected
+        if ($path) {
+            try {
+                Export-MessageToFile $path $txtMessage.Text
+                Update-StatusBar "💾 Template '$selected' auto-saved"
+            }
+            catch {
+                # Silently fail on auto-save to avoid interrupting the user
+            }
+        }
+    }
+})
+
+function Request-DebouncedTemplateSave {
+    $script:TemplateEditTimer.Stop()
+    $script:TemplateEditTimer.Start()
+}
+
+# Auto-save and live preview when message text changes
+$txtMessage.Add_TextChanged({
+    Request-DebouncedTemplateSave
+})
 
 # ===================== HTML Formatting Toolbar Handlers =====================
 # Add-HtmlTag: Wrap selected text in an HTML tag, or insert the tag pair at the cursor.

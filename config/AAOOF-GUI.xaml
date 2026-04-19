@@ -1,4 +1,4 @@
-<!-- XamlVersion: 1.9.13 -->
+<!-- XamlVersion: 1.9.15 -->
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Daily OOF - Out of Office Automation" Height="880" Width="820"
@@ -186,6 +186,10 @@
                                     <TextBox x:Name="txtBackupContact" Width="460" FontSize="13" VerticalContentAlignment="Center" Padding="4"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Backup Email:" FontSize="13" VerticalAlignment="Center" Width="80"/>
+                                    <TextBox x:Name="txtBackupEngineerEmail" Width="460" FontSize="13" VerticalContentAlignment="Center" Padding="4"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <TextBlock Text="Team Alias:" FontSize="13" VerticalAlignment="Center" Width="80"/>
                                     <TextBox x:Name="txtTeamAlias" Width="460" FontSize="13" VerticalContentAlignment="Center" Padding="4"/>
                                 </StackPanel>
@@ -359,12 +363,18 @@
                     </StackPanel>
 
                     <GroupBox Grid.Row="1" Header="Template Options" Margin="0,0,0,8" Padding="8,4">
-                        <WrapPanel>
-                            <CheckBox x:Name="chkIncludeSignature" Content="Include Signature" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
-                            <CheckBox x:Name="chkIncludeOfficeHours" Content="Include Office Hours" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
-                            <CheckBox x:Name="chkIncludeWorkDays" Content="Include Work Days" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
-                            <CheckBox x:Name="chkIncludeTimezone" Content="Include Timezone" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
-                        </WrapPanel>
+                        <StackPanel>
+                            <WrapPanel Margin="0,0,0,8">
+                                <CheckBox x:Name="chkIncludeSignature" Content="Include Signature" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                                <CheckBox x:Name="chkIncludeOfficeHours" Content="Include Office Hours" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                                <CheckBox x:Name="chkIncludeWorkDays" Content="Include Work Days" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                                <CheckBox x:Name="chkIncludeTimezone" Content="Include Timezone" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                            </WrapPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Backup Email:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" Width="100"/>
+                                <TextBox x:Name="txtBackupEmail" Width="250" FontSize="13" VerticalContentAlignment="Center" Padding="4" Text=""/>
+                            </StackPanel>
+                        </StackPanel>
                     </GroupBox>
 
                     <TabControl x:Name="tcMessageView" Grid.Row="2" FontSize="12">
