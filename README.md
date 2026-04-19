@@ -346,4 +346,3 @@ Additional files (gitignored):
 
 | File | Purpose |
 |---|---|
-| `AutoReplyConfig.json` | Cached Exchange auto-reply config |

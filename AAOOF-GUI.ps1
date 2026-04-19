@@ -97,7 +97,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.26" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.27" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -673,17 +673,6 @@ function Show-NameInputDialog {
     }
 }
 
-# Get-AutoReplyConfigPath: Return the file path for the local auto-reply config cache.
-function Get-AutoReplyConfigPath {
-    return Join-Path $ConfigDir "AutoReplyConfig.json"
-}
-
-# Save-AutoReplyConfigToFile: Fetch current auto-reply config from Exchange and save to disk.
-function Save-AutoReplyConfigToFile {
-    $AutoReplyConfigPath = Get-AutoReplyConfigPath
-    Get-AutoReplyConfiguration | ConvertTo-Json -Depth 100 | Set-Content $AutoReplyConfigPath
-}
-
 # Get-AutoReplyConfiguration: Retrieve the mailbox auto-reply configuration from Exchange Online.
 function Get-AutoReplyConfiguration {
     return Get-MailboxAutoReplyConfiguration -Identity $script:UserAlias
@@ -710,7 +699,6 @@ function Set-AutoReplyState($State) {
                 -EndTime $schedTimes.EndTime
         }
     }
-    Save-AutoReplyConfigToFile
 }
 
 # Get-AutoReplyScheduleTimes: Calculate OOF start/end times based on shift and work days.
@@ -1077,7 +1065,6 @@ function Set-VacationAutoReply($ReturnDate) {
     $EndTime = $ParsedDate + $script:StartOfShift.TimeOfDay
     $VacationStartTime = Get-LastWorkDayEndOfShift
     Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled" -StartTime $VacationStartTime -EndTime $EndTime
-    Save-AutoReplyConfigToFile
 }
 
 # Disable-VacationAutoReply: Turn off the vacation/extended OOF by setting auto-reply to Disabled.
@@ -1665,21 +1652,7 @@ function Get-DiagnosticsReport {
     # --- OOF State ---
     $lines += "--- OOF State ---"
     $lines += "OOF Reply Enabled : $($script:OOFReplyEnabled)"
-    try {
-        $arcPath = Get-AutoReplyConfigPath
-        if (Test-Path $arcPath) {
-            $arc = Get-Content $arcPath -Raw | ConvertFrom-Json
-            $lines += "AutoReplyState    : $($arc.AutoReplyState)"
-            $lines += "Start Time        : $($arc.StartTime)"
-            $lines += "End Time          : $($arc.EndTime)"
-        }
-        else {
-            $lines += "Cached ARC        : Not found (connect to populate)"
-        }
-    }
-    catch {
-        $lines += "Cached ARC        : Could not read ($($_.Exception.Message))"
-    }
+    $lines += "AutoReply Cache   : Disabled (not persisted to disk)"
     $lines += ""
 
     # --- Scheduled Task ---
