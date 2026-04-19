@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.19" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.20" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -917,21 +917,25 @@ function Get-TemplateWarnings {
     $msg = $txtMessage.Text
     if ([string]::IsNullOrWhiteSpace($msg)) { return $warnings }
 
+    # Resolve placeholders before checking — the editor now holds raw content,
+    # so we must validate the final resolved output, not the raw source.
+    $resolved = Resolve-TemplatePlaceholders $msg
+
     # --- Residual token scan: catch any [TOKEN] that Resolve-TemplatePlaceholders left literal ---
     # (These only remain when the prerequisite value/selection is genuinely missing.)
-    if ($msg -match '\[RETURN DATE\]') {
+    if ($resolved -match '\[RETURN DATE\]') {
         $warnings += "[RETURN DATE] was not replaced — Fix: select a return date in Quick Actions > Vacation OOF."
     }
-    if ($msg -match '\[HOLIDAY NAME\]') {
+    if ($resolved -match '\[HOLIDAY NAME\]') {
         $warnings += "[HOLIDAY NAME] was not replaced — Fix: select a holiday in Quick Actions > Holiday OOF."
     }
-    if ($msg -match '\[SIGNATURE\]') {
+    if ($resolved -match '\[SIGNATURE\]') {
         $warnings += "[SIGNATURE] was not resolved — Fix: ensure Include Signature is checked on the Message Templates tab."
     }
 
     # Catch-all: any remaining [ALL CAPS TOKEN] not already flagged above.
     $knownResiduals = @('RETURN DATE', 'HOLIDAY NAME', 'SIGNATURE')
-    $remaining = [regex]::Matches($msg, '\[[A-Z][A-Z ]+\]') |
+    $remaining = [regex]::Matches($resolved, '\[[A-Z][A-Z ]+\]') |
         ForEach-Object { $_.Value -replace '[\[\]]', '' } | Select-Object -Unique
     foreach ($token in $remaining) {
         if ($token -notin $knownResiduals) {
@@ -939,34 +943,29 @@ function Get-TemplateWarnings {
         }
     }
 
-    # --- Profile advisory checks ---
-    # Each check only fires when BOTH conditions are true:
-    #   1. The config field is blank (so a silent fallback was used during resolution)
-    #   2. The fallback value is present in the message (confirming the placeholder was actually used)
-    # This avoids warning when the user wrote a message that never needed that placeholder.
-
+    # --- Profile advisory checks — run against resolved output ---
     # Full Name: warn only when name was derived from the alias (field was blank)
     if ([string]::IsNullOrWhiteSpace($txtFullName.Text)) {
         $warnings += "Full Name is not set — your name was derived from your account alias. Fix: Configuration > Profile > Full Name."
     }
 
     # Role: fallback is 'member of my team'
-    if ([string]::IsNullOrWhiteSpace($txtRole.Text) -and $msg -match [regex]::Escape('member of my team')) {
+    if ([string]::IsNullOrWhiteSpace($txtRole.Text) -and $resolved -match [regex]::Escape('member of my team')) {
         $warnings += "Role is not set — message is using the generic fallback 'member of my team'. Fix: Configuration > Profile > Role."
     }
 
     # Backup Contact: fallback is 'our support team'
-    if ([string]::IsNullOrWhiteSpace($txtBackupContact.Text) -and $msg -match [regex]::Escape('our support team')) {
+    if ([string]::IsNullOrWhiteSpace($txtBackupContact.Text) -and $resolved -match [regex]::Escape('our support team')) {
         $warnings += "Backup Contact is not set — message is using the generic fallback 'our support team'. Fix: Configuration > Profile > Backup."
     }
 
     # Team Alias: fallback is 'Azure Networking Support'
-    if ([string]::IsNullOrWhiteSpace($txtTeamAlias.Text) -and $msg -match [regex]::Escape('Azure Networking Support')) {
+    if ([string]::IsNullOrWhiteSpace($txtTeamAlias.Text) -and $resolved -match [regex]::Escape('Azure Networking Support')) {
         $warnings += "Team Alias is not set — message is using the default fallback 'Azure Networking Support'. Fix: Configuration > Profile > Team Alias."
     }
 
     # Support Link: fallback is 'AzureBU@microsoft.com'
-    if ([string]::IsNullOrWhiteSpace($txtSupportLink.Text) -and $msg -match [regex]::Escape('AzureBU@microsoft.com')) {
+    if ([string]::IsNullOrWhiteSpace($txtSupportLink.Text) -and $resolved -match [regex]::Escape('AzureBU@microsoft.com')) {
         $warnings += "Support Link is not set — message is using the default fallback 'AzureBU@microsoft.com'. Fix: Configuration > Profile > Support Link."
     }
 
@@ -3127,7 +3126,7 @@ $btnApplyInternal.Add_Click({
             }
             Assert-ExchangeConnection
             Update-StatusBar "Applying internal message..."
-            Set-AutoReplyMessage $txtMessage.Text 'Internal'
+            Set-AutoReplyMessage (Resolve-TemplatePlaceholders $txtMessage.Text) 'Internal'
             Update-StatusBar "Internal message applied"
             Show-InfoDialog "Done" "Internal auto-reply message updated."
         }
@@ -3147,7 +3146,7 @@ $btnApplyExternal.Add_Click({
             }
             Assert-ExchangeConnection
             Update-StatusBar "Applying external message..."
-            Set-AutoReplyMessage $txtMessage.Text 'External'
+            Set-AutoReplyMessage (Resolve-TemplatePlaceholders $txtMessage.Text) 'External'
             Update-StatusBar "External message applied"
             Show-InfoDialog "Done" "External auto-reply message updated."
         }
@@ -3167,7 +3166,7 @@ $btnApplyBoth.Add_Click({
             }
             Assert-ExchangeConnection
             Update-StatusBar "Applying message to both internal and external..."
-            Set-AutoReplyMessage $txtMessage.Text 'Both'
+            Set-AutoReplyMessage (Resolve-TemplatePlaceholders $txtMessage.Text) 'Both'
             Update-StatusBar "Both messages applied"
             Show-InfoDialog "Done" "Internal and External auto-reply messages updated."
         }
