@@ -46,7 +46,7 @@ if ($UseRootConfig) {
 }
 $XamlFile = Join-Path $ConfigDir "AAOOF-GUI.xaml"
 
-# Ensure config directory exists
+# Ensure config directory exists (idempotent safety check).
 if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | Out-Null }
 
 # ===================== Auto-Download Missing Config Files =====================
@@ -171,6 +171,7 @@ if (-not [string]::IsNullOrEmpty(`$inputArg)) { `$argList += `$inputArg }
     return $true
 }
 
+# Get-MissingHeadlessFiles: List required config/template files missing for CLI mode.
 function Get-MissingHeadlessFiles {
     $missing = @()
     if (-not (Test-Path $ConfigFile)) {
@@ -185,6 +186,7 @@ function Get-MissingHeadlessFiles {
     return $missing
 }
 
+# Write-MissingHeadlessFiles: Print missing-file warnings for headless execution.
 function Write-MissingHeadlessFiles {
     $missing = Get-MissingHeadlessFiles
     if ($missing.Count -gt 0) {
@@ -196,6 +198,7 @@ function Write-MissingHeadlessFiles {
     }
 }
 
+# Confirm-HeadlessConfigAvailable: Validate minimum config exists for CLI mode.
 function Confirm-HeadlessConfigAvailable {
     if (-not (Test-Path $ConfigFile)) {
         Write-Host "Configuration file not found: $ConfigFile" -ForegroundColor Red
@@ -660,10 +663,9 @@ function Disable-VacationAutoReply {
     Set-AutoReplyState 'Disabled'
 }
 
-# Register-DailyScheduledTask: Create or update a Windows Scheduled Task named 'AAOOF'
-# that runs this script daily with CLI parameter '1'. Requires the script AAOOF script to be running
-# as Administrator to create a task; shows a friendly error if not elevated. 
-# Daily task does not require admin privileges to run, only to create/update the task registration.
+# Register-DailyScheduledTask: Create or update the 'AAOOF' scheduled task.
+# The task runs this script daily in CLI mode with parameter '1'.
+# Admin rights are required to create/update registration, but not required for task execution.
 function Register-DailyScheduledTask {
     # Check for admin privileges before attempting
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -1627,7 +1629,7 @@ $btnCreateTask.Add_Click({
     }
 })
 
-# Check for Updates: Download the latest script from GitHub if a newer version is available.
+# Check for Updates: If a newer version exists, launch the external updater and prompt for restart.
 $btnCheckForUpdates.Add_Click({
     try {
         Update-StatusBar "Checking for updates..."

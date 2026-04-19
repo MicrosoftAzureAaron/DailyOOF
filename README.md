@@ -9,23 +9,18 @@ A PowerShell WPF GUI application that automates Exchange Online Out of Office (O
 > **Auto-capture (developer/troubleshooting):** Press **F12** inside the app to capture all tab screenshots and save them to the `screenshots/` folder. This is useful for capturing issues or documenting the current state of the application. Only the application window area is captured — no other screen content is included. This feature is **disabled by default**. To enable it, add `"EnableScreenshots": true` to `config/config.json`.
 
 ### Quick Actions
-<!-- TODO: Add screenshot of the Quick Actions tab -->
 ![Quick Actions Tab](screenshots/quick-actions.png)
 
 ### Configuration
-<!-- TODO: Add screenshot of the Configuration tab -->
 ![Configuration Tab](screenshots/configuration.png)
 
 ### Message Templates — Edit
-<!-- TODO: Add screenshot of the Message Templates tab (Edit sub-tab) -->
 ![Message Templates — Edit](screenshots/message-templates-edit.png)
 
 ### Message Templates — Preview
-<!-- TODO: Add screenshot of the Message Templates tab (Preview sub-tab) -->
 ![Message Templates — Preview](screenshots/message-templates-preview.png)
 
 ### Current OOF
-<!-- TODO: Add screenshot of the Current OOF tab -->
 ![Current OOF Tab](screenshots/current-oof.png)
 
 ---
