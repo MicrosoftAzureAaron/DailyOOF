@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.0" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.1" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -559,10 +559,13 @@ function Resolve-UserAlias {
     $script:UserAlias = "$CurrentUser$script:UserAliasSuffix"
 }
 
-# Resolve-NameFromEXO: Query Get-EXOMailbox for DisplayName/FirstName/LastName and
-# populate $script:FullName from the result. Only updates if FullName is currently blank,
-# so manually entered names are always preserved. Also updates the UI field and saves config.
+# Resolve-NameFromEXO: Query Get-EXOMailbox for DisplayName/FirstName/LastName.
+# Only runs when FullName is currently blank (first run or user cleared it).
+# Returns $true if a name was successfully resolved and saved, $false otherwise.
 function Resolve-NameFromEXO {
+    # Skip entirely if a name is already set — never overwrite user-entered values.
+    if (![string]::IsNullOrWhiteSpace($script:FullName)) { return $true }
+
     try {
         $mbx = Get-EXOMailbox -Identity $script:UserAlias -Properties DisplayName, FirstName, LastName -ErrorAction Stop
         $resolved = $null
@@ -572,16 +575,35 @@ function Resolve-NameFromEXO {
         elseif (![string]::IsNullOrWhiteSpace($mbx.FirstName) -or ![string]::IsNullOrWhiteSpace($mbx.LastName)) {
             $resolved = ("$($mbx.FirstName) $($mbx.LastName)").Trim()
         }
-        if (![string]::IsNullOrWhiteSpace($resolved) -and [string]::IsNullOrWhiteSpace($script:FullName)) {
+        if (![string]::IsNullOrWhiteSpace($resolved)) {
             $script:FullName = $resolved
             $txtFullName.Text = $resolved
             Export-AppConfiguration
             Write-Host "Full name resolved from EXO: $resolved" -ForegroundColor Green
+            return $true
         }
+        return $false
     }
     catch {
-        # Non-fatal — name resolution is best-effort
         Write-Host "Could not resolve name from EXO: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# Show-NameInputDialog: Prompt the user to enter their display name manually.
+# Saves the result to config and updates the UI field. Skips silently if the user cancels.
+function Show-NameInputDialog {
+    Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue
+    $input = [Microsoft.VisualBasic.Interaction]::InputBox(
+        "Your display name could not be retrieved from Exchange Online.`n`nEnter your full name for use in OOF message signatures:`n(You can also set this later in Configuration > Profile > Full Name)",
+        "Enter Your Name",
+        ""
+    )
+    if (![string]::IsNullOrWhiteSpace($input)) {
+        $script:FullName = $input.Trim()
+        $txtFullName.Text = $script:FullName
+        Export-AppConfiguration
+        Update-StatusBar "Name saved: $($script:FullName)"
     }
 }
 
@@ -1750,8 +1772,15 @@ $btnConnect.Add_Click({
             }
             catch { }
 
-            # Auto-populate Full Name from EXO mailbox if not already set.
-            try { Resolve-NameFromEXO } catch { }
+            # Auto-populate Full Name from EXO mailbox on first run or when blank.
+            # If EXO lookup fails and name is still blank, prompt the user to enter it.
+            try {
+                $nameResolved = Resolve-NameFromEXO
+                if (-not $nameResolved -and [string]::IsNullOrWhiteSpace($script:FullName)) {
+                    Show-NameInputDialog
+                }
+            }
+            catch { }
 
             Export-AppConfiguration
             Update-StatusBar "Connected as $($script:UserAlias)"
