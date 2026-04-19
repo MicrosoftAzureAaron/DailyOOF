@@ -55,7 +55,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.7.0" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.7.2" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -876,17 +876,47 @@ function Get-DailyScheduledTaskStatus {
             LastRunTime = "-"
             LastResult = "-"
             ScriptPath = "-"
+            Summary = "Task not created yet. Click Create Scheduled Task to register daily automation."
+            SummaryBrush = [System.Windows.Media.Brushes]::DarkOrange
+            CreateButtonLabel = "Create Scheduled Task"
+            CanRunNow = $false
+            CanEnable = $false
+            CanDisable = $false
         }
     }
 
     $taskInfo = Get-ScheduledTaskInfo -TaskName "AAOOF" -ErrorAction SilentlyContinue
+    $state = [string]$task.State
+    $lastResult = if ($taskInfo) { Get-ScheduledTaskResultText $taskInfo.LastTaskResult } else { "-" }
+    $summary = "Task is ready for daily automation."
+    $summaryBrush = [System.Windows.Media.Brushes]::DarkGreen
+
+    if ($state -eq "Running") {
+        $summary = "Task is currently running. Wait for completion before starting it again."
+        $summaryBrush = [System.Windows.Media.Brushes]::DarkOrange
+    }
+    elseif ($state -eq "Disabled") {
+        $summary = "Task is disabled. Enable it to resume automatic runs."
+        $summaryBrush = [System.Windows.Media.Brushes]::DarkOrange
+    }
+    elseif ($taskInfo -and ($taskInfo.LastTaskResult -ne 0) -and ($taskInfo.LastTaskResult -ne 267008) -and ($taskInfo.LastTaskResult -ne 267009)) {
+        $summary = "Last result was $lastResult. Review Task Scheduler if runs are failing."
+        $summaryBrush = [System.Windows.Media.Brushes]::DarkOrange
+    }
+
     return [PSCustomObject]@{
         Exists = $true
-        State = [string]$task.State
+        State = $state
         NextRunTime = if ($taskInfo -and $taskInfo.NextRunTime -and $taskInfo.NextRunTime.Year -gt 1900) { $taskInfo.NextRunTime.ToString("g") } else { "-" }
         LastRunTime = if ($taskInfo -and $taskInfo.LastRunTime -and $taskInfo.LastRunTime.Year -gt 1900) { $taskInfo.LastRunTime.ToString("g") } else { "-" }
-        LastResult = if ($taskInfo) { Get-ScheduledTaskResultText $taskInfo.LastTaskResult } else { "-" }
+        LastResult = $lastResult
         ScriptPath = (Get-ScheduledTaskScriptPath $task)
+        Summary = $summary
+        SummaryBrush = $summaryBrush
+        CreateButtonLabel = "Update Scheduled Task"
+        CanRunNow = ($state -ne "Running" -and $state -ne "Disabled")
+        CanEnable = ($state -eq "Disabled")
+        CanDisable = ($state -ne "Disabled")
     }
 }
 
@@ -907,6 +937,12 @@ function Update-ScheduledTaskStatusUI {
     $txtTaskLastRun.Text = $taskStatus.LastRunTime
     $txtTaskLastResult.Text = $taskStatus.LastResult
     $txtTaskScriptPath.Text = if ([string]::IsNullOrWhiteSpace($taskStatus.ScriptPath)) { "-" } else { $taskStatus.ScriptPath }
+    $txtTaskSummary.Text = $taskStatus.Summary
+    $txtTaskSummary.Foreground = $taskStatus.SummaryBrush
+    $btnCreateTask.Content = $taskStatus.CreateButtonLabel
+    $btnRunTaskNow.IsEnabled = [bool]$taskStatus.CanRunNow
+    $btnEnableTask.IsEnabled = [bool]$taskStatus.CanEnable
+    $btnDisableTask.IsEnabled = [bool]$taskStatus.CanDisable
 }
 
 # Export-AppConfiguration: Persist all global settings to config.json.
@@ -1057,6 +1093,8 @@ $btnStateEnabled = $Window.FindName("btnStateEnabled")
 $btnStateDisabled = $Window.FindName("btnStateDisabled")
 $btnStateScheduled = $Window.FindName("btnStateScheduled")
 $btnCreateTask = $Window.FindName("btnCreateTask")
+$btnEnableTask = $Window.FindName("btnEnableTask")
+$btnDisableTask = $Window.FindName("btnDisableTask")
 $btnRefreshTaskStatus = $Window.FindName("btnRefreshTaskStatus")
 $btnRunTaskNow = $Window.FindName("btnRunTaskNow")
 $btnOpenTaskScheduler = $Window.FindName("btnOpenTaskScheduler")
@@ -1068,6 +1106,7 @@ $txtTaskNextRun = $Window.FindName("txtTaskNextRun")
 $txtTaskLastRun = $Window.FindName("txtTaskLastRun")
 $txtTaskLastResult = $Window.FindName("txtTaskLastResult")
 $txtTaskScriptPath = $Window.FindName("txtTaskScriptPath")
+$txtTaskSummary = $Window.FindName("txtTaskSummary")
 $txtLocalVersion = $Window.FindName("txtLocalVersion")
 $txtRemoteVersion = $Window.FindName("txtRemoteVersion")
 
@@ -1846,11 +1885,13 @@ $btnStateScheduled.Add_Click({
 # Create Scheduled Task: Register a Windows Task Scheduler job to run this script daily.
 $btnCreateTask.Add_Click({
         try {
+            $existingTask = Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue
             Assert-ConfigurationValid -RequireShiftTimes -RequireWorkDays -RequireOverrideEmail -RequireTaskOffset
             $taskScriptPath = Register-DailyScheduledTask
             if ($taskScriptPath) {
                 Update-ScheduledTaskStatusUI
-                Show-InfoDialog "Success" "Scheduled task 'AAOOF' created/updated successfully.`n`nScript path:`n$taskScriptPath"
+                $taskAction = if ($null -eq $existingTask) { "created" } else { "updated" }
+                Show-InfoDialog "Success" "Scheduled task 'AAOOF' $taskAction successfully.`n`nScript path:`n$taskScriptPath"
                 Update-StatusBar "Scheduled task ready"
             }
         }
@@ -1879,6 +1920,12 @@ $btnRunTaskNow.Add_Click({
             if ($null -eq $task) {
                 throw "Scheduled task 'AAOOF' has not been created yet."
             }
+            if ([string]$task.State -eq "Disabled") {
+                throw "Scheduled task 'AAOOF' is disabled. Enable it before running it manually."
+            }
+            if ([string]$task.State -eq "Running") {
+                throw "Scheduled task 'AAOOF' is already running."
+            }
             Start-ScheduledTask -TaskName "AAOOF" -ErrorAction Stop
             Update-ScheduledTaskStatusUI
             Update-StatusBar "Scheduled task started"
@@ -1887,6 +1934,40 @@ $btnRunTaskNow.Add_Click({
         catch {
             Show-ErrorDialog "Task Error" "Could not start scheduled task.`n`n$($_.Exception.Message)"
             Update-StatusBar "Task start failed"
+        }
+    })
+
+# Enable Task: Re-enable the AAOOF scheduled task without recreating it.
+$btnEnableTask.Add_Click({
+        try {
+            $task = Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue
+            if ($null -eq $task) {
+                throw "Scheduled task 'AAOOF' has not been created yet."
+            }
+            Enable-ScheduledTask -TaskName "AAOOF" -ErrorAction Stop | Out-Null
+            Update-ScheduledTaskStatusUI
+            Update-StatusBar "Scheduled task enabled"
+        }
+        catch {
+            Show-ErrorDialog "Task Error" "Could not enable scheduled task.`n`n$($_.Exception.Message)"
+            Update-StatusBar "Task enable failed"
+        }
+    })
+
+# Disable Task: Pause the AAOOF scheduled task without deleting it.
+$btnDisableTask.Add_Click({
+        try {
+            $task = Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue
+            if ($null -eq $task) {
+                throw "Scheduled task 'AAOOF' has not been created yet."
+            }
+            Disable-ScheduledTask -TaskName "AAOOF" -ErrorAction Stop | Out-Null
+            Update-ScheduledTaskStatusUI
+            Update-StatusBar "Scheduled task disabled"
+        }
+        catch {
+            Show-ErrorDialog "Task Error" "Could not disable scheduled task.`n`n$($_.Exception.Message)"
+            Update-StatusBar "Task disable failed"
         }
     })
 

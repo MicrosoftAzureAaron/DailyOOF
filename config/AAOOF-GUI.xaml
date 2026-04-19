@@ -268,6 +268,7 @@
                                     <TextBlock Text="Start Offset (min):" FontSize="13" VerticalAlignment="Center" Width="120"/>
                                     <TextBox x:Name="txtTaskOffsetMinutes" Width="70" FontSize="13" VerticalContentAlignment="Center" Padding="4" Text="15"/>
                                 </StackPanel>
+                                <TextBlock x:Name="txtTaskSummary" Text="Task status not checked yet." FontSize="12" Foreground="#555" Margin="0,0,0,8" TextWrapping="Wrap"/>
                                 <Border Background="#F7F7F7" BorderBrush="#D0D0D0" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
@@ -300,6 +301,8 @@
                                     Text="Note: You must run this script as Administrator before clicking Create/Update Scheduled Task."/>
                                 <WrapPanel>
                                     <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}"/>
+                                    <Button x:Name="btnEnableTask" Content="Enable Task" Style="{StaticResource SecondaryBtn}"/>
+                                    <Button x:Name="btnDisableTask" Content="Disable Task" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnRefreshTaskStatus" Content="Refresh Task Status" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnRunTaskNow" Content="Run Task Now" Style="{StaticResource SecondaryBtn}"/>
                                     <Button x:Name="btnOpenTaskScheduler" Content="Open Task Scheduler" Style="{StaticResource SecondaryBtn}"/>
