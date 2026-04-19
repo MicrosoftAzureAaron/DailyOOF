@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.11" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.12" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -956,14 +956,14 @@ function Get-TemplateWarnings {
         $warnings += "Backup Contact is not set — message is using the generic fallback 'our support team'. Fix: Configuration > Profile > Backup."
     }
 
-    # Team Alias: fallback is 'our team'
-    if ([string]::IsNullOrWhiteSpace($txtTeamAlias.Text) -and $msg -match [regex]::Escape('our team')) {
-        $warnings += "Team Alias is not set — message is using the generic fallback 'our team'. Fix: Configuration > Profile > Team Alias."
+    # Team Alias: fallback is 'Azure Networking Support'
+    if ([string]::IsNullOrWhiteSpace($txtTeamAlias.Text) -and $msg -match [regex]::Escape('Azure Networking Support')) {
+        $warnings += "Team Alias is not set — message is using the default fallback 'Azure Networking Support'. Fix: Configuration > Profile > Team Alias."
     }
 
-    # Support Link: fallback is 'https://support.microsoft.com'
-    if ([string]::IsNullOrWhiteSpace($txtSupportLink.Text) -and $msg -match [regex]::Escape('https://support.microsoft.com')) {
-        $warnings += "Support Link is not set — message is using the generic fallback URL. Fix: Configuration > Profile > Support Link."
+    # Support Link: fallback is 'AzureBU@microsoft.com'
+    if ([string]::IsNullOrWhiteSpace($txtSupportLink.Text) -and $msg -match [regex]::Escape('AzureBU@microsoft.com')) {
+        $warnings += "Support Link is not set — message is using the default fallback 'AzureBU@microsoft.com'. Fix: Configuration > Profile > Support Link."
     }
 
     # Account email: genuinely blocking — [EMAIL] and signature links will be blank
@@ -1954,8 +1954,8 @@ function Resolve-TemplatePlaceholders($text) {
 
     # Replace 1.8.0 contact placeholders with configured values or safe defaults.
     $backupContact = if (![string]::IsNullOrWhiteSpace($txtBackupContact.Text)) { $txtBackupContact.Text } else { 'our support team' }
-    $teamAlias = if (![string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) { $txtTeamAlias.Text } else { 'our team' }
-    $supportLink = if (![string]::IsNullOrWhiteSpace($txtSupportLink.Text)) { $txtSupportLink.Text } else { 'https://support.microsoft.com' }
+    $teamAlias = if (![string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) { $txtTeamAlias.Text } else { 'Azure Networking Support' }
+    $supportLink = if (![string]::IsNullOrWhiteSpace($txtSupportLink.Text)) { $txtSupportLink.Text } else { 'AzureBU@microsoft.com' }
     $text = $text -replace '\[BACKUP CONTACT\]', $backupContact
     $text = $text -replace '\[TEAM ALIAS\]', $teamAlias
     $text = $text -replace '\[SUPPORT LINK\]', $supportLink
