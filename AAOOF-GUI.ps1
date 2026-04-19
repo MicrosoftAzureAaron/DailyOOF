@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.8.7" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.8.8" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -740,54 +740,66 @@ function Get-USFederalHolidays {
     return $holidays
 }
 
-# Get-TemplateWarnings: Check the current editor message for unresolved placeholders.
+# Get-TemplateWarnings: Check for unresolved placeholders and missing profile config.
+# Returns an array of user-facing warning strings with fix guidance.
 function Get-TemplateWarnings {
     $warnings = @()
     $msg = $txtMessage.Text
     if ([string]::IsNullOrWhiteSpace($msg)) { return $warnings }
+
+    # --- Residual token scan: catch any [TOKEN] that Resolve-TemplatePlaceholders left literal ---
+    # (These only remain when the prerequisite value/selection is genuinely missing.)
     if ($msg -match '\[RETURN DATE\]') {
-        $warnings += "No return date selected \u2014 '[RETURN DATE]' will appear as literal text in the email."
+        $warnings += "[RETURN DATE] was not replaced — Fix: select a return date in Quick Actions > Vacation OOF."
     }
     if ($msg -match '\[HOLIDAY NAME\]') {
-        $warnings += "No holiday selected \u2014 '[HOLIDAY NAME]' will appear as literal text in the email."
-    }
-    if ($msg -match '\[ROLE\]') {
-        $warnings += "Role not configured \u2014 '[ROLE]' will appear as literal text in the email."
-    }
-    if ($msg -match '\[BACKUP CONTACT\]' -and [string]::IsNullOrWhiteSpace($txtBackupContact.Text)) {
-        $warnings += "Backup contact not configured \u2014 '[BACKUP CONTACT]' will appear as literal text in the email."
-    }
-    if ($msg -match '\[TEAM ALIAS\]' -and [string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) {
-        $warnings += "Team alias not configured \u2014 '[TEAM ALIAS]' will appear as literal text in the email."
-    }
-    if ($msg -match '\[SUPPORT LINK\]' -and [string]::IsNullOrWhiteSpace($txtSupportLink.Text)) {
-        $warnings += "Support link not configured \u2014 '[SUPPORT LINK]' will appear as literal text in the email."
+        $warnings += "[HOLIDAY NAME] was not replaced — Fix: select a holiday in Quick Actions > Holiday OOF."
     }
     if ($msg -match '\[SIGNATURE\]') {
-        $warnings += "Signature was not resolved \u2014 '[SIGNATURE]' will appear as literal text in the email."
+        $warnings += "[SIGNATURE] was not resolved — Fix: ensure Include Signature is checked on the Message Templates tab."
     }
-    if ($msg -match '\[FULL NAME\]') {
-        $warnings += "Full name not resolved \u2014 '[FULL NAME]' will appear as literal text in the email."
+
+    # Catch-all: any remaining [ALL CAPS TOKEN] not already flagged above.
+    $knownResiduals = @('RETURN DATE', 'HOLIDAY NAME', 'SIGNATURE')
+    $remaining = [regex]::Matches($msg, '\[[A-Z][A-Z ]+\]') |
+        ForEach-Object { $_.Value -replace '[\[\]]', '' } | Select-Object -Unique
+    foreach ($token in $remaining) {
+        if ($token -notin $knownResiduals) {
+            $warnings += "[$token] was not replaced — check Configuration or remove this placeholder from the message."
+        }
     }
-    if ($msg -match '\[FIRST NAME\]') {
-        $warnings += "First name not resolved \u2014 '[FIRST NAME]' will appear as literal text in the email."
+
+    # --- Profile advisory checks: warn when key config fields are using silent fallback values ---
+    # These fire regardless of message content so the user knows their config is incomplete.
+    if ([string]::IsNullOrWhiteSpace($txtFullName.Text)) {
+        $warnings += "Full Name is not set — your name will be derived from your account alias. Fix: Configuration > Profile > Full Name."
     }
-    if ($msg -match '\[LAST NAME\]') {
-        $warnings += "Last name not resolved \u2014 '[LAST NAME]' will appear as literal text in the email."
+    if ([string]::IsNullOrWhiteSpace($txtRole.Text)) {
+        $warnings += "Role is not set — message will use a generic fallback. Fix: Configuration > Profile > Role."
     }
-    if ($msg -match '\[EMAIL\]') {
-        $warnings += "Email not resolved \u2014 '[EMAIL]' will appear as literal text in the email."
+    if ([string]::IsNullOrWhiteSpace($txtBackupContact.Text)) {
+        $warnings += "Backup Contact is not set — message will use a generic fallback. Fix: Configuration > Profile > Backup."
     }
-    if ($msg -match '\[OFFICE HOURS\]') {
-        $warnings += "Office hours not resolved \u2014 '[OFFICE HOURS]' will appear as literal text in the email."
+    if ([string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) {
+        $warnings += "Team Alias is not set — message will use a generic fallback. Fix: Configuration > Profile > Team Alias."
     }
-    if ($msg -match '\[WORK DAYS\]') {
-        $warnings += "Work days not resolved \u2014 '[WORK DAYS]' will appear as literal text in the email."
+    if ([string]::IsNullOrWhiteSpace($txtSupportLink.Text)) {
+        $warnings += "Support Link is not set — message will use a generic fallback. Fix: Configuration > Profile > Support Link."
     }
-    if ($msg -match '\[TIMEZONE\]') {
-        $warnings += "Timezone not resolved \u2014 '[TIMEZONE]' will appear as literal text in the email."
+    if ([string]::IsNullOrWhiteSpace($script:UserAlias)) {
+        $warnings += "Account email is not set — [EMAIL] and signature link will be blank. Fix: Quick Actions > Account."
     }
+
     return $warnings
+}
+
+# Show-TemplateWarningDialog: Present placeholder/config warnings before applying a message.
+# Returns 'Yes' if the user chooses to proceed, 'No' otherwise.
+function Show-TemplateWarningDialog {
+    param([string[]]$Warnings)
+    $numbered = ($Warnings | ForEach-Object { $i = 1 } { "  $i. $_"; $i++ })
+    $body = "Review the following before applying:`n`n$($numbered -join "`n")`n`nApply the message anyway?"
+    return [System.Windows.MessageBox]::Show($body, "Template Warnings ($($Warnings.Count))", 'YesNo', 'Warning')
 }
 
 # Export-MessageToFile: Write an HTML message body to disk.
@@ -2592,8 +2604,7 @@ $btnApplyInternal.Add_Click({
             }
             $warnings = Get-TemplateWarnings
             if ($warnings.Count -gt 0) {
-                $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
-                if ($result -ne 'Yes') { return }
+                if ((Show-TemplateWarningDialog $warnings) -ne 'Yes') { return }
             }
             Assert-ExchangeConnection
             Update-StatusBar "Applying internal message..."
@@ -2613,8 +2624,7 @@ $btnApplyExternal.Add_Click({
             }
             $warnings = Get-TemplateWarnings
             if ($warnings.Count -gt 0) {
-                $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
-                if ($result -ne 'Yes') { return }
+                if ((Show-TemplateWarningDialog $warnings) -ne 'Yes') { return }
             }
             Assert-ExchangeConnection
             Update-StatusBar "Applying external message..."
@@ -2634,8 +2644,7 @@ $btnApplyBoth.Add_Click({
             }
             $warnings = Get-TemplateWarnings
             if ($warnings.Count -gt 0) {
-                $result = [System.Windows.MessageBox]::Show("The following issues were found:`n`n$($warnings -join "`n")`n`nApply anyway?", "Template Warnings", 'YesNo', 'Warning')
-                if ($result -ne 'Yes') { return }
+                if ((Show-TemplateWarningDialog $warnings) -ne 'Yes') { return }
             }
             Assert-ExchangeConnection
             Update-StatusBar "Applying message to both internal and external..."
