@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.5" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.6" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -887,6 +887,11 @@ function Get-USFederalHolidays {
 
 # Get-TemplateWarnings: Check for unresolved placeholders and missing profile config.
 # Returns an array of user-facing warning strings with fix guidance.
+#
+# Profile advisory warnings (Role, Backup Contact, etc.) only fire when the config field is
+# blank AND the message still contains the silent fallback string that Resolve-TemplatePlaceholders
+# inserted. This prevents false positives when the user's template never used that placeholder,
+# or when the user has deliberately written a message that doesn't rely on those fields.
 function Get-TemplateWarnings {
     $warnings = @()
     $msg = $txtMessage.Text
@@ -914,23 +919,38 @@ function Get-TemplateWarnings {
         }
     }
 
-    # --- Profile advisory checks: warn when key config fields are using silent fallback values ---
-    # These fire regardless of message content so the user knows their config is incomplete.
+    # --- Profile advisory checks ---
+    # Each check only fires when BOTH conditions are true:
+    #   1. The config field is blank (so a silent fallback was used during resolution)
+    #   2. The fallback value is present in the message (confirming the placeholder was actually used)
+    # This avoids warning when the user wrote a message that never needed that placeholder.
+
+    # Full Name: warn only when name was derived from the alias (field was blank)
     if ([string]::IsNullOrWhiteSpace($txtFullName.Text)) {
-        $warnings += "Full Name is not set — your name will be derived from your account alias. Fix: Configuration > Profile > Full Name."
+        $warnings += "Full Name is not set — your name was derived from your account alias. Fix: Configuration > Profile > Full Name."
     }
-    if ([string]::IsNullOrWhiteSpace($txtRole.Text)) {
-        $warnings += "Role is not set — message will use a generic fallback. Fix: Configuration > Profile > Role."
+
+    # Role: fallback is 'member of my team'
+    if ([string]::IsNullOrWhiteSpace($txtRole.Text) -and $msg -match [regex]::Escape('member of my team')) {
+        $warnings += "Role is not set — message is using the generic fallback 'member of my team'. Fix: Configuration > Profile > Role."
     }
-    if ([string]::IsNullOrWhiteSpace($txtBackupContact.Text)) {
-        $warnings += "Backup Contact is not set — message will use a generic fallback. Fix: Configuration > Profile > Backup."
+
+    # Backup Contact: fallback is 'our support team'
+    if ([string]::IsNullOrWhiteSpace($txtBackupContact.Text) -and $msg -match [regex]::Escape('our support team')) {
+        $warnings += "Backup Contact is not set — message is using the generic fallback 'our support team'. Fix: Configuration > Profile > Backup."
     }
-    if ([string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) {
-        $warnings += "Team Alias is not set — message will use a generic fallback. Fix: Configuration > Profile > Team Alias."
+
+    # Team Alias: fallback is 'our team'
+    if ([string]::IsNullOrWhiteSpace($txtTeamAlias.Text) -and $msg -match [regex]::Escape('our team')) {
+        $warnings += "Team Alias is not set — message is using the generic fallback 'our team'. Fix: Configuration > Profile > Team Alias."
     }
-    if ([string]::IsNullOrWhiteSpace($txtSupportLink.Text)) {
-        $warnings += "Support Link is not set — message will use a generic fallback. Fix: Configuration > Profile > Support Link."
+
+    # Support Link: fallback is 'https://support.microsoft.com'
+    if ([string]::IsNullOrWhiteSpace($txtSupportLink.Text) -and $msg -match [regex]::Escape('https://support.microsoft.com')) {
+        $warnings += "Support Link is not set — message is using the generic fallback URL. Fix: Configuration > Profile > Support Link."
     }
+
+    # Account email: genuinely blocking — [EMAIL] and signature links will be blank
     if ([string]::IsNullOrWhiteSpace($script:UserAlias)) {
         $warnings += "Account email is not set — [EMAIL] and signature link will be blank. Fix: Quick Actions > Account."
     }
