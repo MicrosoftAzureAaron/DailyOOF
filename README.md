@@ -84,6 +84,7 @@ The GUI has five tabs:
 | **Full Name** | Your display name for the auto-generated signature. Changes are saved and applied to templates immediately. |
 | **Role** | Your job title, inserted into templates via the `[ROLE]` placeholder. If left blank, templates use "member of my team" instead. |
 | **Backup** | Name or mailbox used by the `[BACKUP CONTACT]` placeholder for escalation coverage. |
+| **Backup Email** | Email address of the backup engineer, used by the `[BACKUP ENGINEER EMAIL]` placeholder. |
 | **Team Alias** | Team name or alias used by the `[TEAM ALIAS]` placeholder. |
 | **Support Link** | URL used by the `[SUPPORT LINK]` placeholder in built-in templates. |
 | **Email Suffix** | Your email domain suffix (default `@microsoft.com`). Combined with your Windows username to form the mailbox identity. |
@@ -132,6 +133,7 @@ You can use the following placeholders anywhere in your HTML templates. They are
 | `[RETURN DATE]` | Selected return date from the date picker |
 | `[HOLIDAY NAME]` | Selected holiday name from the holiday picker |
 | `[BACKUP CONTACT]` | Configured backup contact from Configuration |
+| `[BACKUP ENGINEER EMAIL]` | Configured backup engineer email address from Configuration |
 | `[TEAM ALIAS]` | Configured team alias from Configuration |
 | `[SUPPORT LINK]` | Configured support URL from Configuration |
 | `[SIGNATURE]` | Auto-generated signature block (greeting, name, details, email) |
@@ -164,6 +166,7 @@ A **Template Options** panel lets you toggle which dynamic content is injected i
 | **Apply as Both** | Sets the message for both internal and external |
 | **Save to Template File** | Overwrites the selected template file with the current editor content |
 | **Save Online Msg to File** | Downloads the current live OOF message from Exchange Online and saves it locally |
+| **Backup Message as Template** | Saves the current editor content as a new timestamped backup file (e.g. `backup_2026-04-19_14-30-00.html`) |
 
 ---
 
