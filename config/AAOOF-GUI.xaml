@@ -235,9 +235,46 @@
                             <StackPanel>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#555" Margin="0,0,0,8"
                                     Text="Create a Windows scheduled task to run this script with option 1 (daily auto-reply) 15 minutes after your shift starts."/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Start Offset (min):" FontSize="13" VerticalAlignment="Center" Width="120"/>
+                                    <TextBox x:Name="txtTaskOffsetMinutes" Width="70" FontSize="13" VerticalContentAlignment="Center" Padding="4" Text="15"/>
+                                </StackPanel>
+                                <Border Background="#F7F7F7" BorderBrush="#D0D0D0" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Task Status:" FontSize="12" FontWeight="SemiBold" Width="110"/>
+                                            <TextBlock x:Name="txtTaskExists" Text="Not checked" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Task State:" FontSize="12" Width="110"/>
+                                            <TextBlock x:Name="txtTaskState" Text="-" FontSize="12"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Next Run:" FontSize="12" Width="110"/>
+                                            <TextBlock x:Name="txtTaskNextRun" Text="-" FontSize="12"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Last Run:" FontSize="12" Width="110"/>
+                                            <TextBlock x:Name="txtTaskLastRun" Text="-" FontSize="12"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Last Result:" FontSize="12" Width="110"/>
+                                            <TextBlock x:Name="txtTaskLastResult" Text="-" FontSize="12" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Script Path:" FontSize="12" Width="110"/>
+                                            <TextBlock x:Name="txtTaskScriptPath" Text="-" FontSize="12" TextWrapping="Wrap" Width="520"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
                                 <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#C00" FontStyle="Italic" Margin="0,0,0,6"
                                     Text="Note: You must run this script as Administrator before clicking this button."/>
-                                <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
+                                <WrapPanel>
+                                    <Button x:Name="btnCreateTask" Content="Create Scheduled Task" Style="{StaticResource SecondaryBtn}"/>
+                                    <Button x:Name="btnRefreshTaskStatus" Content="Refresh Task Status" Style="{StaticResource SecondaryBtn}"/>
+                                    <Button x:Name="btnRunTaskNow" Content="Run Task Now" Style="{StaticResource SecondaryBtn}"/>
+                                    <Button x:Name="btnOpenTaskScheduler" Content="Open Task Scheduler" Style="{StaticResource SecondaryBtn}"/>
+                                </WrapPanel>
                             </StackPanel>
                         </GroupBox>
 

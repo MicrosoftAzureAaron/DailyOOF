@@ -55,7 +55,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.6.6" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.7.0" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -226,6 +226,7 @@ $script:EnableTemplateAutoDownload = $true             # Automatically download 
 $script:EnableAutoUpdateCheck = $true                   # Background check for script updates when GUI starts
 $script:EnableAutoUpdateRestart = $false                # Restart the GUI automatically after applying an update
 $script:UseRootConfig = $false                          # Store config.json alongside the script instead of in config/ folder
+$script:TaskStartOffsetMinutes = 15                     # Minutes after shift start to run the daily scheduled task
 
 # Track EXO sync state for status/UI updates.
 $script:IsConnectedToEXO = $false
@@ -257,6 +258,7 @@ function Import-AppConfiguration {
         if ($null -ne $cfg.EnableAutoUpdateCheck) { $script:EnableAutoUpdateCheck = [bool]$cfg.EnableAutoUpdateCheck }
         if ($null -ne $cfg.EnableAutoUpdateRestart) { $script:EnableAutoUpdateRestart = [bool]$cfg.EnableAutoUpdateRestart }
         if ($null -ne $cfg.UseRootConfig) { $script:UseRootConfig = [bool]$cfg.UseRootConfig }
+        if ($null -ne $cfg.TaskStartOffsetMinutes) { $script:TaskStartOffsetMinutes = [int]$cfg.TaskStartOffsetMinutes }
     }
 }
 
@@ -360,6 +362,100 @@ if (!$InputParameter) {
             [System.Windows.MessageBoxImage]::Error
         ) | Out-Null
         exit
+    }
+}
+
+# Test-ValidEmailAddress: Return $true when a mailbox address is syntactically valid.
+function Test-ValidEmailAddress($EmailAddress) {
+    if ([string]::IsNullOrWhiteSpace($EmailAddress)) { return $false }
+    try {
+        [void][System.Net.Mail.MailAddress]::new($EmailAddress)
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+# Get-ConfigurationValidationErrors: Collect user-facing validation errors for key actions.
+function Get-ConfigurationValidationErrors {
+    param(
+        [switch]$RequireShiftTimes,
+        [switch]$RequireWorkDays,
+        [switch]$RequireOverrideEmail,
+        [switch]$RequireFutureReturnDate,
+        [switch]$RequireTaskOffset
+    )
+
+    $errors = @()
+
+    if ($RequireOverrideEmail -and $chkOverrideAccount.IsChecked) {
+        if (-not (Test-ValidEmailAddress $txtAccount.Text)) {
+            $errors += "Override Account must be a valid email address."
+        }
+    }
+
+    if ($RequireShiftTimes) {
+        Read-ShiftTimesFromUI
+        if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) {
+            $errors += "Shift start and end times are required."
+        }
+        elseif ($script:StartOfShift -ge $script:EndOfShift) {
+            $errors += "Shift start must be earlier than shift end."
+        }
+    }
+
+    if ($RequireWorkDays) {
+        $script:WorkDays = Read-WorkDaysFromUI
+        if (-not $script:WorkDays -or $script:WorkDays.Count -eq 0) {
+            $errors += "Select at least one work day."
+        }
+    }
+
+    if ($RequireFutureReturnDate) {
+        if ($null -eq $dpReturnDate.SelectedDate) {
+            $errors += "Please select a return date."
+        }
+        elseif ($dpReturnDate.SelectedDate.Date -lt (Get-Date).Date) {
+            $errors += "Return date cannot be in the past."
+        }
+    }
+
+    if ($RequireTaskOffset) {
+        $parsedOffset = 0
+        if (-not [int]::TryParse($txtTaskOffsetMinutes.Text, [ref]$parsedOffset)) {
+            $errors += "Task start offset must be a whole number of minutes."
+        }
+        elseif ($parsedOffset -lt 0 -or $parsedOffset -gt 180) {
+            $errors += "Task start offset must be between 0 and 180 minutes."
+        }
+        else {
+            $script:TaskStartOffsetMinutes = $parsedOffset
+        }
+    }
+
+    return $errors
+}
+
+# Assert-ConfigurationValid: Throw a single validation error when prerequisites are missing.
+function Assert-ConfigurationValid {
+    param(
+        [switch]$RequireShiftTimes,
+        [switch]$RequireWorkDays,
+        [switch]$RequireOverrideEmail,
+        [switch]$RequireFutureReturnDate,
+        [switch]$RequireTaskOffset
+    )
+
+    $errors = Get-ConfigurationValidationErrors `
+        -RequireShiftTimes:$RequireShiftTimes `
+        -RequireWorkDays:$RequireWorkDays `
+        -RequireOverrideEmail:$RequireOverrideEmail `
+        -RequireFutureReturnDate:$RequireFutureReturnDate `
+        -RequireTaskOffset:$RequireTaskOffset
+
+    if ($errors.Count -gt 0) {
+        throw ($errors -join "`n")
     }
 }
 
@@ -677,10 +773,17 @@ function Disable-VacationAutoReply {
 # The task runs this script daily in CLI mode with parameter '1'.
 # Admin rights are required to create/update registration, but not required for task execution.
 function Register-DailyScheduledTask {
-        # Check elevation before attempting to register or update the task.
+    # Check elevation before attempting to register or update the task.
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
         throw "This action requires Administrator privileges.`n`nPlease close the app and re-run the script as Administrator, then try again."
+    }
+
+    if ($script:StartOfShift -ge $script:EndOfShift) {
+        throw "Shift start must be earlier than shift end before creating the scheduled task."
+    }
+    if (-not $script:WorkDays -or $script:WorkDays.Count -eq 0) {
+        throw "Select at least one work day before creating the scheduled task."
     }
 
     $candidateScriptPaths = @(
@@ -713,7 +816,7 @@ function Register-DailyScheduledTask {
     $action = New-ScheduledTaskAction -Execute $psExe -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" 1" -WorkingDirectory $scriptWorkingDir
     $date = Get-Date -Date (Get-Date).Date
     $TriggerTime = $script:StartOfShift.TimeOfDay
-    $TriggerTime = $date.AddMinutes(15) + $TriggerTime
+    $TriggerTime = $date.AddMinutes($script:TaskStartOffsetMinutes) + $TriggerTime
     $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
 
     $settings = New-ScheduledTaskSettingsSet `
@@ -736,6 +839,76 @@ function Register-DailyScheduledTask {
     return $scriptPath
 }
 
+# Get-ScheduledTaskResultText: Convert common task result codes into readable status text.
+function Get-ScheduledTaskResultText($ResultCode) {
+    switch ([int]$ResultCode) {
+        0 { return "Success (0x0)" }
+        1 { return "Incorrect function (0x1)" }
+        267008 { return "Task is ready to run (0x41300)" }
+        267009 { return "Task is currently running (0x41301)" }
+        267010 { return "Task is disabled (0x41302)" }
+        2147942402 { return "File not found (0x80070002)" }
+        default { return ("0x{0:X}" -f [int]$ResultCode) }
+    }
+}
+
+# Get-ScheduledTaskScriptPath: Extract the configured script path from the scheduled task action.
+function Get-ScheduledTaskScriptPath($Task) {
+    if ($null -eq $Task) { return $null }
+    $action = $Task.Actions | Select-Object -First 1
+    if ($null -eq $action -or [string]::IsNullOrWhiteSpace($action.Arguments)) { return $null }
+
+    $match = [regex]::Match($action.Arguments, '-File\s+"([^"]+)"')
+    if ($match.Success) {
+        return $match.Groups[1].Value
+    }
+    return $null
+}
+
+# Get-DailyScheduledTaskStatus: Return a UI-friendly status object for the AAOOF task.
+function Get-DailyScheduledTaskStatus {
+    $task = Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue
+    if ($null -eq $task) {
+        return [PSCustomObject]@{
+            Exists = $false
+            State = "Not created"
+            NextRunTime = "-"
+            LastRunTime = "-"
+            LastResult = "-"
+            ScriptPath = "-"
+        }
+    }
+
+    $taskInfo = Get-ScheduledTaskInfo -TaskName "AAOOF" -ErrorAction SilentlyContinue
+    return [PSCustomObject]@{
+        Exists = $true
+        State = [string]$task.State
+        NextRunTime = if ($taskInfo -and $taskInfo.NextRunTime -and $taskInfo.NextRunTime.Year -gt 1900) { $taskInfo.NextRunTime.ToString("g") } else { "-" }
+        LastRunTime = if ($taskInfo -and $taskInfo.LastRunTime -and $taskInfo.LastRunTime.Year -gt 1900) { $taskInfo.LastRunTime.ToString("g") } else { "-" }
+        LastResult = if ($taskInfo) { Get-ScheduledTaskResultText $taskInfo.LastTaskResult } else { "-" }
+        ScriptPath = (Get-ScheduledTaskScriptPath $task)
+    }
+}
+
+# Update-ScheduledTaskStatusUI: Refresh the scheduled task section in the Configuration tab.
+function Update-ScheduledTaskStatusUI {
+    $taskStatus = Get-DailyScheduledTaskStatus
+    if ($taskStatus.Exists) {
+        $txtTaskExists.Text = "Created"
+        $txtTaskExists.Foreground = [System.Windows.Media.Brushes]::Green
+    }
+    else {
+        $txtTaskExists.Text = "Not created"
+        $txtTaskExists.Foreground = [System.Windows.Media.Brushes]::DarkOrange
+    }
+
+    $txtTaskState.Text = $taskStatus.State
+    $txtTaskNextRun.Text = $taskStatus.NextRunTime
+    $txtTaskLastRun.Text = $taskStatus.LastRunTime
+    $txtTaskLastResult.Text = $taskStatus.LastResult
+    $txtTaskScriptPath.Text = if ([string]::IsNullOrWhiteSpace($taskStatus.ScriptPath)) { "-" } else { $taskStatus.ScriptPath }
+}
+
 # Export-AppConfiguration: Persist all global settings to config.json.
 function Export-AppConfiguration {
     $startOfShiftStr = $null
@@ -752,6 +925,7 @@ function Export-AppConfiguration {
         FullName        = $script:FullName
         Role            = $script:Role
         OverrideAccount = $script:OverrideAccount
+        TaskStartOffsetMinutes = $script:TaskStartOffsetMinutes
     }
     $cfg | ConvertTo-Json -Depth 5 | Set-Content $ConfigFile -Encoding utf8
 }
@@ -883,7 +1057,17 @@ $btnStateEnabled = $Window.FindName("btnStateEnabled")
 $btnStateDisabled = $Window.FindName("btnStateDisabled")
 $btnStateScheduled = $Window.FindName("btnStateScheduled")
 $btnCreateTask = $Window.FindName("btnCreateTask")
+$btnRefreshTaskStatus = $Window.FindName("btnRefreshTaskStatus")
+$btnRunTaskNow = $Window.FindName("btnRunTaskNow")
+$btnOpenTaskScheduler = $Window.FindName("btnOpenTaskScheduler")
 $btnCheckForUpdates = $Window.FindName("btnCheckForUpdates")
+$txtTaskOffsetMinutes = $Window.FindName("txtTaskOffsetMinutes")
+$txtTaskExists = $Window.FindName("txtTaskExists")
+$txtTaskState = $Window.FindName("txtTaskState")
+$txtTaskNextRun = $Window.FindName("txtTaskNextRun")
+$txtTaskLastRun = $Window.FindName("txtTaskLastRun")
+$txtTaskLastResult = $Window.FindName("txtTaskLastResult")
+$txtTaskScriptPath = $Window.FindName("txtTaskScriptPath")
 $txtLocalVersion = $Window.FindName("txtLocalVersion")
 $txtRemoteVersion = $Window.FindName("txtRemoteVersion")
 
@@ -1042,6 +1226,8 @@ function Initialize-UIFromConfig {
         $chkMon.IsChecked = $true; $chkTue.IsChecked = $true; $chkWed.IsChecked = $true
         $chkThu.IsChecked = $true; $chkFri.IsChecked = $true
     }
+
+    $txtTaskOffsetMinutes.Text = [string]$script:TaskStartOffsetMinutes
 }
 
 # Resolve-TemplateFilePath: Map a template display name to its file path in the config directory.
@@ -1202,6 +1388,14 @@ function Read-ShiftTimesFromUI {
     $script:EndOfShift = [datetime](Get-Date).Date.AddHours($EndHour).AddMinutes($EndMinute)
 }
 
+# Read-TaskSettingsFromUI: Parse scheduled task settings from the Configuration tab.
+function Read-TaskSettingsFromUI {
+    $parsedOffset = 0
+    if ([int]::TryParse($txtTaskOffsetMinutes.Text, [ref]$parsedOffset)) {
+        $script:TaskStartOffsetMinutes = $parsedOffset
+    }
+}
+
 # ===================== Event Handlers =====================
 # Wire up button clicks, checkbox changes, and other UI events to their logic.
 
@@ -1290,10 +1484,7 @@ $btnEnableScheduled.Add_Click({
 # Set Vacation OOF: Configure an extended OOF until the selected return date.
 $btnSetVacation.Add_Click({
         try {
-            if ($null -eq $dpReturnDate.SelectedDate) {
-                Show-ErrorDialog "Missing Date" "Please select a return date."
-                return
-            }
+            Assert-ConfigurationValid -RequireShiftTimes -RequireFutureReturnDate -RequireOverrideEmail
             Assert-ExchangeConnection
             Update-StatusBar "Setting vacation OOF..."
             Read-ShiftTimesFromUI
@@ -1552,21 +1743,23 @@ $script:ConfigSaveTimer.Add_Tick({
     if ($null -ne $timer) {
         try { $timer.Stop() } catch { }
     }
-        $script:FullName = $txtFullName.Text
-        $script:Role = $txtRole.Text
-        if ($chkOverrideAccount.IsChecked) {
-            $script:UserAlias = $txtAccount.Text
-        }
-        else {
-            Resolve-UserAlias
-        }
-        Read-ShiftTimesFromUI
-        $script:WorkDays = Read-WorkDaysFromUI
-        Export-AppConfiguration
-        Update-StatusBar "💾 Settings saved"
-    })
+    $script:FullName = $txtFullName.Text
+    $script:Role = $txtRole.Text
+    if ($chkOverrideAccount.IsChecked) {
+        $script:UserAlias = $txtAccount.Text
+    }
+    else {
+        Resolve-UserAlias
+    }
+    Read-ShiftTimesFromUI
+    Read-TaskSettingsFromUI
+    $script:WorkDays = Read-WorkDaysFromUI
+    Export-AppConfiguration
+    Update-StatusBar "💾 Settings saved"
+})
 
 function Request-DebouncedConfigSave {
+    Read-TaskSettingsFromUI
     $script:ConfigSaveTimer.Stop()
     $script:ConfigSaveTimer.Start()
 }
@@ -1579,6 +1772,7 @@ $cmbStartAmPm.Add_SelectionChanged({ Request-DebouncedConfigSave })
 $cmbEndHour.Add_SelectionChanged({ Request-DebouncedConfigSave })
 $cmbEndMin.Add_SelectionChanged({ Request-DebouncedConfigSave })
 $cmbEndAmPm.Add_SelectionChanged({ Request-DebouncedConfigSave })
+$txtTaskOffsetMinutes.Add_TextChanged({ Request-DebouncedConfigSave })
 $chkSun.Add_Checked({ Request-DebouncedConfigSave }); $chkSun.Add_Unchecked({ Request-DebouncedConfigSave })
 $chkMon.Add_Checked({ Request-DebouncedConfigSave }); $chkMon.Add_Unchecked({ Request-DebouncedConfigSave })
 $chkTue.Add_Checked({ Request-DebouncedConfigSave }); $chkTue.Add_Unchecked({ Request-DebouncedConfigSave })
@@ -1636,6 +1830,7 @@ $btnStateDisabled.Add_Click({
 
 $btnStateScheduled.Add_Click({
         try {
+            Assert-ConfigurationValid -RequireShiftTimes -RequireWorkDays -RequireOverrideEmail
             Assert-ExchangeConnection
             Update-StatusBar "Setting auto reply to Scheduled..."
             Read-ShiftTimesFromUI
@@ -1651,9 +1846,10 @@ $btnStateScheduled.Add_Click({
 # Create Scheduled Task: Register a Windows Task Scheduler job to run this script daily.
 $btnCreateTask.Add_Click({
         try {
-            Read-ShiftTimesFromUI
+            Assert-ConfigurationValid -RequireShiftTimes -RequireWorkDays -RequireOverrideEmail -RequireTaskOffset
             $taskScriptPath = Register-DailyScheduledTask
             if ($taskScriptPath) {
+                Update-ScheduledTaskStatusUI
                 Show-InfoDialog "Success" "Scheduled task 'AAOOF' created/updated successfully.`n`nScript path:`n$taskScriptPath"
                 Update-StatusBar "Scheduled task ready"
             }
@@ -1661,6 +1857,48 @@ $btnCreateTask.Add_Click({
         catch {
             Show-ErrorDialog "Error" "Failed to create task.`n`n$($_.Exception.Message)"
             Update-StatusBar "Task creation failed"
+        }
+    })
+
+# Refresh Task Status: Query the current AAOOF task registration and update the UI.
+$btnRefreshTaskStatus.Add_Click({
+        try {
+            Update-ScheduledTaskStatusUI
+            Update-StatusBar "Scheduled task status refreshed"
+        }
+        catch {
+            Show-ErrorDialog "Task Error" "Could not refresh scheduled task status.`n`n$($_.Exception.Message)"
+            Update-StatusBar "Task status refresh failed"
+        }
+    })
+
+# Run Task Now: Start the registered AAOOF scheduled task immediately.
+$btnRunTaskNow.Add_Click({
+        try {
+            $task = Get-ScheduledTask -TaskName "AAOOF" -ErrorAction SilentlyContinue
+            if ($null -eq $task) {
+                throw "Scheduled task 'AAOOF' has not been created yet."
+            }
+            Start-ScheduledTask -TaskName "AAOOF" -ErrorAction Stop
+            Update-ScheduledTaskStatusUI
+            Update-StatusBar "Scheduled task started"
+            Show-InfoDialog "Task Started" "Scheduled task 'AAOOF' was started successfully."
+        }
+        catch {
+            Show-ErrorDialog "Task Error" "Could not start scheduled task.`n`n$($_.Exception.Message)"
+            Update-StatusBar "Task start failed"
+        }
+    })
+
+# Open Task Scheduler: Launch the Windows Task Scheduler MMC for task review and editing.
+$btnOpenTaskScheduler.Add_Click({
+        try {
+            Start-Process "taskschd.msc"
+            Update-StatusBar "Task Scheduler opened"
+        }
+        catch {
+            Show-ErrorDialog "Task Scheduler Error" "Could not open Task Scheduler.`n`n$($_.Exception.Message)"
+            Update-StatusBar "Task Scheduler open failed"
         }
     })
 
@@ -2113,6 +2351,7 @@ $tcMessageView.Add_SelectionChanged({
 # ===================== Initialize UI =====================
 # Apply saved configuration values to all controls before showing the window.
 Initialize-UIFromConfig
+Update-ScheduledTaskStatusUI
 
 # Populate holiday picker with upcoming US federal holidays
 $today = (Get-Date).Date

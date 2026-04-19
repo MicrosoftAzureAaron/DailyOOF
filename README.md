@@ -2,6 +2,8 @@
 
 A PowerShell WPF GUI application that automates Exchange Online Out of Office (OOF) message management. Built for Azure Support Engineers but usable by anyone with an Exchange Online mailbox.
 
+See [ROADMAP.md](ROADMAP.md) for the planned feature rollout and versioning strategy.
+
 ---
 
 ## Screenshots
@@ -62,7 +64,8 @@ The GUI has four tabs:
 | **Office Hours** | Start and end times for your shift (supports non-hour-boundary times like 8:30). Used for OOF scheduling and the signature's office-hours line. |
 | **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). Days appear in the signature sorted by your work week (e.g., Wed–Sat starts with Wednesday). |
 | **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
-| **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start. **Note:** Run the script as Administrator before clicking this button. |
+| **Scheduled Task** | Create or update the Windows Task Scheduler job used for daily automation. The UI shows task state, next run, last run, last result, and target script path. |
+| **Task Offset** | Sets how many minutes after your shift start the daily scheduled task should run. |
 | **Check for Updates** | Downloads the latest script in a separate process and then prompts you to restart the app. |
 
 ---
@@ -197,6 +200,7 @@ All configuration is stored in the `config/` folder:
 | `StartOfShift` | datetime | — | Configured shift start time |
 | `EndOfShift` | datetime | — | Configured shift end time |
 | `WorkDays` | string[] | — | Array of working day names (e.g. `["Monday","Tuesday"]`) |
+| `TaskStartOffsetMinutes` | int | `15` | How many minutes after shift start the daily scheduled task should run |
 | `EnableScreenshots` | bool | `false` | Enable **F12** to capture screenshots of all tabs to the `screenshots/` folder. Disabled by default to avoid confusing end users. |
 
 Additional files (gitignored):
