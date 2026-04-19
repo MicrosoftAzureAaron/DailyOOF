@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.12" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.13" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1522,6 +1522,7 @@ $btnApplyExternal = $Window.FindName("btnApplyExternal")
 $btnApplyBoth = $Window.FindName("btnApplyBoth")
 $btnSaveTemplate = $Window.FindName("btnSaveTemplate")
 $btnSaveOnlineMsg = $Window.FindName("btnSaveOnlineMsg")
+$btnBackupMessage = $Window.FindName("btnBackupMessage")
 
 # --- Template Options panel controls ---
 $chkIncludeSignature = $Window.FindName("chkIncludeSignature")
@@ -3134,6 +3135,23 @@ $btnSaveOnlineMsg.Add_Click({
         catch {
             Show-ErrorDialog "Error" "Could not fetch message. Are you connected?`n$($_.Exception.Message)"
             Update-StatusBar "Failed to save online message"
+        }
+    })
+
+# Backup Message: Save the current editor content as a new backup template file
+# with a timestamp-based filename (e.g., backup_2024-01-15_14-30-45.html)
+$btnBackupMessage.Add_Click({
+        try {
+            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+            $backupFileName = "backup_$timestamp.html"
+            $backupPath = Join-Path $ConfigDir $backupFileName
+            Export-MessageToFile $backupPath $txtMessage.Text
+            Update-StatusBar "Message backed up to $backupFileName"
+            Show-InfoDialog "Backed Up" "Message saved as template:`n$backupFileName"
+        }
+        catch {
+            Show-ErrorDialog "Error" "Could not backup message.`n$($_.Exception.Message)"
+            Update-StatusBar "Failed to backup message"
         }
     })
 
