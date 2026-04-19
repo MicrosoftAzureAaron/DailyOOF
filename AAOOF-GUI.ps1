@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.6" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.7" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -770,8 +770,14 @@ function Disconnect-ExchangeOnlineSession {
 # Show-ConnectingWindow: Display a small "Connecting..." progress window with a live elapsed
 # timer on a dedicated STA runspace so it keeps updating while the main UI thread is blocked
 # on Connect-ExchangeOnline. Returns a context hashtable to pass to Close-ConnectingWindow.
+# The window includes a Cancel button; check $ctx.SyncHash.Cancelled after Close-ConnectingWindow
+# returns to detect user-requested cancellation.
 function Show-ConnectingWindow {
-    $syncHash = [System.Collections.Hashtable]::Synchronized(@{ Done = $false; Window = $null })
+    $syncHash = [System.Collections.Hashtable]::Synchronized(@{
+        Done      = $false
+        Cancelled = $false
+        Window    = $null
+    })
 
     $runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
     $runspace.ApartmentState = [System.Threading.ApartmentState]::STA
@@ -785,21 +791,30 @@ function Show-ConnectingWindow {
         Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue
         $xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="Connecting" Width="320" Height="115"
+        Title="Connecting" Width="320" Height="150"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         WindowStyle="ToolWindow" Topmost="True">
     <StackPanel Margin="20" VerticalAlignment="Center">
         <TextBlock Text="Connecting to Exchange Online..." FontSize="13"
                    HorizontalAlignment="Center" TextWrapping="Wrap"/>
         <TextBlock Name="lblElapsed" Text="0s elapsed" FontSize="11" Foreground="Gray"
-                   HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                   HorizontalAlignment="Center" Margin="0,8,0,12"/>
+        <Button Name="btnCancel" Content="Cancel" Width="90" HorizontalAlignment="Center"
+                Padding="8,4" FontSize="12"/>
     </StackPanel>
 </Window>
 '@
         $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
         $win    = [System.Windows.Markup.XamlReader]::Load($reader)
         $lbl    = $win.FindName('lblElapsed')
+        $btn    = $win.FindName('btnCancel')
         $syncHash.Window = $win
+
+        $btn.Add_Click({
+            $syncHash.Cancelled = $true
+            $syncHash.Done      = $true
+            $win.Close()
+        })
 
         $startTime = [datetime]::Now
         $timer = New-Object System.Windows.Threading.DispatcherTimer
@@ -2047,6 +2062,13 @@ $btnConnect.Add_Click({
             }
             finally {
                 Close-ConnectingWindow $connectCtx
+            }
+            # If the user hit Cancel during auth, abandon the connect flow gracefully.
+            if ($connectCtx.SyncHash.Cancelled) {
+                Update-ConnectionUiState -State Disconnected
+                try { Disconnect-ExchangeOnlineSession } catch {}
+                Update-StatusBar "Connection cancelled"
+                return
             }
             Update-ConnectionUiState -State Connected
 
