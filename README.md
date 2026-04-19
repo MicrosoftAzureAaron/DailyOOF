@@ -16,6 +16,9 @@ See [ROADMAP.md](ROADMAP.md) for the planned feature rollout and versioning stra
 ### Configuration
 ![Configuration Tab](screenshots/configuration.png)
 
+### Automation
+![Automation Tab](screenshots/automation.png)
+
 ### Message Templates — Edit
 ![Message Templates — Edit](screenshots/message-templates-edit.png)
 
