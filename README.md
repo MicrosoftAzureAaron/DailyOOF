@@ -46,12 +46,14 @@ Launch the standalone portable script for state-only management:
 .\AAOOF-Portable.ps1
 ```
 
-Portable versioning is independent from the main GUI script and starts at `1.0.0`.
+Portable versioning is independent from the main GUI script. Current portable version: `1.1.0`.
 
 Portable mode scope:
 - Manages only auto-reply state (Enabled / Disabled / Scheduled)
 - Does not include template editing or message apply flows
 - Does not include scheduled task automation management
+- Auto-detects the mailbox from your Windows login and email domain when possible
+- Prompts to install the ExchangeOnlineManagement module if it is missing
 - Message content should be managed in Outlook or Outlook on the web
 
 The GUI has five tabs:
@@ -217,6 +219,7 @@ On first run the script creates a `config\` subfolder next to itself and downloa
 #### Standalone portable script
 
 The portable script is fully self-contained — no `config\` folder or templates required.
+It auto-fills your mailbox address when possible and prompts to install ExchangeOnlineManagement on first connect if needed.
 
 ```powershell
 # Download to your home directory
