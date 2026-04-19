@@ -13,6 +13,13 @@
     - '1'          : Run daily scheduled OOF update (for use with Windows Task Scheduler).
     - A date string: Set vacation OOF until the specified return date.
 
+.PARAMETER VersionInfo
+    Show version information and exit:
+    - Local script version.
+    - Current GitHub version from the update URL.
+
+    Aliases: -v, -version
+
 .NOTES
     Requires : ExchangeOnlineManagement module (prompted to install if missing).
     Config   : config/config.json (auto-created, .gitignored).
@@ -21,6 +28,8 @@
 #>
 param(
     [string]$InputParameter,
+    [Alias('v', 'version')]
+    [switch]$VersionInfo,
     [switch]$DisableTemplateAutoDownload,
     [switch]$DisableAutoUpdate,
     [switch]$DisableAutoUpdateRestart,
@@ -295,6 +304,19 @@ if ($UseRootConfig) {
 }
 if ($startupSwitchesApplied) {
     Export-AppConfiguration
+}
+
+# CLI version output mode: print local and GitHub versions, then exit without launching GUI.
+if ($VersionInfo) {
+    $remoteVer = Get-RemoteScriptVersion
+    Write-Host "Local version : v$($script:ScriptVersion)"
+    if ($remoteVer -eq 'unknown') {
+        Write-Host "GitHub version: unknown (could not reach update URL)" -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "GitHub version: v$remoteVer"
+    }
+    exit 0
 }
 
 # Test-IsAdmin: Return $true when the current process is elevated.
