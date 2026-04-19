@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.8" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.9" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -614,13 +614,13 @@ function Resolve-ProfileFromEXO {
 # Saves the result to config and updates the UI field. Skips silently if the user cancels.
 function Show-NameInputDialog {
     Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue
-    $input = [Microsoft.VisualBasic.Interaction]::InputBox(
+    $nameInput = [Microsoft.VisualBasic.Interaction]::InputBox(
         "Your display name could not be retrieved from Exchange Online.`n`nEnter your full name for use in OOF message signatures:`n(You can also set this later in Configuration > Profile > Full Name)",
         "Enter Your Name",
         ""
     )
-    if (![string]::IsNullOrWhiteSpace($input)) {
-        $script:FullName = $input.Trim()
+    if (![string]::IsNullOrWhiteSpace($nameInput)) {
+        $script:FullName = $nameInput.Trim()
         $txtFullName.Text = $script:FullName
         Export-AppConfiguration
         Update-StatusBar "Name saved: $($script:FullName)"
@@ -977,7 +977,9 @@ function Get-TemplateWarnings {
 # Returns 'Yes' if the user chooses to proceed, 'No' otherwise.
 function Show-TemplateWarningDialog {
     param([string[]]$Warnings)
-    $numbered = ($Warnings | ForEach-Object { $i = 1 } { "  $i. $_"; $i++ })
+    $numbered = for ($index = 0; $index -lt $Warnings.Count; $index++) {
+        "  $($index + 1). $($Warnings[$index])"
+    }
     $body = "Review the following before applying:`n`n$($numbered -join "`n")`n`nApply the message anyway?"
     return [System.Windows.MessageBox]::Show($body, "Template Warnings ($($Warnings.Count))", 'YesNo', 'Warning')
 }
@@ -1445,21 +1447,6 @@ $btnViewCurrentMsg.Height = $quickStatusButtonHeight
 $btnRefreshStatus.Margin = $quickStatusButtonMargin
 $btnViewCurrentMsg.Margin = $quickStatusButtonMargin
 
-# Keep the update/diagnostics action buttons visually identical even when older XAML is present.
-$updateActionButtonWidth = 180
-$updateActionButtonHeight = 36
-$updateActionButtonMargin = [System.Windows.Thickness]::new(4)
-$btnCheckForUpdates.Width = $updateActionButtonWidth
-$btnExportDiagnostics.Width = $updateActionButtonWidth
-$btnCheckForUpdates.MinWidth = $updateActionButtonWidth
-$btnExportDiagnostics.MinWidth = $updateActionButtonWidth
-$btnCheckForUpdates.MaxWidth = $updateActionButtonWidth
-$btnExportDiagnostics.MaxWidth = $updateActionButtonWidth
-$btnCheckForUpdates.Height = $updateActionButtonHeight
-$btnExportDiagnostics.Height = $updateActionButtonHeight
-$btnCheckForUpdates.Margin = $updateActionButtonMargin
-$btnExportDiagnostics.Margin = $updateActionButtonMargin
-
 # --- Configuration and Automation tab controls ---
 $txtFullName = $Window.FindName("txtFullName")
 $txtRole = $Window.FindName("txtRole")
@@ -1504,6 +1491,25 @@ $txtTaskScriptPath = $Window.FindName("txtTaskScriptPath")
 $txtTaskSummary = $Window.FindName("txtTaskSummary")
 $txtLocalVersion = $Window.FindName("txtLocalVersion")
 $txtRemoteVersion = $Window.FindName("txtRemoteVersion")
+
+# Keep the update/diagnostics action buttons visually identical even when older XAML is present.
+$updateActionButtonWidth = 180
+$updateActionButtonHeight = 36
+$updateActionButtonMargin = [System.Windows.Thickness]::new(4)
+if ($null -ne $btnCheckForUpdates) {
+    $btnCheckForUpdates.Width = $updateActionButtonWidth
+    $btnCheckForUpdates.MinWidth = $updateActionButtonWidth
+    $btnCheckForUpdates.MaxWidth = $updateActionButtonWidth
+    $btnCheckForUpdates.Height = $updateActionButtonHeight
+    $btnCheckForUpdates.Margin = $updateActionButtonMargin
+}
+if ($null -ne $btnExportDiagnostics) {
+    $btnExportDiagnostics.Width = $updateActionButtonWidth
+    $btnExportDiagnostics.MinWidth = $updateActionButtonWidth
+    $btnExportDiagnostics.MaxWidth = $updateActionButtonWidth
+    $btnExportDiagnostics.Height = $updateActionButtonHeight
+    $btnExportDiagnostics.Margin = $updateActionButtonMargin
+}
 
 # --- Message Templates tab controls ---
 $cmbTemplate = $Window.FindName("cmbTemplate")
@@ -2680,14 +2686,16 @@ $btnCheckForUpdates.Add_Click({
     })
 
 # Export Diagnostics: Build and display a full app state snapshot.
-$btnExportDiagnostics.Add_Click({
-    try {
-        Show-DiagnosticsDialog
-    }
-    catch {
-        Show-ErrorDialog "Diagnostics Error" $_.Exception.Message
-    }
-})
+if ($null -ne $btnExportDiagnostics) {
+    $btnExportDiagnostics.Add_Click({
+        try {
+            Show-DiagnosticsDialog
+        }
+        catch {
+            Show-ErrorDialog "Diagnostics Error" $_.Exception.Message
+        }
+    })
+}
 
 # Populate dynamic items: When the template dropdown opens, scan the config directory
 # for backup files, saved messages, and custom_*.html files and insert them dynamically.
