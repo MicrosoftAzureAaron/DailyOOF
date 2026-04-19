@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.5.5" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.5.6" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -75,7 +75,7 @@ foreach ($fileName in $DefaultConfigFiles) {
         }
         $url = "$RepoBaseUrl/$fileName"
         try {
-            Invoke-WebRequest -Uri $url -OutFile $localPath -UseBasicParsing
+            Invoke-WebRequest -Uri $url -OutFile $localPath -UseBasicParsing -Headers @{ 'Cache-Control' = 'no-cache' }
             Write-Host "Downloaded missing file: $fileName" -ForegroundColor Green
         }
         catch {
@@ -113,7 +113,7 @@ if ($downloadFailures.Count -gt 0) {
 function Get-RemoteScriptVersion {
     try {
         $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10
+        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -Headers @{ 'Cache-Control' = 'no-cache' }
         $line = Select-String -Path $tempFile -Pattern '^\$script:ScriptVersion\s*=\s*"(.+)"' | Select-Object -First 1
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         if ($line) { return $line.Matches[0].Groups[1].Value }
@@ -127,7 +127,7 @@ function Get-RemoteScriptVersion {
 function Test-ScriptUpdate {
     try {
         $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10
+        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -Headers @{ 'Cache-Control' = 'no-cache' }
         $remoteHash = (Get-FileHash -Path $tempFile -Algorithm SHA256).Hash
         $localHash  = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
@@ -144,7 +144,7 @@ function Test-ScriptUpdate {
 function Invoke-ScriptSelfUpdate {
     try {
         $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 15
+        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 15 -Headers @{ 'Cache-Control' = 'no-cache' }
         $remoteHash = (Get-FileHash -Path $tempFile -Algorithm SHA256).Hash
         $localHash  = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash
         if ($remoteHash -eq $localHash) {
@@ -184,7 +184,7 @@ function Invoke-ScriptSelfUpdateExternal([string]$InputParam = "", [switch]$Rest
 `$xamlPath = "$xamlPath"
 `$inputArg = "$inputArg"
 `$tempFile = [System.IO.Path]::GetTempFileName()
-Invoke-WebRequest -Uri `$scriptUrl -OutFile `$tempFile -UseBasicParsing -TimeoutSec 15
+Invoke-WebRequest -Uri `$scriptUrl -OutFile `$tempFile -UseBasicParsing -TimeoutSec 15 -Headers @{ 'Cache-Control' = 'no-cache' }
 while (`$true) {
     try {
         Copy-Item -Path `$tempFile -Destination `$targetScript -Force
@@ -195,7 +195,7 @@ while (`$true) {
 }
 Remove-Item -Path `$tempFile -Force -ErrorAction SilentlyContinue
 try {
-    Invoke-WebRequest -Uri `$xamlUrl -OutFile `$xamlPath -UseBasicParsing -TimeoutSec 10
+    Invoke-WebRequest -Uri `$xamlUrl -OutFile `$xamlPath -UseBasicParsing -TimeoutSec 10 -Headers @{ 'Cache-Control' = 'no-cache' }
 } catch {
 }
 `$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", `$targetScript)
@@ -216,7 +216,7 @@ function Update-ConfigFile($FileName) {
         $url = "$RepoBaseUrl/$FileName"
         $localPath = Join-Path $ConfigDir $FileName
         $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $url -OutFile $tempFile -UseBasicParsing -TimeoutSec 10
+        Invoke-WebRequest -Uri $url -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -Headers @{ 'Cache-Control' = 'no-cache' }
         Copy-Item -Path $tempFile -Destination $localPath -Force
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         Write-Host "Updated config file: $FileName" -ForegroundColor Green
@@ -2322,7 +2322,7 @@ $updateCheckJob = Start-Job -ScriptBlock {
     param($UpdateUrl, $LocalVersion)
     try {
         $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop -Headers @{ 'Cache-Control' = 'no-cache' }
         $line = Select-String -Path $tempFile -Pattern '^\$script:ScriptVersion\s*=\s*"(.+)"' | Select-Object -First 1
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         $remoteVersion = if ($line) { $line.Matches[0].Groups[1].Value } else { $null }
