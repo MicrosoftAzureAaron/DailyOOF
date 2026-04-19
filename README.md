@@ -111,6 +111,7 @@ Choose from four built-in HTML templates or load your own:
 | **Vacation OOF** | Vacation message with `[RETURN DATE]` placeholder (green header) |
 | **Sick OOF** | Unexpected absence / illness message (red header) |
 | **Holiday OOF** | Company holiday message with `[RETURN DATE]` placeholder (amber header) |
+| **Placeholder Examples** | Demo template showing all supported placeholders and how they resolve with your current config |
 
 Templates auto-load when you change the dropdown selection. Before loading a different template, the current editor content is saved as a reusable HTML template (`last_message_template.html`) and appears in the template dropdown as **Last Loaded Message**.
 

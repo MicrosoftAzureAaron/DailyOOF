@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Placeholder Examples</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; color: #1f2937; }
+    .wrap { max-width: 860px; margin: 0 auto; }
+    h1 { margin-bottom: 6px; }
+    .note { color: #6b7280; margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
+    .token { font-family: Consolas, monospace; color: #0f62fe; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Placeholder Examples Template</h1>
+    <p class="note">Use this template to preview how each placeholder resolves with your current configuration.</p>
+
+    <p><b>Hello [FIRST NAME],</b></p>
+    <p>
+      This is an example OOF message generated for <b>[FULL NAME]</b> (<span class="token">[EMAIL]</span>),
+      currently working as <b>[ROLE]</b>.
+    </p>
+
+    <table>
+      <tr>
+        <th>Placeholder</th>
+        <th>Resolved Example</th>
+      </tr>
+      <tr><td class="token">[FULL NAME]</td><td>[FULL NAME]</td></tr>
+      <tr><td class="token">[FIRST NAME]</td><td>[FIRST NAME]</td></tr>
+      <tr><td class="token">[LAST NAME]</td><td>[LAST NAME]</td></tr>
+      <tr><td class="token">[EMAIL]</td><td>[EMAIL]</td></tr>
+      <tr><td class="token">[ROLE]</td><td>[ROLE]</td></tr>
+      <tr><td class="token">[BACKUP CONTACT]</td><td>[BACKUP CONTACT]</td></tr>
+      <tr><td class="token">[TEAM ALIAS]</td><td>[TEAM ALIAS]</td></tr>
+      <tr><td class="token">[SUPPORT LINK]</td><td><a href="[SUPPORT LINK]">[SUPPORT LINK]</a></td></tr>
+      <tr><td class="token">[OFFICE HOURS]</td><td>[OFFICE HOURS]</td></tr>
+      <tr><td class="token">[WORK DAYS]</td><td>[WORK DAYS]</td></tr>
+      <tr><td class="token">[TIMEZONE]</td><td>[TIMEZONE]</td></tr>
+      <tr><td class="token">[RETURN DATE]</td><td>[RETURN DATE]</td></tr>
+      <tr><td class="token">[HOLIDAY NAME]</td><td>[HOLIDAY NAME]</td></tr>
+    </table>
+
+    <p style="margin-top: 16px;">
+      Signature example:<br/>
+      [SIGNATURE]
+    </p>
+  </div>
+</body>
+</html>

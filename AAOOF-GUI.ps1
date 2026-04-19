@@ -64,13 +64,14 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.10" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.11" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
     "vacation_oof.html",
     "sick_oof.html",
-    "holiday_oof.html"
+    "holiday_oof.html",
+    "placeholder_examples.html"
 )
 
 # Default to enabled before config is loaded — Import-AppConfiguration will override
@@ -1893,6 +1894,7 @@ function Resolve-TemplateFilePath($TemplateName) {
         "Vacation OOF" { return Join-Path $ConfigDir "vacation_oof.html" }
         "Sick OOF" { return Join-Path $ConfigDir "sick_oof.html" }
         "Holiday OOF" { return Join-Path $ConfigDir "holiday_oof.html" }
+        "Placeholder Examples" { return Join-Path $ConfigDir "placeholder_examples.html" }
         default { return $null }
     }
 }
