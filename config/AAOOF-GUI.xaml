@@ -169,8 +169,7 @@
 
             <!-- ==================== TAB 2: Configuration ==================== -->
             <TabItem Header="  Configuration  " FontSize="13" FontWeight="SemiBold">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
-                    <StackPanel>
+                <StackPanel Margin="15">
                         <GroupBox Header="Profile">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -244,19 +243,27 @@
 
                         <GroupBox Header="Updates">
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                    <TextBlock Text="Current Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock x:Name="txtLocalVersion" Text="..." FontSize="13" FontWeight="SemiBold" Foreground="#0078D4" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <TextBlock Text="Latest Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,14,0"/>
-                                    <TextBlock x:Name="txtRemoteVersion" Text="(not checked)" FontSize="13" Foreground="#888" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <Button x:Name="btnCheckForUpdates" Content="Check for Updates" Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="Current Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="txtLocalVersion" Text="..." FontSize="13" FontWeight="SemiBold" Foreground="#0078D4" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Latest Version:" FontSize="13" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                            <TextBlock x:Name="txtRemoteVersion" Text="(not checked)" FontSize="13" Foreground="#888" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button x:Name="btnCheckForUpdates" Grid.Column="2" Content="Check for Updates" Style="{StaticResource SecondaryBtn}" VerticalAlignment="Center"/>
+                                </Grid>
                             </StackPanel>
                         </GroupBox>
-                    </StackPanel>
-                </ScrollViewer>
+                </StackPanel>
             </TabItem>
 
             <!-- ==================== TAB 3: Message Templates ==================== -->
