@@ -191,7 +191,49 @@ For automation and scheduled tasks:
 - **Exchange Online Management** module (prompted to install on first connect if missing)
 - An Exchange Online mailbox
 
-### Installation
+### Quick Download (no git required)
+
+Download just the script file and let it auto-download the rest (XAML, templates) on first run.
+
+#### Main GUI script
+
+```powershell
+# Download to your home directory
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1" -OutFile "$env:USERPROFILE\AAOOF-GUI.ps1"
+
+# Then run it
+& "$env:USERPROFILE\AAOOF-GUI.ps1"
+```
+
+Or download to a specific folder:
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1" -OutFile "C:\tools\AAOOF-GUI.ps1"
+& "C:\tools\AAOOF-GUI.ps1"
+```
+
+On first run the script creates a `config\` subfolder next to itself and downloads the XAML layout and all HTML templates automatically.
+
+#### Standalone portable script
+
+The portable script is fully self-contained — no `config\` folder or templates required.
+
+```powershell
+# Download to your home directory
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-Portable.ps1" -OutFile "$env:USERPROFILE\AAOOF-Portable.ps1"
+
+# Then run it
+& "$env:USERPROFILE\AAOOF-Portable.ps1"
+```
+
+> **Tip:** If your execution policy blocks unsigned scripts, run this first:
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+> ```
+
+---
+
+### Installation (git clone)
 
 ```powershell
 mkdir c:\tools
