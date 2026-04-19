@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.2" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.3" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -569,13 +569,12 @@ function Resolve-NameFromEXO {
     if (![string]::IsNullOrWhiteSpace($script:FullName)) { return $true }
 
     try {
-        $mbx = Get-EXOMailbox -Identity $script:UserAlias -Properties DisplayName, FirstName, LastName -ErrorAction Stop
+        # DisplayName is returned by default from Get-EXOMailbox.
+        # FirstName/LastName are AAD user properties, not valid EXO mailbox properties.
+        $mbx = Get-EXOMailbox -Identity $script:UserAlias -ErrorAction Stop
         $resolved = $null
         if (![string]::IsNullOrWhiteSpace($mbx.DisplayName)) {
             $resolved = $mbx.DisplayName
-        }
-        elseif (![string]::IsNullOrWhiteSpace($mbx.FirstName) -or ![string]::IsNullOrWhiteSpace($mbx.LastName)) {
-            $resolved = ("$($mbx.FirstName) $($mbx.LastName)").Trim()
         }
         if (![string]::IsNullOrWhiteSpace($resolved)) {
             $script:FullName = $resolved
