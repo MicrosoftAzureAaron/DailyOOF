@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.5.2"
+$script:ScriptVersion = "1.5.3" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -242,7 +242,7 @@ function Get-MissingHeadlessFiles {
     return $missing
 }
 
-function Report-MissingHeadlessFiles {
+function Write-MissingHeadlessFiles {
     $missing = Get-MissingHeadlessFiles
     if ($missing.Count -gt 0) {
         Write-Host "Required files are missing for headless/scheduled mode:" -ForegroundColor Yellow
@@ -253,7 +253,7 @@ function Report-MissingHeadlessFiles {
     }
 }
 
-function Ensure-HeadlessConfigAvailable {
+function Confirm-HeadlessConfigAvailable {
     if (-not (Test-Path $ConfigFile)) {
         Write-Host "Configuration file not found: $ConfigFile" -ForegroundColor Red
         Write-Host "Please run the GUI once and save your settings before using scheduled or headless mode." -ForegroundColor Red
@@ -284,7 +284,7 @@ $script:IsConnectedToEXO = $false
 $script:OOFReplyEnabled = $true
 
 # Import-AppConfiguration: Read config.json and populate global variables.
-function Normalize-UserAliasSuffix($suffix) {
+function ConvertTo-UserAliasSuffix($suffix) {
     if ([string]::IsNullOrEmpty($suffix)) { return $suffix }
     $normalized = $suffix.Trim()
     if ($normalized.StartsWith('@')) { $normalized = $normalized.Substring(1) }
@@ -300,7 +300,7 @@ function Import-AppConfiguration {
         if ($cfg.EndOfShift)      { $script:EndOfShift = [datetime]$cfg.EndOfShift }
         if ($cfg.WorkDays)        { $script:WorkDays = @($cfg.WorkDays) }
         if ($cfg.UserAlias)       { $script:UserAlias = $cfg.UserAlias }
-        if ($cfg.UserAliasSuffix) { $script:UserAliasSuffix = Normalize-UserAliasSuffix($cfg.UserAliasSuffix) }
+        if ($cfg.UserAliasSuffix) { $script:UserAliasSuffix = ConvertTo-UserAliasSuffix($cfg.UserAliasSuffix) }
         if ($cfg.FullName)        { $script:FullName = $cfg.FullName }
         if ($cfg.Role)            { $script:Role = $cfg.Role }
         if ($null -ne $cfg.OverrideAccount) { $script:OverrideAccount = [bool]$cfg.OverrideAccount }
@@ -802,10 +802,10 @@ function Export-AppConfiguration {
 #   '1'   — Daily scheduled OOF update. Checks for active vacation before overwriting.
 #   <date> — Set vacation/extended OOF until that return date.
 if ($InputParameter) {
-    Report-MissingHeadlessFiles
+    Write-MissingHeadlessFiles
 
     if ($InputParameter -eq '1') {
-        if (-not (Ensure-HeadlessConfigAvailable)) { exit }
+        if (-not (Confirm-HeadlessConfigAvailable)) { exit }
         if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift -or $null -eq $script:WorkDays) {
             Write-Host "Configuration incomplete. Please run the GUI, configure Start/End shift and Work Days, then save." -ForegroundColor Red
             exit
@@ -829,7 +829,7 @@ if ($InputParameter) {
         Disconnect-ExchangeOnlineSession
     }
     if ($InputParameter -as [datetime]) {
-        if (-not (Ensure-HeadlessConfigAvailable)) { exit }
+        if (-not (Confirm-HeadlessConfigAvailable)) { exit }
         if ($null -eq $script:StartOfShift -or $null -eq $script:EndOfShift) {
             Write-Host "Configuration incomplete. Please run the GUI, configure Start/End shift, then save." -ForegroundColor Red
             exit
@@ -1678,6 +1678,7 @@ $btnStateScheduled.Add_Click({
         $script:OOFReplyEnabled = $true
         Update-StatusBar "Auto reply set to Scheduled"
         Show-InfoDialog "Done" "Auto Reply State set to Scheduled"
+    }
     catch { Show-ErrorDialog "Error" $_.Exception.Message }
 })
 
