@@ -1,4 +1,4 @@
-<!-- XamlVersion: 1.9.16 -->
+<!-- XamlVersion: 1.9.17 -->
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Daily OOF - Out of Office Automation" Height="880" Width="820"
@@ -363,18 +363,12 @@
                     </StackPanel>
 
                     <GroupBox Grid.Row="1" Header="Template Options" Margin="0,0,0,8" Padding="8,4">
-                        <StackPanel>
-                            <WrapPanel Margin="0,0,0,8">
-                                <CheckBox x:Name="chkIncludeSignature" Content="Include Signature" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
-                                <CheckBox x:Name="chkIncludeOfficeHours" Content="Include Office Hours" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
-                                <CheckBox x:Name="chkIncludeWorkDays" Content="Include Work Days" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
-                                <CheckBox x:Name="chkIncludeTimezone" Content="Include Timezone" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
-                            </WrapPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Backup Email:" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0" Width="100"/>
-                                <TextBox x:Name="txtBackupEmail" Width="250" FontSize="13" VerticalContentAlignment="Center" Padding="4" Text=""/>
-                            </StackPanel>
-                        </StackPanel>
+                        <WrapPanel>
+                            <CheckBox x:Name="chkIncludeSignature" Content="Include Signature" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                            <CheckBox x:Name="chkIncludeOfficeHours" Content="Include Office Hours" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                            <CheckBox x:Name="chkIncludeWorkDays" Content="Include Work Days" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                            <CheckBox x:Name="chkIncludeTimezone" Content="Include Timezone" FontSize="13" Margin="0,0,18,4" IsChecked="True"/>
+                        </WrapPanel>
                     </GroupBox>
 
                     <TabControl x:Name="tcMessageView" Grid.Row="2" FontSize="12">

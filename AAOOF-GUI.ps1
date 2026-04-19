@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.16" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.17" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1536,7 +1536,6 @@ $chkIncludeSignature = $Window.FindName("chkIncludeSignature")
 $chkIncludeOfficeHours = $Window.FindName("chkIncludeOfficeHours")
 $chkIncludeWorkDays = $Window.FindName("chkIncludeWorkDays")
 $chkIncludeTimezone = $Window.FindName("chkIncludeTimezone")
-$txtBackupEmail = $Window.FindName("txtBackupEmail")
 $tcMessageView = $Window.FindName("tcMessageView")
 $wbPreview = $Window.FindName("wbPreview")
 
@@ -1832,9 +1831,6 @@ function Initialize-UIFromConfig {
     }
     if (![string]::IsNullOrEmpty($script:BackupEngineerEmail)) {
         $txtBackupEngineerEmail.Text = $script:BackupEngineerEmail
-    }
-    if (![string]::IsNullOrEmpty($script:BackupEmail)) {
-        $txtBackupEmail.Text = $script:BackupEmail
     }
     if (![string]::IsNullOrEmpty($script:TeamAlias)) {
         $txtTeamAlias.Text = $script:TeamAlias
@@ -2847,7 +2843,9 @@ $optionReloadHandler = {
     if ($selected -eq "Custom...") { return }
     $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
     if ($path -and (Test-Path $path)) {
+        $script:IsLoadingTemplate = $true
         $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
+        $script:IsLoadingTemplate = $false
         $wbPreview.NavigateToString($txtMessage.Text)
     }
 }
@@ -2885,10 +2883,6 @@ $txtBackupEngineerEmail.Add_TextChanged({
         $script:BackupEngineerEmail = $txtBackupEngineerEmail.Text
         Request-DebouncedConfigSave
         & $optionReloadHandler
-    })
-$txtBackupEmail.Add_TextChanged({
-        $script:BackupEmail = $txtBackupEmail.Text
-        Request-DebouncedConfigSave
     })
 $txtTeamAlias.Add_TextChanged({
         $script:TeamAlias = $txtTeamAlias.Text
@@ -2933,6 +2927,9 @@ $txtAccount.Add_LostFocus({
     })
 
 # ===================== Template Editor: Auto-Save and Live Preview =====================
+# Flag to suppress auto-save when text is set programmatically (e.g. on config change).
+$script:IsLoadingTemplate = $false
+
 # Debounced timer for template auto-save and preview refresh.
 # Updates preview in real-time and saves the current template after user stops editing.
 $script:TemplateEditTimer = New-Object System.Windows.Threading.DispatcherTimer
@@ -2974,9 +2971,11 @@ function Request-DebouncedTemplateSave {
     $script:TemplateEditTimer.Start()
 }
 
-# Auto-save and live preview when message text changes
+# Auto-save and live preview when message text changes — skip when loading programmatically
 $txtMessage.Add_TextChanged({
-    Request-DebouncedTemplateSave
+    if (-not $script:IsLoadingTemplate) {
+        Request-DebouncedTemplateSave
+    }
 })
 
 # ===================== HTML Formatting Toolbar Handlers =====================
