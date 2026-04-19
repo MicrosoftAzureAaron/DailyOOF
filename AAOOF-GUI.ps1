@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.8.3" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.8.5" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1199,6 +1199,11 @@ $tcMain = $Window.FindName("tcMain")
 $wbCurrentOOF = $Window.FindName("wbCurrentOOF")
 $btnRefreshCurrentOOF = $Window.FindName("btnRefreshCurrentOOF")
 $txtCurrentOOFStatus = $Window.FindName("txtCurrentOOFStatus")
+
+# Ensure parity for adjacent status buttons even when an older XAML is present locally.
+$quickStatusButtonWidth = 170
+$btnRefreshStatus.Width = $quickStatusButtonWidth
+$btnViewCurrentMsg.Width = $quickStatusButtonWidth
 
 # --- Configuration and Automation tab controls ---
 $txtFullName = $Window.FindName("txtFullName")
