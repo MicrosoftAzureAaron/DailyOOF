@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.20" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.21" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -275,7 +275,7 @@ $script:UserAlias = ""                           # Email address used as Exchang
 $script:UserAliasSuffix = ""                           # Domain suffix appended to the Windows username
 $script:FullName = ""                           # Display name for auto-generated signature
 $script:Role = ""                           # Job title inserted into templates via [ROLE]
-$script:BackupContact = ""                           # Contact person or mailbox used in [BACKUP CONTACT]
+$script:BackupContact = ""                           # Backup engineer used in [BACKUP ENGINEER] (legacy [BACKUP CONTACT] also supported)
 $script:BackupEngineerEmail = ""                     # Email address of backup engineer for [BACKUP ENGINEER EMAIL]
 $script:BackupEmail = ""                            # Email address for template backups
 $script:TeamAlias = ""                           # Team name or alias used in [TEAM ALIAS]
@@ -313,7 +313,8 @@ function Import-AppConfiguration {
         if ($cfg.UserAliasSuffix) { $script:UserAliasSuffix = ConvertTo-UserAliasSuffix($cfg.UserAliasSuffix) }
         if ($cfg.FullName) { $script:FullName = $cfg.FullName }
         if ($cfg.Role) { $script:Role = $cfg.Role }
-        if ($cfg.BackupContact) { $script:BackupContact = $cfg.BackupContact }
+        if ($cfg.BackupEngineer) { $script:BackupContact = $cfg.BackupEngineer }
+        elseif ($cfg.BackupContact) { $script:BackupContact = $cfg.BackupContact }
         if ($cfg.BackupEngineerEmail) { $script:BackupEngineerEmail = $cfg.BackupEngineerEmail }
         if ($cfg.BackupEmail) { $script:BackupEmail = $cfg.BackupEmail }
         if ($cfg.TeamAlias) { $script:TeamAlias = $cfg.TeamAlias }
@@ -908,7 +909,7 @@ function Get-USFederalHolidays {
 # Get-TemplateWarnings: Check for unresolved placeholders and missing profile config.
 # Returns an array of user-facing warning strings with fix guidance.
 #
-# Profile advisory warnings (Role, Backup Contact, etc.) only fire when the config field is
+# Profile advisory warnings (Role, Backup Engineer, etc.) only fire when the config field is
 # blank AND the message still contains the silent fallback string that Resolve-TemplatePlaceholders
 # inserted. This prevents false positives when the user's template never used that placeholder,
 # or when the user has deliberately written a message that doesn't rely on those fields.
@@ -954,9 +955,9 @@ function Get-TemplateWarnings {
         $warnings += "Role is not set — message is using the generic fallback 'member of my team'. Fix: Configuration > Profile > Role."
     }
 
-    # Backup Contact: fallback is 'our support team'
+    # Backup Engineer: fallback is 'our support team'
     if ([string]::IsNullOrWhiteSpace($txtBackupContact.Text) -and $resolved -match [regex]::Escape('our support team')) {
-        $warnings += "Backup Contact is not set — message is using the generic fallback 'our support team'. Fix: Configuration > Profile > Backup."
+        $warnings += "Backup Engineer is not set — message is using the generic fallback 'our support team'. Fix: Configuration > Profile > Backup Engineer."
     }
 
     # Team Alias: fallback is 'Azure Networking Support'
@@ -1304,6 +1305,7 @@ function Export-AppConfiguration {
         UserAliasSuffix = $script:UserAliasSuffix
         FullName        = $script:FullName
         Role            = $script:Role
+        BackupEngineer  = $script:BackupContact
         BackupContact   = $script:BackupContact
         BackupEngineerEmail = $script:BackupEngineerEmail
         BackupEmail     = $script:BackupEmail
@@ -1594,7 +1596,7 @@ function Get-DiagnosticsReport {
     $lines += "EXO Alias     : $(if ($script:UserAlias) { $script:UserAlias } else { '(not set)' })"
     $lines += "Full Name     : $(if ($script:FullName) { $script:FullName } else { '(not set)' })"
     $lines += "Role          : $(if ($script:Role) { $script:Role } else { '(not set)' })"
-    $lines += "Backup Contact: $(if ($script:BackupContact) { $script:BackupContact } else { '(not set)' })"
+    $lines += "Backup Engineer: $(if ($script:BackupContact) { $script:BackupContact } else { '(not set)' })"
     $lines += "Team Alias    : $(if ($script:TeamAlias) { $script:TeamAlias } else { '(not set)' })"
     $lines += "Support Link  : $(if ($script:SupportLink) { $script:SupportLink } else { '(not set)' })"
     $lines += ""
@@ -1937,7 +1939,8 @@ function Get-LastMessageTemplatePath {
 #   [RETURN DATE]   — with the selected return date from the date picker
 #   [HOLIDAY NAME]  — with the selected holiday name
 #   [ROLE]          — with the user's configured role (or default)
-#   [BACKUP CONTACT] — with the configured backup contact (or default)
+#   [BACKUP ENGINEER] — with the configured backup engineer (or default)
+#   [BACKUP CONTACT] — legacy alias for [BACKUP ENGINEER]
 #   [TEAM ALIAS]    — with the configured team alias (or default)
 #   [SUPPORT LINK]  — with the configured support link (or default)
 #   [FULL NAME]     — with the user's display name
@@ -1962,11 +1965,12 @@ function Resolve-TemplatePlaceholders($text) {
     $role = if (![string]::IsNullOrWhiteSpace($txtRole.Text)) { $txtRole.Text } else { 'member of my team' }
     $text = $text -replace '\[ROLE\]', $role
 
-    # Replace 1.8.0 contact placeholders with configured values or safe defaults.
+    # Replace backup engineer placeholders with configured values or safe defaults.
     $backupContact = if (![string]::IsNullOrWhiteSpace($txtBackupContact.Text)) { $txtBackupContact.Text } else { 'our support team' }
     $backupEngineerEmail = if (![string]::IsNullOrWhiteSpace($txtBackupEngineerEmail.Text)) { $txtBackupEngineerEmail.Text } else { '' }
     $teamAlias = if (![string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) { $txtTeamAlias.Text } else { 'Azure Networking Support' }
     $supportLink = if (![string]::IsNullOrWhiteSpace($txtSupportLink.Text)) { $txtSupportLink.Text } else { 'AzureBU@microsoft.com' }
+    $text = $text -replace '\[BACKUP ENGINEER\]', $backupContact
     $text = $text -replace '\[BACKUP CONTACT\]', $backupContact
     $text = $text -replace '\[BACKUP ENGINEER EMAIL\]', $backupEngineerEmail
     $text = $text -replace '\[TEAM ALIAS\]', $teamAlias

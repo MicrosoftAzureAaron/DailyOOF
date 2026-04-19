@@ -83,8 +83,8 @@ The GUI has five tabs:
 |---|---|
 | **Full Name** | Your display name for the auto-generated signature. Changes are saved and applied to templates immediately. |
 | **Role** | Your job title, inserted into templates via the `[ROLE]` placeholder. If left blank, templates use "member of my team" instead. |
-| **Backup** | Name or mailbox used by the `[BACKUP CONTACT]` placeholder for escalation coverage. |
-| **Backup Email** | Email address of the backup engineer, used by the `[BACKUP ENGINEER EMAIL]` placeholder. |
+| **Backup Engineer** | Name or mailbox used by the `[BACKUP ENGINEER]` placeholder for escalation coverage. |
+| **Engineer Email** | Email address of the backup engineer, used by the `[BACKUP ENGINEER EMAIL]` placeholder. |
 | **Team Alias** | Team name or alias used by the `[TEAM ALIAS]` placeholder. |
 | **Support Link** | URL used by the `[SUPPORT LINK]` placeholder in built-in templates. |
 | **Email Suffix** | Your email domain suffix (default `@microsoft.com`). Combined with your Windows username to form the mailbox identity. |
@@ -132,7 +132,7 @@ You can use the following placeholders anywhere in your HTML templates. They are
 | `[TIMEZONE]` | Your local timezone display name |
 | `[RETURN DATE]` | Selected return date from the date picker |
 | `[HOLIDAY NAME]` | Selected holiday name from the holiday picker |
-| `[BACKUP CONTACT]` | Configured backup contact from Configuration |
+| `[BACKUP ENGINEER]` | Configured backup engineer from Configuration |
 | `[BACKUP ENGINEER EMAIL]` | Configured backup engineer email address from Configuration |
 | `[TEAM ALIAS]` | Configured team alias from Configuration |
 | `[SUPPORT LINK]` | Configured support URL from Configuration |
@@ -277,7 +277,8 @@ All configuration is stored in the `config/` folder:
 |---|---|---|---|
 | `FullName` | string | *(auto-detected)* | Your display name for the signature |
 | `Role` | string | `""` | Job title inserted via `[ROLE]` placeholder |
-| `BackupContact` | string | `""` | Backup contact used by `[BACKUP CONTACT]` placeholder |
+| `BackupEngineer` | string | `""` | Backup engineer used by `[BACKUP ENGINEER]` placeholder |
+| `BackupEngineerEmail` | string | `""` | Backup engineer email used by `[BACKUP ENGINEER EMAIL]` placeholder |
 | `TeamAlias` | string | `""` | Team alias used by `[TEAM ALIAS]` placeholder |
 | `SupportLink` | string | `""` | Support URL used by `[SUPPORT LINK]` placeholder |
 | `UserAlias` | string | *(auto-detected)* | Full email address for Exchange Online |

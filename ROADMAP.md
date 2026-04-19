@@ -16,7 +16,7 @@ Completed and validated in main track:
 
 | Version | Summary |
 |---------|---------|
-| `1.8.0` | Backup contact, team alias, support link placeholders |
+| `1.8.0` | Backup engineer, team alias, support link placeholders |
 | `1.8.1` | Quick Actions UX polish, connection button state cues |
 | `1.8.3` | Strict version comparison — no false update prompts when local is newer |
 | `1.8.4` | Placeholder validation hardening with per-field guidance |
@@ -73,14 +73,14 @@ Patch goals:
 
 Goals:
 
-- Add richer template placeholders such as backup contact, team alias, and support link.
+- Add richer template placeholders such as backup engineer, team alias, and support link.
 - Improve built-in templates for internal and external audiences.
 - Add stronger placeholder warnings before applying messages.
 - Consider separate template presets for vacation, sick, holiday, training, and limited availability.
 
 Patch goals:
 
-- `1.8.0`: Add backup contact, team alias, and support link placeholders with config/UI support.
+- `1.8.0`: Add backup engineer, team alias, and support link placeholders with config/UI support.
 - `1.8.1`: Polish Quick Actions UX (connection button state cues and button sizing consistency).
 - `1.8.2`: Add additional placeholder validation and preview warnings.
 - `1.8.3`: Fix update detection so update prompts only appear when GitHub version is strictly newer than local.
