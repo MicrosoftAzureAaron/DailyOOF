@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.5.0"
+$script:ScriptVersion = "1.5.1"
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -281,7 +281,7 @@ $script:UseRootConfig = $false                          # Store config.json alon
 
 # Script-level tracking for EXO sync state
 $script:IsConnectedToEXO = $false
-$script:EXOMessageSynced = $true
+$script:OOFReplyEnabled = $true
 
 # Import-AppConfiguration: Read config.json and populate global variables.
 function Normalize-UserAliasSuffix($suffix) {
@@ -962,9 +962,9 @@ $borderStatusBar = $Window.FindName("borderStatusBar")
 function Update-StatusBar($Message) {
     $txtStatusBar.Text = $Message
     # Update status bar color based on EXO sync state
-    if ($script:IsConnectedToEXO -and -not $script:EXOMessageSynced) {
+    if ($script:IsConnectedToEXO -and -not $script:OOFReplyEnabled) {
         $borderStatusBar.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xD8, 0x3B, 0x01))
-        $txtStatusBar.Text = [char]0x26A0 + " Message not yet applied to Exchange | $Message"
+        $txtStatusBar.Text = [char]0x26A0 + " Out of Office reply is not enabled | $Message"
     } else {
         $borderStatusBar.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x00, 0x78, 0xD4))
     }
@@ -1275,10 +1275,8 @@ $btnConnect.Add_Click({
             $txtARCStart.Text = $arc.StartTime.ToString()
             $txtARCEnd.Text = $arc.EndTime.ToString()
 
-            # Compare EXO message with editor to detect mismatch
-            $currentMsg = ($txtMessage.Text -replace '\s+', ' ').Trim()
-            $exoMsg = if ($arc.ExternalMessage) { ($arc.ExternalMessage -replace '\s+', ' ').Trim() } else { '' }
-            $script:EXOMessageSynced = ($currentMsg -eq $exoMsg) -or [string]::IsNullOrWhiteSpace($txtMessage.Text)
+            # Check if OOF auto-reply is enabled (not Disabled)
+            $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
 
             # Save the current online messages to template files if we don't already have a saved message
             $savedMsgFile = Join-Path $ConfigDir "message.html"
@@ -1305,7 +1303,7 @@ $btnDisconnect.Add_Click({
         $txtConnectionStatus.Text = "Disconnected"
         $txtConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
         $script:IsConnectedToEXO = $false
-        $script:EXOMessageSynced = $true
+        $script:OOFReplyEnabled = $true
         Update-StatusBar "Disconnected from Exchange Online"
     }
     catch {
@@ -1325,6 +1323,7 @@ $btnEnableScheduled.Add_Click({
         $txtARCState.Text = $arc.AutoReplyState
         $txtARCStart.Text = $arc.StartTime.ToString()
         $txtARCEnd.Text = $arc.EndTime.ToString()
+        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
         Update-StatusBar "Scheduled auto reply enabled"
         Show-InfoDialog "Success" "Scheduled Auto Reply enabled.`nStart: $($arc.StartTime)`nEnd: $($arc.EndTime)"
     }
@@ -1357,6 +1356,7 @@ $btnSetVacation.Add_Click({
         $txtARCState.Text = $arc.AutoReplyState
         $txtARCStart.Text = $arc.StartTime.ToString()
         $txtARCEnd.Text = $arc.EndTime.ToString()
+        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
         Update-StatusBar "Vacation OOF set until $returnDate"
         Show-InfoDialog "Success" "Vacation OOF enabled until $returnDate`nStart: $($arc.StartTime)`nEnd: $($arc.EndTime)"
     }
@@ -1376,6 +1376,7 @@ $btnCancelVacation.Add_Click({
         $txtARCState.Text = $arc.AutoReplyState
         $txtARCStart.Text = $arc.StartTime.ToString()
         $txtARCEnd.Text = $arc.EndTime.ToString()
+        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
         Update-StatusBar "Vacation OOF cancelled"
         Show-InfoDialog "Success" "Vacation OOF has been disabled."
     }
@@ -1394,6 +1395,7 @@ $btnRefreshStatus.Add_Click({
         $txtARCState.Text = $arc.AutoReplyState
         $txtARCStart.Text = $arc.StartTime.ToString()
         $txtARCEnd.Text = $arc.EndTime.ToString()
+        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
         Update-StatusBar "Status refreshed"
     }
     catch {
@@ -1444,6 +1446,8 @@ $btnViewCurrentMsg.Add_Click({
         $txtARCState.Text = $arc.AutoReplyState
         $txtARCStart.Text = $arc.StartTime.ToString()
         $txtARCEnd.Text = $arc.EndTime.ToString()
+
+        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
 
         # Switch to the Current OOF tab
         $tcMain.SelectedIndex = 3
@@ -1503,6 +1507,8 @@ $btnRefreshCurrentOOF.Add_Click({
             $txtCurrentOOFStatus.Text = "State: $($arc.AutoReplyState) | Loaded $(Get-Date -Format 'h:mm tt')"
             Update-StatusBar "Current OOF message loaded"
         }
+
+        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
     }
     catch {
         $wbCurrentOOF.NavigateToString("<html><body style='font-family:Segoe UI;padding:20px;color:red;'><h3>Error</h3><p>Could not fetch message.</p><p style='color:#888;font-size:10pt;'>$([System.Web.HttpUtility]::HtmlEncode($_.Exception.Message))</p></body></html>")
@@ -1566,6 +1572,8 @@ $tcMain.Add_SelectionChanged({
         $txtARCState.Text = $arc.AutoReplyState
         $txtARCStart.Text = $arc.StartTime.ToString()
         $txtARCEnd.Text = $arc.EndTime.ToString()
+
+        $script:OOFReplyEnabled = ($arc.AutoReplyState -ne 'Disabled')
     }
     catch {
         $script:CurrentOOFLoaded = $false
@@ -1643,6 +1651,7 @@ $btnStateEnabled.Add_Click({
         Assert-ExchangeConnection
         Update-StatusBar "Setting auto reply to Enabled..."
         Set-AutoReplyState 'Enabled'
+        $script:OOFReplyEnabled = $true
         Update-StatusBar "Auto reply set to Enabled"
         Show-InfoDialog "Done" "Auto Reply State set to Enabled"
     }
@@ -1654,6 +1663,7 @@ $btnStateDisabled.Add_Click({
         Assert-ExchangeConnection
         Update-StatusBar "Setting auto reply to Disabled..."
         Set-AutoReplyState 'Disabled'
+        $script:OOFReplyEnabled = $false
         Update-StatusBar "Auto reply set to Disabled"
         Show-InfoDialog "Done" "Auto Reply State set to Disabled"
     }
@@ -1667,9 +1677,9 @@ $btnStateScheduled.Add_Click({
         Read-ShiftTimesFromUI
         $script:WorkDays = Read-WorkDaysFromUI
         Set-AutoReplyState 'Scheduled'
+        $script:OOFReplyEnabled = $true
         Update-StatusBar "Auto reply set to Scheduled"
         Show-InfoDialog "Done" "Auto Reply State set to Scheduled"
-    }
     catch { Show-ErrorDialog "Error" $_.Exception.Message }
 })
 
@@ -1783,7 +1793,6 @@ $cmbTemplate.Add_SelectionChanged({
         if ($tcMessageView.SelectedIndex -eq 1) {
             $wbPreview.NavigateToString($txtMessage.Text)
         }
-        if ($script:IsConnectedToEXO) { $script:EXOMessageSynced = $false }
         Update-StatusBar "Template loaded: $selected"
     } else {
         Show-ErrorDialog "Not Found" "Template file not found: $path"
@@ -1809,7 +1818,6 @@ $btnLoadTemplate.Add_Click({
         if ($tcMessageView.SelectedIndex -eq 1) {
             $wbPreview.NavigateToString($txtMessage.Text)
         }
-        if ($script:IsConnectedToEXO) { $script:EXOMessageSynced = $false }
         Update-StatusBar "Template loaded: $selected"
     } else {
         Show-ErrorDialog "Not Found" "Template file not found: $path"
@@ -2007,7 +2015,6 @@ $btnBrowseFile.Add_Click({
     $dialog.InitialDirectory = $ConfigDir
     if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $txtMessage.Text = Get-Content $dialog.FileName -Raw
-        if ($script:IsConnectedToEXO) { $script:EXOMessageSynced = $false }
         Update-StatusBar "Loaded message from $($dialog.FileName)"
     }
 })
@@ -2027,7 +2034,6 @@ $btnApplyInternal.Add_Click({
         Assert-ExchangeConnection
         Update-StatusBar "Applying internal message..."
         Set-AutoReplyMessage $txtMessage.Text 'Internal'
-        $script:EXOMessageSynced = $true
         Update-StatusBar "Internal message applied"
         Show-InfoDialog "Done" "Internal auto-reply message updated."
     }
@@ -2049,7 +2055,6 @@ $btnApplyExternal.Add_Click({
         Assert-ExchangeConnection
         Update-StatusBar "Applying external message..."
         Set-AutoReplyMessage $txtMessage.Text 'External'
-        $script:EXOMessageSynced = $true
         Update-StatusBar "External message applied"
         Show-InfoDialog "Done" "External auto-reply message updated."
     }
@@ -2071,7 +2076,6 @@ $btnApplyBoth.Add_Click({
         Assert-ExchangeConnection
         Update-StatusBar "Applying message to both internal and external..."
         Set-AutoReplyMessage $txtMessage.Text 'Both'
-        $script:EXOMessageSynced = $true
         Update-StatusBar "Both messages applied"
         Show-InfoDialog "Done" "Internal and External auto-reply messages updated."
     }
@@ -2289,10 +2293,10 @@ try {
     }
 } catch { }
 $Window.Add_Closing({
-    if ($script:IsConnectedToEXO -and -not $script:EXOMessageSynced) {
+    if ($script:IsConnectedToEXO -and -not $script:OOFReplyEnabled) {
         $result = [System.Windows.MessageBox]::Show(
-            "Your template message has not been applied to Exchange Online.`n`nAre you sure you want to exit without applying?",
-            "Unapplied Changes",
+            "Your Out of Office reply is not currently enabled.`n`nAre you sure you want to exit without enabling it?",
+            "OOF Not Enabled",
             'YesNo',
             'Warning'
         )
