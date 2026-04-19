@@ -39,6 +39,19 @@ Launch the app with no arguments to open the full graphical interface:
 .\AAOOF-GUI.ps1
 ```
 
+### Portable Simplified Mode (Standalone)
+Launch the standalone portable script for state-only management:
+
+```powershell
+.\AAOOF-Portable.ps1
+```
+
+Portable mode scope:
+- Manages only auto-reply state (Enabled / Disabled / Scheduled)
+- Does not include template editing or message apply flows
+- Does not include scheduled task automation management
+- Message content should be managed in Outlook or Outlook on the web
+
 The GUI has five tabs:
 
 ---
