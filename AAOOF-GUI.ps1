@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.5.9" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.6.0" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -734,10 +734,18 @@ function Register-DailyScheduledTask {
         throw "This action requires Administrator privileges.`n`nPlease close the app and re-run the script as Administrator, then try again."
     }
 
-    $scriptPath = Join-Path $ScriptDir "AAOOF-GUI.ps1"
+    $candidateScriptPaths = @(
+        (Join-Path $env:USERPROFILE "AAOOF-GUI.ps1"),
+        $PSCommandPath,
+        (Join-Path $ScriptDir "AAOOF-GUI.ps1")
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+    $scriptPath = $candidateScriptPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
     if (-not (Test-Path $scriptPath)) {
-        throw "Script not found at '$scriptPath'. Ensure the script exists before registering the task."
+        throw "Script not found at any expected location. Checked:`n - $($candidateScriptPaths -join "`n - ")"
     }
+
+    $scriptWorkingDir = Split-Path -Parent $scriptPath
 
     # Resolve the PowerShell executable reliably across PS5, PS7, ISE, VS Code, etc.
     if ($PSVersionTable.PSEdition -eq 'Core') {
@@ -752,7 +760,7 @@ function Register-DailyScheduledTask {
     }
 
     $taskname = "AAOOF"
-    $action = New-ScheduledTaskAction -Execute $psExe -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" 1" -WorkingDirectory $ScriptDir
+    $action = New-ScheduledTaskAction -Execute $psExe -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" 1" -WorkingDirectory $scriptWorkingDir
     $date = Get-Date -Date (Get-Date).Date
     $TriggerTime = $script:StartOfShift.TimeOfDay
     $TriggerTime = $date.AddMinutes(15) + $TriggerTime
@@ -774,7 +782,7 @@ function Register-DailyScheduledTask {
     } else {
         Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -Settings $settings -RunLevel Highest -ErrorAction Stop | Out-Null
     }
-    return $true
+    return $scriptPath
 }
 
 # Export-AppConfiguration: Persist all global settings to config.json.
@@ -996,7 +1004,15 @@ function Show-TemporaryInfoDialog($Title, $Message, [int]$Seconds = 5) {
     $timer.Tag = $dialog
     $timer.Add_Tick({
         $this.Stop()
-        $this.Tag.Close()
+        if ($null -ne $this.Tag) {
+            try { $this.Tag.Close() } catch { }
+        }
+    })
+    $dialog.Add_Closed({
+        if ($null -ne $timer) {
+            $timer.Stop()
+            $timer.Tag = $null
+        }
     })
     $timer.Start()
 
@@ -1693,9 +1709,9 @@ $btnStateScheduled.Add_Click({
 $btnCreateTask.Add_Click({
     try {
         Read-ShiftTimesFromUI
-        $result = Register-DailyScheduledTask
-        if ($result) {
-            Show-InfoDialog "Success" "Scheduled task 'AAOOF' created/updated successfully."
+        $taskScriptPath = Register-DailyScheduledTask
+        if ($taskScriptPath) {
+            Show-InfoDialog "Success" "Scheduled task 'AAOOF' created/updated successfully.`n`nScript path:`n$taskScriptPath"
             Update-StatusBar "Scheduled task ready"
         }
     }
