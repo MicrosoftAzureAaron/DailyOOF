@@ -180,6 +180,18 @@
                                     <TextBlock Text="Role:" FontSize="13" VerticalAlignment="Center" Width="80"/>
                                     <TextBox x:Name="txtRole" Width="250" FontSize="13" VerticalContentAlignment="Center" Padding="4"/>
                                 </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Backup:" FontSize="13" VerticalAlignment="Center" Width="80"/>
+                                    <TextBox x:Name="txtBackupContact" Width="460" FontSize="13" VerticalContentAlignment="Center" Padding="4"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Team Alias:" FontSize="13" VerticalAlignment="Center" Width="80"/>
+                                    <TextBox x:Name="txtTeamAlias" Width="460" FontSize="13" VerticalContentAlignment="Center" Padding="4"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                    <TextBlock Text="Support Link:" FontSize="13" VerticalAlignment="Center" Width="80"/>
+                                    <TextBox x:Name="txtSupportLink" Width="460" FontSize="13" VerticalContentAlignment="Center" Padding="4"/>
+                                </StackPanel>
                             </StackPanel>
                         </GroupBox>
 

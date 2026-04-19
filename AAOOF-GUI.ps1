@@ -55,7 +55,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.7.3" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.8.0" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -220,6 +220,9 @@ $script:UserAlias = ""                           # Email address used as Exchang
 $script:UserAliasSuffix = ""                           # Domain suffix appended to the Windows username
 $script:FullName = ""                           # Display name for auto-generated signature
 $script:Role = ""                           # Job title inserted into templates via [ROLE]
+$script:BackupContact = ""                           # Contact person or mailbox used in [BACKUP CONTACT]
+$script:TeamAlias = ""                           # Team name or alias used in [TEAM ALIAS]
+$script:SupportLink = ""                           # URL used in [SUPPORT LINK]
 $script:OverrideAccount = $false                      # True if user manually overrides the account email
 $script:SelectedHolidayName = ""                      # Name of the selected holiday for [HOLIDAY NAME] placeholder
 $script:EnableTemplateAutoDownload = $true             # Automatically download missing templates/XAML on startup
@@ -253,6 +256,9 @@ function Import-AppConfiguration {
         if ($cfg.UserAliasSuffix) { $script:UserAliasSuffix = ConvertTo-UserAliasSuffix($cfg.UserAliasSuffix) }
         if ($cfg.FullName) { $script:FullName = $cfg.FullName }
         if ($cfg.Role) { $script:Role = $cfg.Role }
+        if ($cfg.BackupContact) { $script:BackupContact = $cfg.BackupContact }
+        if ($cfg.TeamAlias) { $script:TeamAlias = $cfg.TeamAlias }
+        if ($cfg.SupportLink) { $script:SupportLink = $cfg.SupportLink }
         if ($null -ne $cfg.OverrideAccount) { $script:OverrideAccount = [bool]$cfg.OverrideAccount }
         if ($null -ne $cfg.EnableTemplateAutoDownload) { $script:EnableTemplateAutoDownload = [bool]$cfg.EnableTemplateAutoDownload }
         if ($null -ne $cfg.EnableAutoUpdateCheck) { $script:EnableAutoUpdateCheck = [bool]$cfg.EnableAutoUpdateCheck }
@@ -686,6 +692,15 @@ function Get-TemplateWarnings {
     if ($msg -match '\[ROLE\]') {
         $warnings += "Role not configured \u2014 '[ROLE]' will appear as literal text in the email."
     }
+    if ($msg -match '\[BACKUP CONTACT\]' -and [string]::IsNullOrWhiteSpace($txtBackupContact.Text)) {
+        $warnings += "Backup contact not configured \u2014 '[BACKUP CONTACT]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[TEAM ALIAS\]' -and [string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) {
+        $warnings += "Team alias not configured \u2014 '[TEAM ALIAS]' will appear as literal text in the email."
+    }
+    if ($msg -match '\[SUPPORT LINK\]' -and [string]::IsNullOrWhiteSpace($txtSupportLink.Text)) {
+        $warnings += "Support link not configured \u2014 '[SUPPORT LINK]' will appear as literal text in the email."
+    }
     if ($msg -match '\[SIGNATURE\]') {
         $warnings += "Signature was not resolved \u2014 '[SIGNATURE]' will appear as literal text in the email."
     }
@@ -1029,6 +1044,9 @@ function Export-AppConfiguration {
         UserAliasSuffix = $script:UserAliasSuffix
         FullName        = $script:FullName
         Role            = $script:Role
+        BackupContact   = $script:BackupContact
+        TeamAlias       = $script:TeamAlias
+        SupportLink     = $script:SupportLink
         OverrideAccount = $script:OverrideAccount
         TaskStartOffsetMinutes = $script:TaskStartOffsetMinutes
     }
@@ -1142,6 +1160,9 @@ $txtCurrentOOFStatus = $Window.FindName("txtCurrentOOFStatus")
 # --- Configuration and Automation tab controls ---
 $txtFullName = $Window.FindName("txtFullName")
 $txtRole = $Window.FindName("txtRole")
+$txtBackupContact = $Window.FindName("txtBackupContact")
+$txtTeamAlias = $Window.FindName("txtTeamAlias")
+$txtSupportLink = $Window.FindName("txtSupportLink")
 $cmbStartHour = $Window.FindName("cmbStartHour")
 $cmbStartMin = $Window.FindName("cmbStartMin")
 $cmbStartAmPm = $Window.FindName("cmbStartAmPm")
@@ -1279,6 +1300,15 @@ function Initialize-UIFromConfig {
     if (![string]::IsNullOrEmpty($script:Role)) {
         $txtRole.Text = $script:Role
     }
+    if (![string]::IsNullOrEmpty($script:BackupContact)) {
+        $txtBackupContact.Text = $script:BackupContact
+    }
+    if (![string]::IsNullOrEmpty($script:TeamAlias)) {
+        $txtTeamAlias.Text = $script:TeamAlias
+    }
+    if (![string]::IsNullOrEmpty($script:SupportLink)) {
+        $txtSupportLink.Text = $script:SupportLink
+    }
     # Account override checkbox
     $chkOverrideAccount.IsChecked = $script:OverrideAccount
     $txtAccount.IsEnabled = $script:OverrideAccount
@@ -1354,6 +1384,9 @@ function Resolve-TemplateFilePath($TemplateName) {
 #   [RETURN DATE]   — with the selected return date from the date picker
 #   [HOLIDAY NAME]  — with the selected holiday name
 #   [ROLE]          — with the user's configured role (or default)
+#   [BACKUP CONTACT] — with the configured backup contact (or default)
+#   [TEAM ALIAS]    — with the configured team alias (or default)
+#   [SUPPORT LINK]  — with the configured support link (or default)
 #   [FULL NAME]     — with the user's display name
 #   [FIRST NAME]    — first name derived from display name
 #   [LAST NAME]     — last name derived from display name
@@ -1375,6 +1408,14 @@ function Resolve-TemplatePlaceholders($text) {
     # Replace [ROLE] with the role from the text box, or generic fallback
     $role = if (![string]::IsNullOrWhiteSpace($txtRole.Text)) { $txtRole.Text } else { 'member of my team' }
     $text = $text -replace '\[ROLE\]', $role
+
+    # Replace 1.8.0 contact placeholders with configured values or safe defaults.
+    $backupContact = if (![string]::IsNullOrWhiteSpace($txtBackupContact.Text)) { $txtBackupContact.Text } else { 'our support team' }
+    $teamAlias = if (![string]::IsNullOrWhiteSpace($txtTeamAlias.Text)) { $txtTeamAlias.Text } else { 'our team' }
+    $supportLink = if (![string]::IsNullOrWhiteSpace($txtSupportLink.Text)) { $txtSupportLink.Text } else { 'https://support.microsoft.com' }
+    $text = $text -replace '\[BACKUP CONTACT\]', $backupContact
+    $text = $text -replace '\[TEAM ALIAS\]', $teamAlias
+    $text = $text -replace '\[SUPPORT LINK\]', $supportLink
 
     # Derive display name for name-based placeholders
     if (![string]::IsNullOrWhiteSpace($txtFullName.Text)) {
@@ -1854,6 +1895,9 @@ $script:ConfigSaveTimer.Add_Tick({
     }
     $script:FullName = $txtFullName.Text
     $script:Role = $txtRole.Text
+    $script:BackupContact = $txtBackupContact.Text
+    $script:TeamAlias = $txtTeamAlias.Text
+    $script:SupportLink = $txtSupportLink.Text
     if ($chkOverrideAccount.IsChecked) {
         $script:UserAlias = $txtAccount.Text
     }
@@ -2229,6 +2273,21 @@ $txtFullName.Add_TextChanged({
     })
 $txtRole.Add_TextChanged({
         $script:Role = $txtRole.Text
+        Request-DebouncedConfigSave
+        & $optionReloadHandler
+    })
+$txtBackupContact.Add_TextChanged({
+        $script:BackupContact = $txtBackupContact.Text
+        Request-DebouncedConfigSave
+        & $optionReloadHandler
+    })
+$txtTeamAlias.Add_TextChanged({
+        $script:TeamAlias = $txtTeamAlias.Text
+        Request-DebouncedConfigSave
+        & $optionReloadHandler
+    })
+$txtSupportLink.Add_TextChanged({
+        $script:SupportLink = $txtSupportLink.Text
         Request-DebouncedConfigSave
         & $optionReloadHandler
     })

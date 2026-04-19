@@ -77,6 +77,9 @@ The GUI has five tabs:
 |---|---|
 | **Full Name** | Your display name for the auto-generated signature. Changes are saved and applied to templates immediately. |
 | **Role** | Your job title, inserted into templates via the `[ROLE]` placeholder. If left blank, templates use "member of my team" instead. |
+| **Backup** | Name or mailbox used by the `[BACKUP CONTACT]` placeholder for escalation coverage. |
+| **Team Alias** | Team name or alias used by the `[TEAM ALIAS]` placeholder. |
+| **Support Link** | URL used by the `[SUPPORT LINK]` placeholder in built-in templates. |
 | **Email Suffix** | Your email domain suffix (default `@microsoft.com`). Combined with your Windows username to form the mailbox identity. |
 | **Override Account** | Manually set your full email address instead of using auto-detection. |
 | **Office Hours** | Start and end times for your shift (supports non-hour-boundary times like 8:30). Used for OOF scheduling and the signature's office-hours line. |
@@ -121,6 +124,9 @@ You can use the following placeholders anywhere in your HTML templates. They are
 | `[TIMEZONE]` | Your local timezone display name |
 | `[RETURN DATE]` | Selected return date from the date picker |
 | `[HOLIDAY NAME]` | Selected holiday name from the holiday picker |
+| `[BACKUP CONTACT]` | Configured backup contact from Configuration |
+| `[TEAM ALIAS]` | Configured team alias from Configuration |
+| `[SUPPORT LINK]` | Configured support URL from Configuration |
 | `[SIGNATURE]` | Auto-generated signature block (greeting, name, details, email) |
 
 > If any placeholder remains unresolved when you click Apply, a warning dialog will list the issues before sending.
@@ -217,6 +223,9 @@ All configuration is stored in the `config/` folder:
 |---|---|---|---|
 | `FullName` | string | *(auto-detected)* | Your display name for the signature |
 | `Role` | string | `""` | Job title inserted via `[ROLE]` placeholder |
+| `BackupContact` | string | `""` | Backup contact used by `[BACKUP CONTACT]` placeholder |
+| `TeamAlias` | string | `""` | Team alias used by `[TEAM ALIAS]` placeholder |
+| `SupportLink` | string | `""` | Support URL used by `[SUPPORT LINK]` placeholder |
 | `UserAlias` | string | *(auto-detected)* | Full email address for Exchange Online |
 | `UserAliasSuffix` | string | `@microsoft.com` | Email domain suffix |
 | `OverrideAccount` | bool | `false` | Use `UserAlias` as-is instead of auto-detecting |
