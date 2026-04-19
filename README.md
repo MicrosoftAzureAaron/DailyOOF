@@ -112,7 +112,7 @@ Choose from four built-in HTML templates or load your own:
 | **Sick OOF** | Unexpected absence / illness message (red header) |
 | **Holiday OOF** | Company holiday message with `[RETURN DATE]` placeholder (amber header) |
 
-Templates auto-load when you change the dropdown selection. Your current message is backed up to `message.html.bak` before being replaced.
+Templates auto-load when you change the dropdown selection. Before loading a different template, the current editor content is saved as a reusable HTML template (`last_message_template.html`) and appears in the template dropdown as **Last Loaded Message**.
 
 ##### Template Placeholders
 
@@ -265,6 +265,7 @@ All configuration is stored in the `config/` folder:
 | `sick_oof.html` | Sick OOF template |
 | `holiday_oof.html` | Holiday OOF template |
 | `message.html` | Last-applied message (gitignored) |
+| `last_message_template.html` | Last loaded editor message saved as a reusable template (gitignored) |
 
 #### config.json Options
 
@@ -288,5 +289,4 @@ Additional files (gitignored):
 
 | File | Purpose |
 |---|---|
-| `message.html.bak` | Auto-backup of previous message |
 | `AutoReplyConfig.json` | Cached Exchange auto-reply config |
