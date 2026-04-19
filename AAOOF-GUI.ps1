@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.9" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.10" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1897,6 +1897,30 @@ function Resolve-TemplateFilePath($TemplateName) {
     }
 }
 
+# Get-LegacyMessageBackupPath: Legacy path used before message backups were promoted to
+# first-class HTML templates.
+function Get-LegacyMessageBackupPath {
+    return Join-Path $ConfigDir "message.html.bak"
+}
+
+# Get-LastMessageTemplatePath: Dedicated HTML template path used to preserve the current
+# editor content before loading another template.
+function Get-LastMessageTemplatePath {
+    $templatePath = Join-Path $ConfigDir "last_message_template.html"
+    $legacyPath = Get-LegacyMessageBackupPath
+
+    if ((-not (Test-Path $templatePath)) -and (Test-Path $legacyPath)) {
+        try {
+            Move-Item -Path $legacyPath -Destination $templatePath -Force
+        }
+        catch {
+            try { Copy-Item -Path $legacyPath -Destination $templatePath -Force } catch { }
+        }
+    }
+
+    return $templatePath
+}
+
 # Resolve-TemplatePlaceholders: Process an HTML template string, replacing:
 #   [RETURN DATE]   — with the selected return date from the date picker
 #   [HOLIDAY NAME]  — with the selected holiday name
@@ -2711,12 +2735,12 @@ $cmbTemplate.Add_DropDownOpened({
         }
         if ($customIdx -lt 0) { $customIdx = $cmbTemplate.Items.Count }
 
-        # Check for message backup
-        $bakFile = Join-Path $ConfigDir "message.html.bak"
-        if (Test-Path $bakFile) {
+        # Check for the last loaded-message template snapshot
+        $lastMessageTemplate = Get-LastMessageTemplatePath
+        if (Test-Path $lastMessageTemplate) {
             $item = New-Object System.Windows.Controls.ComboBoxItem
-            $item.Content = "Last Message Backup"
-            $item.Tag = $bakFile
+            $item.Content = "Last Loaded Message"
+            $item.Tag = $lastMessageTemplate
             $cmbTemplate.Items.Insert($customIdx, $item)
             $customIdx++
         }
@@ -2752,9 +2776,9 @@ $cmbTemplate.Add_SelectionChanged({
         }
         $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
         if ($path -and (Test-Path $path)) {
-            # Save current message to backup before overwriting
+            # Save current message as a reusable HTML template before overwriting.
             if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
-                $backupFile = Join-Path $ConfigDir "message.html.bak"
+                $backupFile = Get-LastMessageTemplatePath
                 Export-MessageToFile $backupFile $txtMessage.Text
             }
             $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
@@ -2781,7 +2805,7 @@ $btnLoadTemplate.Add_Click({
         $path = if ($cmbTemplate.SelectedItem.Tag) { $cmbTemplate.SelectedItem.Tag } else { Resolve-TemplateFilePath $selected }
         if ($path -and (Test-Path $path)) {
             if (![string]::IsNullOrWhiteSpace($txtMessage.Text)) {
-                $backupFile = Join-Path $ConfigDir "message.html.bak"
+                $backupFile = Get-LastMessageTemplatePath
                 Export-MessageToFile $backupFile $txtMessage.Text
             }
             $txtMessage.Text = Resolve-TemplatePlaceholders (Get-Content $path -Raw)
