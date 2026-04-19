@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.8.9" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.0" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -557,6 +557,32 @@ function Resolve-UserAlias {
         $CurrentUser = $env:USERNAME
     }
     $script:UserAlias = "$CurrentUser$script:UserAliasSuffix"
+}
+
+# Resolve-NameFromEXO: Query Get-EXOMailbox for DisplayName/FirstName/LastName and
+# populate $script:FullName from the result. Only updates if FullName is currently blank,
+# so manually entered names are always preserved. Also updates the UI field and saves config.
+function Resolve-NameFromEXO {
+    try {
+        $mbx = Get-EXOMailbox -Identity $script:UserAlias -Properties DisplayName, FirstName, LastName -ErrorAction Stop
+        $resolved = $null
+        if (![string]::IsNullOrWhiteSpace($mbx.DisplayName)) {
+            $resolved = $mbx.DisplayName
+        }
+        elseif (![string]::IsNullOrWhiteSpace($mbx.FirstName) -or ![string]::IsNullOrWhiteSpace($mbx.LastName)) {
+            $resolved = ("$($mbx.FirstName) $($mbx.LastName)").Trim()
+        }
+        if (![string]::IsNullOrWhiteSpace($resolved) -and [string]::IsNullOrWhiteSpace($script:FullName)) {
+            $script:FullName = $resolved
+            $txtFullName.Text = $resolved
+            Export-AppConfiguration
+            Write-Host "Full name resolved from EXO: $resolved" -ForegroundColor Green
+        }
+    }
+    catch {
+        # Non-fatal — name resolution is best-effort
+        Write-Host "Could not resolve name from EXO: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
 }
 
 # Get-AutoReplyConfigPath: Return the file path for the local auto-reply config cache.
@@ -1723,6 +1749,9 @@ $btnConnect.Add_Click({
                 }
             }
             catch { }
+
+            # Auto-populate Full Name from EXO mailbox if not already set.
+            try { Resolve-NameFromEXO } catch { }
 
             Export-AppConfiguration
             Update-StatusBar "Connected as $($script:UserAlias)"
