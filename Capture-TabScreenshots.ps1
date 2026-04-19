@@ -216,7 +216,7 @@ function Initialize-UiFieldsForCapture {
     if ($null -ne $txtTaskNextRun) { $txtTaskNextRun.Text = (Get-Date).AddMinutes(45).ToString("g") }
     if ($null -ne $txtTaskLastRun) { $txtTaskLastRun.Text = (Get-Date).AddHours(-18).ToString("g") }
     if ($null -ne $txtTaskLastResult) { $txtTaskLastResult.Text = "Success (0x0)" }
-    if ($null -ne $txtTaskScriptPath) { $txtTaskScriptPath.Text = (Join-Path $ScriptDir "AAOOF-GUI.ps1") }
+    if ($null -ne $txtTaskScriptPath) { $txtTaskScriptPath.Text = "C:\\Scripts\\AAOOF-GUI.ps1" }
     if ($null -ne $txtTaskSummary) { $txtTaskSummary.Text = "Task is ready for daily automation." }
     if ($null -ne $txtLocalVersion) { $txtLocalVersion.Text = "1.9.26" }
     if ($null -ne $txtRemoteVersion) { $txtRemoteVersion.Text = "1.9.26" }
