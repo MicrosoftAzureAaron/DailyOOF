@@ -64,7 +64,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.1" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.2" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -323,6 +323,8 @@ function Import-AppConfiguration {
 }
 
 # Load config immediately on script start.
+# Detect first run BEFORE loading config — if no config.json exists this is a fresh install.
+$script:IsFirstRun = !(Test-Path $ConfigFile)
 Import-AppConfiguration
 
 # Apply startup switches and persist them if requested.
@@ -3035,6 +3037,17 @@ $updateCheckTimer_Tick = {
 }
 $script:UpdateCheckTimer.Add_Tick($updateCheckTimer_Tick)
 $script:UpdateCheckTimer.Start()
+
+# First-run auto-connect: if no config.json existed at startup, automatically trigger the
+# Connect flow once the window is visible so EXO can populate the Full Name and profile fields.
+$Window.Add_ContentRendered({
+    if ($script:IsFirstRun) {
+        Update-StatusBar "First run detected — connecting to Exchange Online to populate your profile..."
+        $btnConnect.RaiseEvent(
+            [System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Button]::ClickEvent)
+        )
+    }
+})
 
 $Window.ShowDialog() | Out-Null
 
