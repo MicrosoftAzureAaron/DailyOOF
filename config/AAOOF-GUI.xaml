@@ -89,7 +89,11 @@
     </Window.Resources>
 
     <Grid>
-        <TabControl x:Name="tcMain" Margin="10" Background="White" BorderBrush="#D0D0D0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TabControl x:Name="tcMain" Grid.Row="0" Margin="10" Background="White" BorderBrush="#D0D0D0">
 
             <!-- ==================== TAB 1: Quick Actions ==================== -->
             <TabItem Header="  Quick Actions  " FontSize="13" FontWeight="SemiBold">
@@ -355,7 +359,7 @@
         </TabControl>
 
         <!-- Status Bar -->
-        <Border x:Name="borderStatusBar" VerticalAlignment="Bottom" Background="#0078D4" Height="28">
+        <Border x:Name="borderStatusBar" Grid.Row="1" Background="#0078D4" Height="28">
             <TextBlock x:Name="txtStatusBar" Text="Ready" Foreground="White" FontSize="12" 
                        VerticalAlignment="Center" Margin="12,0,0,0"/>
         </Border>
