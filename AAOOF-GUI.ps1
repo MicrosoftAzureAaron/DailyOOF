@@ -54,7 +54,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.6.1" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.6.2" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1002,17 +1002,23 @@ function Show-TemporaryInfoDialog($Title, $Message, [int]$Seconds = 5) {
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromSeconds($Seconds)
     $timer.Tag = $dialog
+    $dialog.Tag = $timer
     $timer.Add_Tick({
-        $this.Stop()
-        if ($null -ne $this.Tag) {
-            try { $this.Tag.Close() } catch { }
+        $selfTimer = $this
+        try { $selfTimer.Stop() } catch { }
+        $targetDialog = $selfTimer.Tag
+        if ($null -ne $targetDialog) {
+            try { $targetDialog.Close() } catch { }
         }
     })
     $dialog.Add_Closed({
-        if ($null -ne $timer) {
-            $timer.Stop()
-            $timer.Tag = $null
+        $closedDialog = $this
+        $dialogTimer = $closedDialog.Tag
+        if ($null -ne $dialogTimer) {
+            try { $dialogTimer.Stop() } catch { }
+            try { $dialogTimer.Tag = $null } catch { }
         }
+        try { $closedDialog.Tag = $null } catch { }
     })
     $timer.Start()
 
