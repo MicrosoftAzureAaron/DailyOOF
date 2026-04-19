@@ -35,11 +35,36 @@ See [ROADMAP.md](ROADMAP.md) for the planned feature rollout and versioning stra
 
 ## Features
 
+### Version Check Mode
+Run the script with `-v` or `-version` to print the local script version and the latest version available on GitHub without opening the GUI:
+
+```powershell
+.\AAOOF-GUI.ps1 -v
+
+# equivalent
+.\AAOOF-GUI.ps1 -version
+```
+
+Typical output:
+
+```text
+Local version : v1.9.24
+GitHub version: v1.9.24
+```
+
+This is useful for checking whether the file in your live folder or a copied script is up to date before launching the app.
+
 ### GUI Mode
 Launch the app with no arguments to open the full graphical interface:
 
 ```powershell
 .\AAOOF-GUI.ps1
+```
+
+To check the downloaded file version before launching the GUI:
+
+```powershell
+& "$env:USERPROFILE\AAOOF-GUI.ps1" -v
 ```
 
 ### Portable Simplified Mode (Standalone)
@@ -123,9 +148,10 @@ You can use the following placeholders anywhere in your HTML templates. They are
 | Placeholder | Resolves To |
 |---|---|
 | `[FULL NAME]` | Your display name (from Configuration, or derived from alias) |
-| `[FIRST NAME]` | First name portion of your display name |
-| `[LAST NAME]` | Last name portion of your display name |
-| `[ROLE]` | Your configured role (falls back to "member of my team") |
+To check the downloaded file version before launching the GUI:
+```powershell
+& "$env:USERPROFILE\AAOOF-GUI.ps1" -v
+```
 | `[EMAIL]` | Your full email address |
 | `[OFFICE HOURS]` | Your shift start – end times (e.g. "9:00 AM - 5:00 PM") |
 | `[WORK DAYS]` | Your configured work days (e.g. "Monday, Tuesday, Wednesday") |
@@ -184,6 +210,9 @@ View your live auto-reply message as it appears to senders, rendered in an embed
 For automation and scheduled tasks:
 
 ```powershell
+# Show local and GitHub versions without opening the GUI
+.\AAOOF-GUI.ps1 -v
+
 # Daily scheduled auto-reply (uses saved config)
 # Skips if a vacation/extended OOF is active.
 .\AAOOF-GUI.ps1 1
