@@ -122,47 +122,9 @@ function Get-RemoteScriptVersion {
     catch { return 'unknown' }
 }
 
-# Compare the local script against the latest version on GitHub.
-# Returns $true if an update is available, $false otherwise.
-function Test-ScriptUpdate {
-    try {
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -Headers @{ 'Cache-Control' = 'no-cache' }
-        $remoteHash = (Get-FileHash -Path $tempFile -Algorithm SHA256).Hash
-        $localHash  = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash
-        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-        return ($remoteHash -ne $localHash)
-    }
-    catch {
-        Write-Host "Update check failed: $($_.Exception.Message)" -ForegroundColor Yellow
-        return $false
-    }
-}
-
-# Invoke-ScriptSelfUpdate: Download the latest script from GitHub, replace the local
-# copy, and prompt the user to restart. Returns $true if updated, $false otherwise.
-function Invoke-ScriptSelfUpdate {
-    try {
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $ScriptUpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 15 -Headers @{ 'Cache-Control' = 'no-cache' }
-        $remoteHash = (Get-FileHash -Path $tempFile -Algorithm SHA256).Hash
-        $localHash  = (Get-FileHash -Path $PSCommandPath -Algorithm SHA256).Hash
-        if ($remoteHash -eq $localHash) {
-            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-            return $false
-        }
-        Copy-Item -Path $tempFile -Destination $PSCommandPath -Force
-        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-        return $true
-    }
-    catch {
-        throw "Failed to download update: $($_.Exception.Message)"
-    }
-}
-
 # Invoke-ScriptSelfUpdateExternal: Start a separate PowerShell process to download the
-# new script and XAML, then optionally relaunch the updated script after this process exits.
-function Invoke-ScriptSelfUpdateExternal([string]$InputParam = "", [switch]$RestartAfterUpdate) {
+# latest script and XAML for this running copy.
+function Invoke-ScriptSelfUpdateExternal([string]$InputParam = "") {
     if ($PSVersionTable.PSEdition -eq 'Core') {
         $psExe = Join-Path $PSHOME 'pwsh.exe'
     } else {
@@ -201,31 +163,12 @@ try {
 `$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", `$targetScript)
 if (-not [string]::IsNullOrEmpty(`$inputArg)) { `$argList += `$inputArg }
 # The external updater only replaces the local script and XAML.
-# Actual restart is left to the user after the message window closes.
+# The running script exits after showing the update success message.
 "@
 
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childScript))
     Start-Process -FilePath $psExe -ArgumentList @("-NoProfile", "-EncodedCommand", $encoded) -WindowStyle Hidden
     return $true
-}
-
-# Update-ConfigFile: Download a specific config file from GitHub and save it locally.
-# Returns $true if successful, $false otherwise.
-function Update-ConfigFile($FileName) {
-    try {
-        $url = "$RepoBaseUrl/$FileName"
-        $localPath = Join-Path $ConfigDir $FileName
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $url -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -Headers @{ 'Cache-Control' = 'no-cache' }
-        Copy-Item -Path $tempFile -Destination $localPath -Force
-        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-        Write-Host "Updated config file: $FileName" -ForegroundColor Green
-        return $true
-    }
-    catch {
-        Write-Host "Failed to update $FileName : $($_.Exception.Message)" -ForegroundColor Yellow
-        return $false
-    }
 }
 
 function Get-MissingHeadlessFiles {
@@ -448,12 +391,6 @@ function Save-AutoReplyConfigToFile {
 # Get-AutoReplyConfiguration: Retrieve the mailbox auto-reply configuration from Exchange Online.
 function Get-AutoReplyConfiguration {
     return Get-MailboxAutoReplyConfiguration -Identity $script:UserAlias
-}
-
-# Import-AutoReplyConfigFromFile: Load a previously saved auto-reply config from disk.
-function Import-AutoReplyConfigFromFile {
-    $AutoReplyConfigPath = Get-AutoReplyConfigPath
-    return Get-Content $AutoReplyConfigPath -Raw | ConvertFrom-Json
 }
 
 # Set-AutoReplyState: Change the auto-reply state (Enabled|Disabled|Scheduled) on Exchange.
@@ -986,12 +923,6 @@ function Update-StatusBar($Message) {
 # Show-InfoDialog: Display an informational popup.
 function Show-InfoDialog($Title, $Message) {
     [System.Windows.MessageBox]::Show($Message, $Title, 'OK', 'Information')
-}
-
-# Show-TemporaryInfoDialog: Display an auto-closing informational popup.
-function Show-TemporaryInfoDialog($Title, $Message, [int]$Seconds = 5) {
-    # Fallback implementation: avoid timer/event callback complexity.
-    Show-InfoDialog $Title $Message
 }
 
 # Show-ErrorDialog: Display an error popup.

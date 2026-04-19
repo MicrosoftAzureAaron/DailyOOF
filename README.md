@@ -68,6 +68,7 @@ The GUI has four tabs:
 | **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). Days appear in the signature sorted by your work week (e.g., Wed–Sat starts with Wednesday). |
 | **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
 | **Scheduled Task** | Create a Windows Task Scheduler job to run the script daily in CLI mode, 15 minutes after your shift start. **Note:** Run the script as Administrator before clicking this button. |
+| **Check for Updates** | Downloads the latest script in a separate process and then prompts you to restart the app. |
 
 ---
 
