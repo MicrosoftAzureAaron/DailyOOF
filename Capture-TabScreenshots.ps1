@@ -256,32 +256,34 @@ function Save-WindowCapture {
     param([string]$Path)
 
     $Window.Dispatcher.Invoke([action] {}, [System.Windows.Threading.DispatcherPriority]::Render)
-    Start-Sleep -Milliseconds 200
+    Start-Sleep -Milliseconds 120
 
-    $source = [System.Windows.PresentationSource]::FromVisual($Window)
-    if ($null -eq $source) {
-        throw "Could not resolve window presentation source for capture."
-    }
-
-    [double]$dpiX = $source.CompositionTarget.TransformToDevice.M11
-    [double]$dpiY = $source.CompositionTarget.TransformToDevice.M22
-
-    [int]$left = [Math]::Round($Window.Left * $dpiX)
-    [int]$top = [Math]::Round($Window.Top * $dpiY)
-    [int]$width = [Math]::Round($Window.ActualWidth * $dpiX)
-    [int]$height = [Math]::Round($Window.ActualHeight * $dpiY)
+    [int]$width = [Math]::Round($Window.ActualWidth)
+    [int]$height = [Math]::Round($Window.ActualHeight)
 
     if ($width -le 0 -or $height -le 0) {
         throw "Window size is invalid for screenshot capture."
     }
 
-    $bitmap = New-Object System.Drawing.Bitmap($width, $height)
-    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-    $graphics.CopyFromScreen($left, $top, 0, 0, (New-Object System.Drawing.Size($width, $height)))
-    $graphics.Dispose()
+    $renderBitmap = New-Object System.Windows.Media.Imaging.RenderTargetBitmap(
+        $width,
+        $height,
+        96,
+        96,
+        [System.Windows.Media.PixelFormats]::Pbgra32
+    )
+    $renderBitmap.Render($Window)
 
-    $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
-    $bitmap.Dispose()
+    $encoder = New-Object System.Windows.Media.Imaging.PngBitmapEncoder
+    $encoder.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($renderBitmap))
+
+    $fileStream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
+    try {
+        $encoder.Save($fileStream)
+    }
+    finally {
+        $fileStream.Dispose()
+    }
 }
 
 [xml]$xaml = Get-Content $XamlFile -Raw
