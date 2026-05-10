@@ -10,7 +10,7 @@ This document tracks the planned feature roadmap for DailyOOF and the versioning
 
 ## Release Plan
 
-## Current State (After 1.9.28)
+## Current State (After 1.9.29)
 
 Completed and validated in main track:
 
@@ -36,6 +36,7 @@ Completed and validated in main track:
 | `1.9.8` | Normalize Check for Updates and Export Diagnostics button sizes |
 | `1.9.9` | Fix startup null-control sizing hotfix for update/diagnostics buttons |
 | `1.9.28` | Add OOF audience selection (Internal Only, External Only, Both) with persisted config and default Both |
+| `1.9.29` | Harden scheduled task defaults with daily + logon triggers, start-when-available catch-up, retry behavior, and wake-to-run |
 
 Completed and validated in portable track:
 

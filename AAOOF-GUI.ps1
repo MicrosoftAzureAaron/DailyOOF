@@ -97,7 +97,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.28" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.29" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -1198,24 +1198,31 @@ function Register-DailyScheduledTask {
     $date = Get-Date -Date (Get-Date).Date
     $TriggerTime = $script:StartOfShift.TimeOfDay
     $TriggerTime = $date.AddMinutes($script:TaskStartOffsetMinutes) + $TriggerTime
-    $trigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
+    $dailyTrigger = New-ScheduledTaskTrigger -Daily -At $TriggerTime
+
+    # Add a user logon trigger so missed runs (for example, machine off at schedule time)
+    # are recovered promptly after sign-in.
+    $currentIdentityName = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $currentIdentityName
+    $triggers = @($dailyTrigger, $logonTrigger)
 
     $settings = New-ScheduledTaskSettingsSet `
         -StartWhenAvailable `
         -AllowStartIfOnBatteries `
         -DontStopIfGoingOnBatteries `
-        -RestartCount 1 `
-        -RestartInterval (New-TimeSpan -Minutes 1) `
+        -RestartCount 3 `
+        -RestartInterval (New-TimeSpan -Minutes 5) `
         -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+        -WakeToRun `
         -MultipleInstances Queue
 
     $existing = Get-ScheduledTask -TaskName $taskname -ErrorAction SilentlyContinue
     if ($existing) {
         # Update the existing task so stale configurations are corrected
-        Set-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -Settings $settings -ErrorAction Stop | Out-Null
+        Set-ScheduledTask -TaskName $taskname -Trigger $triggers -Action $action -Settings $settings -ErrorAction Stop | Out-Null
     }
     else {
-        Register-ScheduledTask -TaskName $taskname -Trigger $trigger -Action $action -Settings $settings -RunLevel Highest -ErrorAction Stop | Out-Null
+        Register-ScheduledTask -TaskName $taskname -Trigger $triggers -Action $action -Settings $settings -RunLevel Highest -ErrorAction Stop | Out-Null
     }
     return $scriptPath
 }

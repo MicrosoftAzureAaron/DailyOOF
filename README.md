@@ -57,8 +57,8 @@ Run the script with `-v` or `-version` to print the local script version and the
 Typical output:
 
 ```text
-Local version : v1.9.28
-GitHub version: v1.9.28
+Local version : v1.9.29
+GitHub version: v1.9.29
 ```
 
 This is useful for checking whether the file in your live folder or a copied script is up to date before launching the app.
@@ -145,7 +145,7 @@ The GUI has five tabs:
 #### Automation
 | Setting | Description |
 |---|---|
-| **Scheduled Task** | Create or update the Windows Task Scheduler job used for daily automation. The UI shows task state, next run, last run, last result, target script path, and a summary status line. If the task points to the wrong script path, the summary calls it out. |
+| **Scheduled Task** | Create or update the Windows Task Scheduler job used for daily automation. The UI shows task state, next run, last run, last result, target script path, and a summary status line. If the task points to the wrong script path, the summary calls it out. The default task now includes daily + at-logon triggers, start-when-available catch-up, retry attempts, and wake-to-run for better reliability. |
 | **Task Offset** | Sets how many minutes after your shift start the daily scheduled task should run. |
 | **Task Controls** | Run task now, refresh task status, open Task Scheduler, repair task path, and enable/disable the task directly from the Automation tab. |
 
