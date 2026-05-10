@@ -10,7 +10,7 @@ This document tracks the planned feature roadmap for DailyOOF and the versioning
 
 ## Release Plan
 
-## Current State (After 1.9.9)
+## Current State (After 1.9.28)
 
 Completed and validated in main track:
 
@@ -35,6 +35,13 @@ Completed and validated in main track:
 | `1.9.7` | Add Cancel button to connecting window with graceful post-auth abort |
 | `1.9.8` | Normalize Check for Updates and Export Diagnostics button sizes |
 | `1.9.9` | Fix startup null-control sizing hotfix for update/diagnostics buttons |
+| `1.9.28` | Add OOF audience selection (Internal Only, External Only, Both) with persisted config and default Both |
+
+Completed and validated in portable track:
+
+| Version | Summary |
+|---------|---------|
+| `1.1.3` | Add portable OOF audience selector (Internal Only, External Only, Both) and apply to Enabled/Scheduled state actions |
 
 ## Next Execution Queue
 
@@ -121,6 +128,7 @@ Patch goals:
 - `1.1.0`: Auto-detect mailbox, improve EXO setup/connection reuse, add connecting window with timer/cancel.
 - `1.1.1`: Add work-day presets (Mon–Fri, Sun–Wed, Wed–Sat) and schedule calculation that respects the next working day instead of assuming a 7-day work week.
 - `1.1.2`: Increase portable window height so the full state-management UI is visible without scrolling or manual resize.
+- `1.1.3`: Add OOF audience selector and behavior parity with main GUI for state actions.
 
 ## Implementation Rules
 

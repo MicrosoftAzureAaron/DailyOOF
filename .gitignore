@@ -2,6 +2,7 @@
 config/config.json
 config/message.html
 config/message.html.bak
+config/last_message_template.html
 ARCMessage.txt
 ARCMessage.txt.bak
 message.html

@@ -57,8 +57,8 @@ Run the script with `-v` or `-version` to print the local script version and the
 Typical output:
 
 ```text
-Local version : v1.9.25
-GitHub version: v1.9.25
+Local version : v1.9.28
+GitHub version: v1.9.28
 ```
 
 This is useful for checking whether the file in your live folder or a copied script is up to date before launching the app.
@@ -96,10 +96,11 @@ Launch the standalone portable script for state-only management:
 .\AAOOF-Portable.ps1
 ```
 
-Portable versioning is independent from the main GUI script. Current portable version: `1.1.2`.
+Portable versioning is independent from the main GUI script. Current portable version: `1.1.3`.
 
 Portable mode scope:
 - Manages only auto-reply state (Enabled / Disabled / Scheduled)
+- Supports selecting OOF audience (Internal and External, Internal Only, or External Only)
 - Does not include template editing or message apply flows
 - Does not include scheduled task automation management
 - Auto-detects the mailbox from your Windows login and email domain when possible
@@ -138,7 +139,7 @@ The GUI has five tabs:
 | **Override Account** | Manually set your full email address instead of using auto-detection. |
 | **Office Hours** | Start and end times for your shift (supports non-hour-boundary times like 8:30). Used for OOF scheduling and the signature's office-hours line. |
 | **Work Days** | Select your working days (Sunday–Saturday). Preset buttons available: Mon–Fri, Sun–Wed (4×10), Wed–Sat (4×10). Days appear in the signature sorted by your work week (e.g., Wed–Sat starts with Wednesday). |
-| **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled. |
+| **Auto Reply State** | Manually set OOF to Enabled, Disabled, or Scheduled, and choose who receives OOF replies (Internal and External, Internal Only, or External Only). |
 | **Check for Updates** | Downloads the latest script in a separate process and then prompts you to restart the app. |
 
 #### Automation
@@ -341,6 +342,7 @@ All configuration is stored in the `config/` folder:
 | `EndOfShift` | datetime | — | Configured shift end time |
 | `WorkDays` | string[] | — | Array of working day names (e.g. `["Monday","Tuesday"]`) |
 | `TaskStartOffsetMinutes` | int | `15` | How many minutes after shift start the daily scheduled task should run |
+| `AutoReplyAudience` | string | `Both` | Audience for OOF state/scheduling actions: `Both`, `InternalOnly`, or `ExternalOnly` |
 
 Additional files (gitignored):
 

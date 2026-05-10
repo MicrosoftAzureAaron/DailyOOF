@@ -13,13 +13,14 @@ Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
-$script:PortableVersion = "1.1.2"
+$script:PortableVersion = "1.1.3"
 $script:IsConnectedToEXO = $false
 $script:UserAlias = ""
 $script:UserAliasSuffix = ""
 $script:StartOfShift = $null
 $script:EndOfShift = $null
 $script:WorkDays = @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+$script:AutoReplyAudience = 'Both'
 
 function Show-ErrorDialog($Title, $Message) {
     [System.Windows.MessageBox]::Show($Message, $Title, [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error) | Out-Null
@@ -241,6 +242,37 @@ function Assert-ExchangeConnection {
     }
 }
 
+function Resolve-AutoReplyAudience($Audience) {
+    if ([string]::IsNullOrWhiteSpace($Audience)) { return 'Both' }
+
+    switch ($Audience.ToString().Trim()) {
+        'Both' { return 'Both' }
+        'InternalOnly' { return 'InternalOnly' }
+        'ExternalOnly' { return 'ExternalOnly' }
+        default { return 'Both' }
+    }
+}
+
+function Get-AutoReplyAudienceFromUI {
+    if ($null -eq $cmbAudience -or $null -eq $cmbAudience.SelectedItem) {
+        return 'Both'
+    }
+
+    $selectedItem = $cmbAudience.SelectedItem
+    if ($null -ne $selectedItem.Tag) {
+        return Resolve-AutoReplyAudience($selectedItem.Tag.ToString())
+    }
+
+    return 'Both'
+}
+
+function Get-ExternalAudienceFromSelection($Audience) {
+    if ($Audience -eq 'InternalOnly') {
+        return 'None'
+    }
+    return 'All'
+}
+
 function ConvertTo-TimeOfDayFromInput($TimeText, $FieldLabel) {
     $parsedTime = [datetime]::MinValue
     if (-not [datetime]::TryParseExact($TimeText.Text, "HH:mm", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$parsedTime)) {
@@ -339,9 +371,18 @@ function Update-AutoReplyStatus {
 
 function Set-AutoReplyEnabled {
     Assert-ExchangeConnection
-    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState Enabled -ExternalAudience All -ErrorAction Stop
+    $script:AutoReplyAudience = Get-AutoReplyAudienceFromUI
+    $externalAudience = Get-ExternalAudienceFromSelection $script:AutoReplyAudience
+
+    if ($script:AutoReplyAudience -eq 'ExternalOnly') {
+        Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState Enabled -ExternalAudience $externalAudience -InternalMessage '' -ErrorAction Stop
+    }
+    else {
+        Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState Enabled -ExternalAudience $externalAudience -ErrorAction Stop
+    }
+
     Update-AutoReplyStatus
-    Show-InfoDialog "Done" "Auto-reply state set to Enabled."
+    Show-InfoDialog "Done" "Auto-reply state set to Enabled ($($script:AutoReplyAudience))."
 }
 
 function Set-AutoReplyDisabled {
@@ -353,6 +394,7 @@ function Set-AutoReplyDisabled {
 
 function Set-AutoReplyScheduled {
     Assert-ExchangeConnection
+    $script:AutoReplyAudience = Get-AutoReplyAudienceFromUI
 
     $script:StartOfShift = ConvertTo-TimeOfDayFromInput -TimeText $txtStartTime -FieldLabel "Start"
     $script:EndOfShift = ConvertTo-TimeOfDayFromInput -TimeText $txtEndTime -FieldLabel "End"
@@ -363,10 +405,17 @@ function Set-AutoReplyScheduled {
     }
 
     $schedule = Get-AutoReplyScheduleTimes
+    $externalAudience = Get-ExternalAudienceFromSelection $script:AutoReplyAudience
 
-    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState Scheduled -StartTime $schedule.StartTime -EndTime $schedule.EndTime -ExternalAudience All -ErrorAction Stop
+    if ($script:AutoReplyAudience -eq 'ExternalOnly') {
+        Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState Scheduled -StartTime $schedule.StartTime -EndTime $schedule.EndTime -ExternalAudience $externalAudience -InternalMessage '' -ErrorAction Stop
+    }
+    else {
+        Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState Scheduled -StartTime $schedule.StartTime -EndTime $schedule.EndTime -ExternalAudience $externalAudience -ErrorAction Stop
+    }
+
     Update-AutoReplyStatus
-    Show-InfoDialog "Done" "Auto-reply state set to Scheduled.`nStart: $($schedule.StartTime)`nEnd: $($schedule.EndTime)"
+    Show-InfoDialog "Done" "Auto-reply state set to Scheduled ($($script:AutoReplyAudience)).`nStart: $($schedule.StartTime)`nEnd: $($schedule.EndTime)"
 }
 
 $xaml = @"
@@ -412,6 +461,14 @@ $xaml = @"
 
                 <GroupBox Header="Auto-Reply State" Margin="0,0,0,10">
                     <StackPanel Margin="10">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Audience:" Width="110" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="cmbAudience" Width="260" SelectedIndex="0">
+                                <ComboBoxItem Content="Internal and External (default)" Tag="Both"/>
+                                <ComboBoxItem Content="Internal Only" Tag="InternalOnly"/>
+                                <ComboBoxItem Content="External Only" Tag="ExternalOnly"/>
+                            </ComboBox>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <TextBlock Text="State:" Width="110"/>
                             <TextBlock x:Name="txtARCState" Text="Unknown" FontWeight="Bold"/>
@@ -484,6 +541,7 @@ $btnDisconnect = $Window.FindName("btnDisconnect")
 $txtARCState = $Window.FindName("txtARCState")
 $txtARCStart = $Window.FindName("txtARCStart")
 $txtARCEnd = $Window.FindName("txtARCEnd")
+$cmbAudience = $Window.FindName("cmbAudience")
 $btnStateEnabled = $Window.FindName("btnStateEnabled")
 $btnStateDisabled = $Window.FindName("btnStateDisabled")
 $btnStateScheduled = $Window.FindName("btnStateScheduled")
@@ -505,7 +563,13 @@ $txtStatusBar = $Window.FindName("txtStatusBar")
 $defaultAlias = Resolve-UserAlias
 $txtAccount.Text = $defaultAlias
 $script:UserAlias = $defaultAlias
+$cmbAudience.SelectedIndex = 0
 Set-WorkDayPreset @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+
+$cmbAudience.Add_SelectionChanged({
+        $script:AutoReplyAudience = Get-AutoReplyAudienceFromUI
+        Update-StatusBar "Audience set to $script:AutoReplyAudience"
+    })
 
 $btnPresetMF.Add_Click({ Set-WorkDayPreset @('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday') })
 $btnPresetSunWed.Add_Click({ Set-WorkDayPreset @('Sunday', 'Monday', 'Tuesday', 'Wednesday') })
