@@ -97,7 +97,7 @@ if (!(Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir | O
 # so that the tool works out of the box without manual file setup.
 $RepoBaseUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/config"
 $ScriptUpdateUrl = "https://raw.githubusercontent.com/MicrosoftAzureAaron/DailyOOF/main/AAOOF-GUI.ps1"
-$script:ScriptVersion = "1.9.27" # Increment this with each release to trigger update checks
+$script:ScriptVersion = "1.9.28" # Increment this with each release to trigger update checks
 $DefaultConfigFiles = @(
     "AAOOF-GUI.xaml",
     "normal_oof.html",
@@ -320,6 +320,7 @@ $script:EnableAutoUpdateCheck = $true                   # Background check for s
 $script:EnableAutoUpdateRestart = $false                # Restart the GUI automatically after applying an update
 $script:UseRootConfig = $false                          # Store config.json alongside the script instead of in config/ folder
 $script:TaskStartOffsetMinutes = 15                     # Minutes after shift start to run the daily scheduled task
+$script:AutoReplyAudience = "Both"                    # OOF recipients for state/schedule actions: Both|InternalOnly|ExternalOnly
 
 # Track EXO sync state for status/UI updates.
 $script:IsConnectedToEXO = $false
@@ -333,6 +334,18 @@ function ConvertTo-UserAliasSuffix($suffix) {
     $normalized = $normalized.ToLower()
     if ($normalized -match '\.?microsoft\.com$') { return '@microsoft.com' }
     return "@$normalized"
+}
+
+# Resolve-AutoReplyAudience: Normalize and validate an audience value from config/UI.
+function Resolve-AutoReplyAudience($Audience) {
+    if ([string]::IsNullOrWhiteSpace($Audience)) { return 'Both' }
+
+    switch ($Audience.ToString().Trim()) {
+        'Both' { return 'Both' }
+        'InternalOnly' { return 'InternalOnly' }
+        'ExternalOnly' { return 'ExternalOnly' }
+        default { return 'Both' }
+    }
 }
 
 # Import-AppConfiguration: Read config.json and populate global variables.
@@ -358,6 +371,7 @@ function Import-AppConfiguration {
         if ($null -ne $cfg.EnableAutoUpdateRestart) { $script:EnableAutoUpdateRestart = [bool]$cfg.EnableAutoUpdateRestart }
         if ($null -ne $cfg.UseRootConfig) { $script:UseRootConfig = [bool]$cfg.UseRootConfig }
         if ($null -ne $cfg.TaskStartOffsetMinutes) { $script:TaskStartOffsetMinutes = [int]$cfg.TaskStartOffsetMinutes }
+        if ($null -ne $cfg.AutoReplyAudience) { $script:AutoReplyAudience = Resolve-AutoReplyAudience($cfg.AutoReplyAudience) }
     }
 }
 
@@ -680,8 +694,18 @@ function Get-AutoReplyConfiguration {
 
 # Set-AutoReplyState: Change the auto-reply state (Enabled|Disabled|Scheduled) on Exchange.
 function Set-AutoReplyState($State) {
+    $externalAudience = if ($script:AutoReplyAudience -eq 'InternalOnly') { 'None' } else { 'All' }
+    $internalMessageOverride = if ($script:AutoReplyAudience -eq 'ExternalOnly') { '' } else { $null }
+
     switch ($State) {
-        'Enabled' { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Enabled" }
+        'Enabled' {
+            if ($null -ne $internalMessageOverride) {
+                Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Enabled" -ExternalAudience $externalAudience -InternalMessage $internalMessageOverride
+            }
+            else {
+                Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Enabled" -ExternalAudience $externalAudience
+            }
+        }
         'Disabled' { Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Disabled" }
         'Scheduled' {
             # Calculate times first, then set state + times in a single atomic call
@@ -693,10 +717,21 @@ function Set-AutoReplyState($State) {
             if ($schedTimes.StartTime -ge $schedTimes.EndTime) {
                 throw "Cannot enable scheduled auto reply: calculated OOF start ($($schedTimes.StartTime)) is not before end ($($schedTimes.EndTime)). Check your shift times and work days."
             }
-            Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias `
-                -AutoReplyState "Scheduled" `
-                -StartTime $schedTimes.StartTime `
-                -EndTime $schedTimes.EndTime
+            if ($null -ne $internalMessageOverride) {
+                Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias `
+                    -AutoReplyState "Scheduled" `
+                    -StartTime $schedTimes.StartTime `
+                    -EndTime $schedTimes.EndTime `
+                    -ExternalAudience $externalAudience `
+                    -InternalMessage $internalMessageOverride
+            }
+            else {
+                Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias `
+                    -AutoReplyState "Scheduled" `
+                    -StartTime $schedTimes.StartTime `
+                    -EndTime $schedTimes.EndTime `
+                    -ExternalAudience $externalAudience
+            }
         }
     }
 }
@@ -1064,7 +1099,14 @@ function Set-VacationAutoReply($ReturnDate) {
     $ParsedDate = [datetime]$ReturnDate
     $EndTime = $ParsedDate + $script:StartOfShift.TimeOfDay
     $VacationStartTime = Get-LastWorkDayEndOfShift
-    Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled" -StartTime $VacationStartTime -EndTime $EndTime
+    $externalAudience = if ($script:AutoReplyAudience -eq 'InternalOnly') { 'None' } else { 'All' }
+    $internalMessageOverride = if ($script:AutoReplyAudience -eq 'ExternalOnly') { '' } else { $null }
+    if ($null -ne $internalMessageOverride) {
+        Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled" -StartTime $VacationStartTime -EndTime $EndTime -ExternalAudience $externalAudience -InternalMessage $internalMessageOverride
+    }
+    else {
+        Set-MailboxAutoReplyConfiguration -Identity $script:UserAlias -AutoReplyState "Scheduled" -StartTime $VacationStartTime -EndTime $EndTime -ExternalAudience $externalAudience
+    }
 }
 
 # Disable-VacationAutoReply: Turn off the vacation/extended OOF by setting auto-reply to Disabled.
@@ -1340,6 +1382,7 @@ function Export-AppConfiguration {
         SupportLink     = $script:SupportLink
         OverrideAccount = $script:OverrideAccount
         TaskStartOffsetMinutes = $script:TaskStartOffsetMinutes
+        AutoReplyAudience = $script:AutoReplyAudience
     }
     $cfg | ConvertTo-Json -Depth 5 | Set-Content $ConfigFile -Encoding utf8
 }
@@ -1508,6 +1551,7 @@ $btnPresetWedSat = $Window.FindName("btnPresetWedSat")
 $btnStateEnabled = $Window.FindName("btnStateEnabled")
 $btnStateDisabled = $Window.FindName("btnStateDisabled")
 $btnStateScheduled = $Window.FindName("btnStateScheduled")
+$cmbAutoReplyAudience = $Window.FindName("cmbAutoReplyAudience")
 $btnCreateTask = $Window.FindName("btnCreateTask")
 $btnRepairTaskPath = $Window.FindName("btnRepairTaskPath")
 $btnEnableTask = $Window.FindName("btnEnableTask")
@@ -1969,6 +2013,22 @@ function Initialize-UIFromConfig {
     }
 
     $txtTaskOffsetMinutes.Text = [string]$script:TaskStartOffsetMinutes
+
+    if ($null -ne $cmbAutoReplyAudience) {
+        $resolvedAudience = Resolve-AutoReplyAudience($script:AutoReplyAudience)
+        foreach ($item in $cmbAutoReplyAudience.Items) {
+            if ($null -ne $item -and $null -ne $item.Tag -and $item.Tag.ToString() -eq $resolvedAudience) {
+                $cmbAutoReplyAudience.SelectedItem = $item
+                break
+            }
+        }
+        if ($null -eq $cmbAutoReplyAudience.SelectedItem -and $cmbAutoReplyAudience.Items.Count -gt 0) {
+            $cmbAutoReplyAudience.SelectedIndex = 0
+        }
+        if ($null -ne $cmbAutoReplyAudience.SelectedItem -and $null -ne $cmbAutoReplyAudience.SelectedItem.Tag) {
+            $script:AutoReplyAudience = Resolve-AutoReplyAudience($cmbAutoReplyAudience.SelectedItem.Tag.ToString())
+        }
+    }
 }
 
 # Resolve-TemplateFilePath: Map a template display name to its file path in the config directory.
@@ -2550,6 +2610,9 @@ $script:ConfigSaveTimer.Add_Tick({
     Read-ShiftTimesFromUI
     Read-TaskSettingsFromUI
     $script:WorkDays = Read-WorkDaysFromUI
+    if ($null -ne $cmbAutoReplyAudience -and $null -ne $cmbAutoReplyAudience.SelectedItem -and $null -ne $cmbAutoReplyAudience.SelectedItem.Tag) {
+        $script:AutoReplyAudience = Resolve-AutoReplyAudience($cmbAutoReplyAudience.SelectedItem.Tag.ToString())
+    }
     Export-AppConfiguration
     Update-StatusBar "💾 Settings saved"
 })
@@ -2576,6 +2639,7 @@ $chkWed.Add_Checked({ Request-DebouncedConfigSave }); $chkWed.Add_Unchecked({ Re
 $chkThu.Add_Checked({ Request-DebouncedConfigSave }); $chkThu.Add_Unchecked({ Request-DebouncedConfigSave })
 $chkFri.Add_Checked({ Request-DebouncedConfigSave }); $chkFri.Add_Unchecked({ Request-DebouncedConfigSave })
 $chkSat.Add_Checked({ Request-DebouncedConfigSave }); $chkSat.Add_Unchecked({ Request-DebouncedConfigSave })
+if ($null -ne $cmbAutoReplyAudience) { $cmbAutoReplyAudience.Add_SelectionChanged({ Request-DebouncedConfigSave }) }
 
 # Work day presets: Quick-fill checkbox groups for common schedules.
 # Preset Mon-Fri (standard 5x8)

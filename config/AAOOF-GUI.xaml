@@ -1,4 +1,4 @@
-<!-- XamlVersion: 1.9.26 -->
+<!-- XamlVersion: 1.9.28 -->
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Daily OOF - Out of Office Automation" Height="880" Width="820"
@@ -240,6 +240,14 @@
 
                         <GroupBox Header="Auto Reply State">
                             <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Audience:" FontSize="13" VerticalAlignment="Center" Width="80"/>
+                                    <ComboBox x:Name="cmbAutoReplyAudience" Width="320" FontSize="13" VerticalContentAlignment="Center">
+                                        <ComboBoxItem Content="Internal and External (default)" Tag="Both"/>
+                                        <ComboBoxItem Content="Internal Only" Tag="InternalOnly"/>
+                                        <ComboBoxItem Content="External Only" Tag="ExternalOnly"/>
+                                    </ComboBox>
+                                </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                     <Button x:Name="btnStateEnabled" Content="Enabled" Style="{StaticResource PrimaryBtn}"/>
                                     <Button x:Name="btnStateDisabled" Content="Disabled" Style="{StaticResource DangerBtn}"/>
